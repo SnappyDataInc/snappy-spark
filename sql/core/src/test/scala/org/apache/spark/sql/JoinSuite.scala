@@ -80,7 +80,7 @@ class JoinSuite extends QueryTest with SharedSQLContext {
     }
 
     assert(operators.size === 1)
-    if (operators.head.getClass != c) {
+    if (!c.isAssignableFrom(operators.head.getClass)) {
       fail(s"$sqlString expected operator: $c, but got ${operators.head}\n physical: \n$physical")
     }
   }

@@ -39,7 +39,7 @@ class PoolSuite extends SparkFunSuite with LocalSparkContext {
     val tasks = Array.tabulate[Task[_]](numTasks) { i =>
       new FakeTask(stageId, i, Nil)
     }
-    new TaskSetManager(taskScheduler, new TaskSet(tasks, stageId, 0, 0, null), 0)
+    new TaskSetManager(taskScheduler, new TaskSet(tasks, stageId, 0, 0, new Properties()), 0)
   }
 
   def scheduleTaskAndVerifyId(taskId: Int, rootPool: Pool, expectedStageId: Int): Unit = {
@@ -55,6 +55,7 @@ class PoolSuite extends SparkFunSuite with LocalSparkContext {
     sc = new SparkContext(LOCAL, APP_NAME)
     val taskScheduler = new TaskSchedulerImpl(sc)
 
+    taskScheduler.backend = new FakeSchedulerBackend
     val rootPool = new Pool("", FIFO, 0, 0)
     val schedulableBuilder = new FIFOSchedulableBuilder(rootPool)
 
@@ -84,6 +85,7 @@ class PoolSuite extends SparkFunSuite with LocalSparkContext {
     sc = new SparkContext(LOCAL, APP_NAME, conf)
     val taskScheduler = new TaskSchedulerImpl(sc)
 
+    taskScheduler.backend = new FakeSchedulerBackend
     val rootPool = new Pool("", FAIR, 0, 0)
     val schedulableBuilder = new FairSchedulableBuilder(rootPool, sc.conf)
     schedulableBuilder.buildPools()
@@ -137,6 +139,7 @@ class PoolSuite extends SparkFunSuite with LocalSparkContext {
     sc = new SparkContext(LOCAL, APP_NAME)
     val taskScheduler = new TaskSchedulerImpl(sc)
 
+    taskScheduler.backend = new FakeSchedulerBackend
     val rootPool = new Pool("", FAIR, 0, 0)
     val pool0 = new Pool("0", FAIR, 3, 1)
     val pool1 = new Pool("1", FAIR, 4, 1)

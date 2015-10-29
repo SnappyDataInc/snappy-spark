@@ -248,7 +248,7 @@ class TableScanSuite extends DataSourceTest with SharedSQLContext {
       Nil
     )
 
-    assert(expectedSchema == spark.table("tableWithSchema").schema)
+    assert(normalize(expectedSchema) == normalize(spark.table("tableWithSchema").schema))
 
     withSQLConf(SQLConf.SUPPORT_QUOTED_REGEX_COLUMN_NAME.key -> "false") {
         checkAnswer(
@@ -407,7 +407,7 @@ class TableScanSuite extends DataSourceTest with SharedSQLContext {
   test("SPARK-5196 schema field with comment") {
     sql(
       """
-       |CREATE TEMPORARY VIEW student(name string comment "SN", age int comment "SA", grade int)
+       |CREATE TEMPORARY VIEW student(name string comment 'SN', age int comment 'SA', grade int)
        |USING org.apache.spark.sql.sources.AllDataTypesScanSource
        |OPTIONS (
        |  from '1',

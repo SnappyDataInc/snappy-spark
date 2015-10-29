@@ -484,8 +484,9 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
     withMultipleConnectionJdbcStatement("smallKV", "addJar")(
       {
         statement =>
-          val jarFile =
-            "../hive/src/test/resources/hive-hcatalog-core-0.13.1.jar"
+          val jar = "hive/src/test/resources/hive-hcatalog-core-0.13.1.jar"
+          val jarFile = sys.props.get("spark.project.home").map(
+            _ + "/sql/" + jar).getOrElse("../" + jar)
               .split("/")
               .mkString(File.separator)
 
@@ -558,8 +559,11 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
   test("SPARK-11595 ADD JAR with input path having URL scheme") {
     withJdbcStatement("test_udtf") { statement =>
       try {
-        val jarPath = "../hive/src/test/resources/TestUDTF.jar"
-        val jarURL = s"file://${System.getProperty("user.dir")}/$jarPath"
+        val jarPath = sys.props.get("spark.project.home") match {
+          case Some(h) => s"$h/sql/hive/src/test/resources/TestUDTF.jar"
+          case _ => s"${System.getProperty("user.dir")}/../hive/src/test/resources/TestUDTF.jar"
+        }
+        val jarURL = s"file://$jarPath"
 
         Seq(
           s"ADD JAR $jarURL",
@@ -581,7 +585,10 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
         assert(rs1.next())
         assert(rs1.getString(1) === "Usage: N/A.")
 
-        val dataPath = "../hive/src/test/resources/data/files/kv1.txt"
+        val dataPath = sys.props.get("spark.project.home") match {
+          case Some(h) => s"$h/sql/hive/src/test/resources/data/files/kv1.txt"
+          case _ => "../hive/src/test/resources/data/files/kv1.txt"
+        }
 
         Seq(
           "CREATE TABLE test_udtf(key INT, value STRING)",
@@ -655,8 +662,11 @@ class SingleSessionSuite extends HiveThriftJdbcTest {
   test("share the temporary functions across JDBC connections") {
     withMultipleConnectionJdbcStatement("test_udtf")(
       { statement =>
-        val jarPath = "../hive/src/test/resources/TestUDTF.jar"
-        val jarURL = s"file://${System.getProperty("user.dir")}/$jarPath"
+        val jarPath = sys.props.get("spark.project.home") match {
+          case Some(h) => s"$h/sql/hive/src/test/resources/TestUDTF.jar"
+          case _ => s"${System.getProperty("user.dir")}/../hive/src/test/resources/TestUDTF.jar"
+        }
+        val jarURL = s"file://$jarPath"
 
         // Configurations and temporary functions added in this session should be visible to all
         // the other sessions.
@@ -829,8 +839,11 @@ abstract class HiveThriftServer2Test extends SparkFunSuite with BeforeAndAfterAl
   private val CLASS_NAME = HiveThriftServer2.getClass.getCanonicalName.stripSuffix("$")
   private val LOG_FILE_MARK = s"starting $CLASS_NAME, logging to "
 
-  protected val startScript = "../../sbin/start-thriftserver.sh".split("/").mkString(File.separator)
-  protected val stopScript = "../../sbin/stop-thriftserver.sh".split("/").mkString(File.separator)
+  protected val startScript = "./sbin/start-thriftserver.sh".split("/").mkString(File.separator)
+  protected val stopScript = "./sbin/stop-thriftserver.sh".split("/").mkString(File.separator)
+
+  protected val sparkHome = sys.props.getOrElse("spark.test.home",
+    fail("spark.test.home is not set!"))
 
   private var listeningPort: Int = _
   protected def serverPort: Int = listeningPort
@@ -934,6 +947,7 @@ abstract class HiveThriftServer2Test extends SparkFunSuite with BeforeAndAfterAl
     logPath = {
       val lines = Utils.executeAndGetOutput(
         command = command,
+        workingDir = new File(sparkHome),
         extraEnvironment = Map(
           // Disables SPARK_TESTING to exclude log4j.properties in test directories.
           "SPARK_TESTING" -> "0",
@@ -987,6 +1001,7 @@ abstract class HiveThriftServer2Test extends SparkFunSuite with BeforeAndAfterAl
     // The `spark-daemon.sh' script uses kill, which is not synchronous, have to wait for a while.
     Utils.executeAndGetOutput(
       command = Seq(stopScript),
+      workingDir = new File(sparkHome),
       extraEnvironment = Map("SPARK_PID_DIR" -> pidDir.getCanonicalPath))
     Thread.sleep(3.seconds.toMillis)
 

@@ -1305,10 +1305,11 @@ object SparkSubmitSuite extends SparkFunSuite with TimeLimits {
   // NOTE: This is an expensive operation in terms of time (10 seconds+). Use sparingly.
   def runSparkSubmit(args: Seq[String], root: String = ".."): Unit = {
     val sparkHome = sys.props.getOrElse("spark.test.home", fail("spark.test.home is not set!"))
+    val sparkRoot = if (root == "..") sparkHome else root
     val sparkSubmitFile = if (Utils.isWindows) {
-      new File(s"$root\\bin\\spark-submit.cmd")
+      new File(s"$sparkRoot\\bin\\spark-submit.cmd")
     } else {
-      new File(s"$root/bin/spark-submit")
+      new File(s"$sparkRoot/bin/spark-submit")
     }
     val process = Utils.executeCommand(
       Seq(sparkSubmitFile.getCanonicalPath) ++ args,

@@ -45,7 +45,8 @@ class WholeStageCodegenSuite extends QueryTest with SharedSQLContext {
     val plan = df.queryExecution.executedPlan
     assert(plan.find(p =>
       p.isInstanceOf[WholeStageCodegenExec] &&
-        p.asInstanceOf[WholeStageCodegenExec].child.isInstanceOf[HashAggregateExec]).isDefined)
+        p.asInstanceOf[WholeStageCodegenExec].child.getClass.getName.contains(
+          "HashAggregateExec")).isDefined)
     assert(df.collect() === Array(Row(9, 4.5)))
   }
 
@@ -54,7 +55,8 @@ class WholeStageCodegenSuite extends QueryTest with SharedSQLContext {
     val plan = df.queryExecution.executedPlan
     assert(plan.find(p =>
       p.isInstanceOf[WholeStageCodegenExec] &&
-        p.asInstanceOf[WholeStageCodegenExec].child.isInstanceOf[HashAggregateExec]).isDefined)
+        p.asInstanceOf[WholeStageCodegenExec].child.getClass.getName.contains(
+          "HashAggregateExec")).isDefined)
     assert(df.collect() === Array(Row(0, 1), Row(2, 1), Row(4, 1)))
   }
 
@@ -116,7 +118,8 @@ class WholeStageCodegenSuite extends QueryTest with SharedSQLContext {
     val plan = ds.queryExecution.executedPlan
     assert(plan.find(p =>
       p.isInstanceOf[WholeStageCodegenExec] &&
-        p.asInstanceOf[WholeStageCodegenExec].child.isInstanceOf[HashAggregateExec]).isDefined)
+        p.asInstanceOf[WholeStageCodegenExec].child.getClass.getName.contains(
+          "HashAggregateExec")).isDefined)
     assert(ds.collect() === Array(("a", 10.0), ("b", 3.0), ("c", 1.0)))
   }
 

@@ -299,7 +299,7 @@ class DataFrameTimeWindowingSuite extends QueryTest with SharedSQLContext with B
   test("time window in SQL with single string expression") {
     withTempTable { table =>
       checkAnswer(
-        spark.sql(s"""select window(time, "10 seconds"), value from $table""")
+        spark.sql(s"""select window(time, '10 seconds'), value from $table""")
           .select($"window.start".cast(StringType), $"window.end".cast(StringType), $"value"),
         Seq(
           Row("2016-03-27 19:39:20", "2016-03-27 19:39:30", 4),
@@ -314,7 +314,7 @@ class DataFrameTimeWindowingSuite extends QueryTest with SharedSQLContext with B
     withTempTable { table =>
       checkAnswer(
         spark.sql(
-          s"""select window(time, "10 seconds", 10000000), value from $table""")
+          s"""select window(time, '10 seconds', 10000000), value from $table""")
           .select($"window.start".cast(StringType), $"window.end".cast(StringType), $"value"),
         Seq(
           Row("2016-03-27 19:39:20", "2016-03-27 19:39:30", 4),
@@ -329,7 +329,7 @@ class DataFrameTimeWindowingSuite extends QueryTest with SharedSQLContext with B
     withTempTable { table =>
       checkAnswer(
         spark.sql(
-          s"""select window(time, "10 seconds", 10000000, "5 seconds"), value from $table""")
+          s"""select window(time, '10 seconds', 10000000, '5 seconds'), value from $table""")
           .select($"window.start".cast(StringType), $"window.end".cast(StringType), $"value"),
         Seq(
           Row("2016-03-27 19:39:25", "2016-03-27 19:39:35", 1),

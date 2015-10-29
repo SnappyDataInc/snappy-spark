@@ -119,6 +119,11 @@ class CatalogSuite
     }
   }
 
+  def filterDefDBs(dbs: Seq[String]): Seq[String] = dbs.filter {
+    case "app" | "sys" => false
+    case _ => true
+  }
+
   test("current database") {
     assert(spark.catalog.currentDatabase == "default")
     assert(sessionCatalog.getCurrentDatabase == "default")
@@ -133,13 +138,14 @@ class CatalogSuite
   }
 
   test("list databases") {
-    assert(spark.catalog.listDatabases().collect().map(_.name).toSet == Set("default"))
+    assert(filterDefDBs(spark.catalog.listDatabases().collect().map(_.name)).toSet ==
+        Set("default"))
     createDatabase("my_db1")
     createDatabase("my_db2")
-    assert(spark.catalog.listDatabases().collect().map(_.name).toSet ==
+    assert(filterDefDBs(spark.catalog.listDatabases().collect().map(_.name)).toSet ==
       Set("default", "my_db1", "my_db2"))
     dropDatabase("my_db1")
-    assert(spark.catalog.listDatabases().collect().map(_.name).toSet ==
+    assert(filterDefDBs(spark.catalog.listDatabases().collect().map(_.name)).toSet ==
       Set("default", "my_db2"))
   }
 

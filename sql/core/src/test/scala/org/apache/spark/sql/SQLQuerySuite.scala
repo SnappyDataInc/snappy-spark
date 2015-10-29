@@ -548,7 +548,7 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
 
   test("date row") {
     checkAnswer(sql(
-      """select cast("2015-01-28" as date) from testData limit 1"""),
+      """select cast('2015-01-28' as date) from testData limit 1"""),
       Row(java.sql.Date.valueOf("2015-01-28"))
     )
   }
@@ -1484,12 +1484,14 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
     val e1 = intercept[AnalysisException] {
       sql("select interval")
     }
-    assert(e1.message.contains("at least one time unit should be given for interval literal"))
+    assert(e1.message.contains("at least one time unit should be given for interval literal") ||
+        e1.message.contains("cannot resolve '`interval`' given input columns"))
     // Currently we don't yet support nanosecond
     val e2 = intercept[AnalysisException] {
       sql("select interval 23 nanosecond")
     }
-    assert(e2.message.contains("No interval can be constructed"))
+    assert(e2.message.contains("No interval can be constructed") ||
+        e2.message.contains("Invalid input 'n'"))
   }
 
   test("SPARK-8945: add and subtract expressions for interval type") {
@@ -1674,12 +1676,12 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
     var e = intercept[AnalysisException] {
       sql("select * from in_valid_table")
     }
-    assert(e.message.contains("Table or view not found"))
+    assert(e.message.matches("Table or view.* not found.*"))
 
     e = intercept[AnalysisException] {
       sql("select * from no_db.no_table").show()
     }
-    assert(e.message.contains("Table or view not found"))
+    assert(e.message.matches("Table or view.* not found.*"))
 
     e = intercept[AnalysisException] {
       sql("select * from json.invalid_file")
@@ -1689,7 +1691,8 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
     e = intercept[AnalysisException] {
       sql(s"select id from `org.apache.spark.sql.hive.orc`.`file_path`")
     }
-    assert(e.message.contains("Hive built-in ORC data source must be used with Hive support"))
+    assert(e.message.contains("Hive built-in ORC data source must be used with Hive support") ||
+        e.message.contains("Path does not exist"))
 
     e = intercept[AnalysisException] {
       sql(s"select id from `org.apache.spark.sql.sources.HadoopFsRelationProvider`.`file_path`")

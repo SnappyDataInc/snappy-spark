@@ -36,7 +36,7 @@ class CreateTableAsSelectSuite
   import testImplicits._
 
   protected override lazy val sql = spark.sql _
-  private var path: File = null
+  protected var path: File = null
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -159,7 +159,7 @@ class CreateTableAsSelectSuite
 
   test("disallows CREATE TEMPORARY TABLE ... USING ... AS query") {
     withTable("t") {
-      val error = intercept[ParseException] {
+      val error = intercept[AnalysisException] {
         sql(
           s"""
              |CREATE TEMPORARY TABLE t USING PARQUET
@@ -169,8 +169,9 @@ class CreateTableAsSelectSuite
            """.stripMargin
         )
       }.getMessage
-      assert(error.contains("Operation not allowed") &&
-        error.contains("CREATE TEMPORARY TABLE ... USING ... AS query"))
+      assert((error.contains("Operation not allowed") &&
+          error.contains("CREATE TEMPORARY TABLE ... USING ... AS query")) ||
+          error.contains("Invalid input"))
     }
   }
 
@@ -286,7 +287,7 @@ class CreateTableAsSelectSuite
 
   test("specifying the column list for CTAS") {
     withTable("t") {
-      val e = intercept[ParseException] {
+      val e = intercept[AnalysisException] {
         sql("CREATE TABLE t (a int, b int) USING parquet AS SELECT 1, 2")
       }.getMessage
       assert(e.contains("Schema may not be specified in a Create Table As Select (CTAS)"))

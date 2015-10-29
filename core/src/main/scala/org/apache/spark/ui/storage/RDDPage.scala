@@ -72,7 +72,7 @@ private[ui] class RDDPage(parent: SparkUITab, store: AppStatusStore) extends Web
     }
     val blockTableHTML = try {
       val _blockTable = new BlockPagedTable(
-        UIUtils.prependBaseUri(request, parent.basePath) + s"/storage/rdd/?id=${rddId}",
+        UIUtils.prependBaseUri(request, parent.basePath) + s"/Spark Cache/rdd/?id=${rddId}",
         rddStorageInfo.partitions.get,
         blockPageSize,
         blockSortColumn,

@@ -24,6 +24,7 @@ import scala.collection.JavaConverters._
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.util._
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
+import org.apache.spark.sql.types.Decimal
 
 
 abstract class QueryTest extends PlanTest {
@@ -287,9 +288,11 @@ object QueryTest {
 
   // We need to call prepareRow recursively to handle schemas with struct types.
   def prepareRow(row: Row): Row = {
-    Row.fromSeq(row.toSeq.map {
+    def prepareValue(v: Any): Any = v match {
       case null => null
       case d: java.math.BigDecimal => BigDecimal(d)
+      case d: Decimal => d.toBigDecimal // to use BigDecimal.compareTo == 0
+      case d: Double => math.floor(d * 1000.0 + 0.5) / 1000.0 // round to three digits
       // Equality of WrappedArray differs for AnyVal and AnyRef in Scala 2.12.2+
       case seq: Seq[_] => seq.map {
         case b: java.lang.Byte => b.byteValue
@@ -303,8 +306,10 @@ object QueryTest {
       // Convert array to Seq for easy equality check.
       case b: Array[_] => b.toSeq
       case r: Row => prepareRow(r)
+      case m: Map[_, _] => m.mapValues(prepareValue)
       case o => o
-    })
+    }
+    Row.fromSeq(row.toSeq.map(prepareValue))
   }
 
   private def genError(
