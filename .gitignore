@@ -39,6 +39,8 @@ conf/*.sh
 conf/*.xml
 conf/java-opts
 conf/slaves
+core/src/main/extra-resources
+sql/catalyst/src/generated/antlr4
 dependency-reduced-pom.xml
 derby.log
 dev/create-release/*final
@@ -75,6 +77,7 @@ spark-tests.log
 src_managed/
 streaming-tests.log
 target/
+build-artifacts/
 unit-tests.log
 work/
 docs/.jekyll-metadata
@@ -96,3 +99,6 @@ spark-warehouse/
 *.Rproj.*
 
 .Rproj.user
+
+# gradle specific
+.gradle/
