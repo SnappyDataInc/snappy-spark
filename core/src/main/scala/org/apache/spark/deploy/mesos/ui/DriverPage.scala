@@ -114,7 +114,7 @@ private[ui] class DriverPage(parent: MesosClusterUI) extends WebUIPage("driver")
     }.getOrElse(Seq[Node]())
   }
 
-  private def propertiesRow(properties: scala.collection.Map[String, String]): Seq[Node] = {
+  private def propertiesRow(properties: collection.Map[String, String]): Seq[Node] = {
     properties.map { case (k, v) =>
       <tr>
         <td>{k}</td><td>{v}</td>
