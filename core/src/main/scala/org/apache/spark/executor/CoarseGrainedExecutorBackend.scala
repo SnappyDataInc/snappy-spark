@@ -56,6 +56,7 @@ private[spark] class CoarseGrainedExecutorBackend(
 
   override def onStart() {
     logInfo("Connecting to driver: " + driverUrl)
+    CoarseGrainedExecutorBackend.executorBackend = this
     rpcEnv.asyncSetupEndpointRefByURI(driverUrl).flatMap { ref =>
       // This is a very fast action so we can use "ThreadUtils.sameThread"
       driver = Some(ref)
@@ -151,7 +152,7 @@ private[spark] class CoarseGrainedExecutorBackend(
    * executor exits differently. For e.g. when an executor goes down,
    * back-end may not want to take the parent process down.
    */
-  protected def exitExecutor(code: Int, reason: String, throwable: Throwable = null) = {
+  def exitExecutor(code: Int, reason: String, throwable: Throwable = null): Unit = {
     if (throwable != null) {
       logError(reason, throwable)
     } else {
@@ -163,6 +164,7 @@ private[spark] class CoarseGrainedExecutorBackend(
 
 private[spark] object CoarseGrainedExecutorBackend extends Logging {
 
+  var executorBackend : CoarseGrainedExecutorBackend = _
   private def run(
       driverUrl: String,
       executorId: String,

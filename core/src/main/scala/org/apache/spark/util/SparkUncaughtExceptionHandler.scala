@@ -17,6 +17,7 @@
 
 package org.apache.spark.util
 
+import org.apache.spark.executor.CoarseGrainedExecutorBackend
 import org.apache.spark.internal.Logging
 
 /**
@@ -39,9 +40,11 @@ private[spark] object SparkUncaughtExceptionHandler
       // (If we do, we will deadlock.)
       if (!ShutdownHookManager.inShutdown()) {
         if (exception.isInstanceOf[OutOfMemoryError]) {
-          System.exit(SparkExitCode.OOM)
+          CoarseGrainedExecutorBackend.executorBackend.exitExecutor(
+            SparkExitCode.OOM, "Out of Memory Exception")
         } else {
-          System.exit(SparkExitCode.UNCAUGHT_EXCEPTION)
+          CoarseGrainedExecutorBackend.executorBackend.exitExecutor(
+            SparkExitCode.UNCAUGHT_EXCEPTION, "Uncaught Exception")
         }
       }
     } catch {
