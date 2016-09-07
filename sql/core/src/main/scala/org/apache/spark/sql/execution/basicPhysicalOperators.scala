@@ -208,7 +208,7 @@ case class FilterExec(condition: Expression, child: SparkPlan)
        |do {
        |  $generated
        |  $nullChecks
-       |  $numOutput.add(1);
+       |  $numOutput.addLong(1);
        |  ${consume(ctx, resultVars)}
        |} while(false);
      """.stripMargin
@@ -316,7 +316,7 @@ case class SampleExec(
       s"""
          | int $samplingCount = $sampler.sample();
          | while ($samplingCount-- > 0) {
-         |   $numOutput.add(1);
+         |   $numOutput.addLong(1);
          |   ${consume(ctx, input)}
          | }
        """.stripMargin.trim
@@ -330,7 +330,7 @@ case class SampleExec(
 
       s"""
          | if ($sampler.sample() != 0) {
-         |   $numOutput.add(1);
+         |   $numOutput.addLong(1);
          |   ${consume(ctx, input)}
          | }
        """.stripMargin.trim
@@ -497,7 +497,7 @@ case class RangeExec(range: org.apache.spark.sql.catalyst.plans.logical.Range)
       |     $numElementsTodo = 0;
       |     if ($nextBatchTodo == 0) break;
       |   }
-      |   $numOutput.add($nextBatchTodo);
+      |   $numOutput.addLong($nextBatchTodo);
       |   $inputMetrics.incRecordsRead($nextBatchTodo);
       |
       |   $batchEnd += $nextBatchTodo * ${step}L;

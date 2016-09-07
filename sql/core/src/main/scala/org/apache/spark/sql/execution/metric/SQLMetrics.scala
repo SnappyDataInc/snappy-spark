@@ -57,6 +57,11 @@ class SQLMetric(val metricType: String, initValue: Long = 0L) extends Accumulato
 
   override def add(v: Long): Unit = _value += v
 
+  // avoid the runtime generic Object conversion of add(), value()
+  final def addLong(v: Long): Unit = _value += v
+
+  final def longValue: Long = _value
+
   // We can set a double value to `SQLMetric` which stores only long value, if it is
   // average metrics.
   def set(v: Double): Unit = SQLMetrics.setDoubleForAverageMetrics(this, v)
