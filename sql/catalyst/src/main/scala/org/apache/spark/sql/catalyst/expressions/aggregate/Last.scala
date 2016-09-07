@@ -57,12 +57,6 @@ case class Last(child: Expression, ignoreNullsExpr: Expression) extends Declarat
 
   override lazy val aggBufferAttributes: Seq[AttributeReference] = last :: Nil
 
-  override lazy val aggBufferWithKeyAttributes: Seq[AttributeReference] = {
-    if (child.nullable) aggBufferAttributes
-    else last.copy(nullable = false)(last.exprId, last.qualifier,
-      last.isGenerated) :: Nil
-  }
-
   override lazy val initialValues: Seq[Literal] = Seq(
     /* last = */ Literal.create(null, child.dataType)
   )

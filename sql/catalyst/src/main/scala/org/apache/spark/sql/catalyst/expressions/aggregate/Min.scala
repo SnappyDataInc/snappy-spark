@@ -43,12 +43,6 @@ case class Min(child: Expression) extends DeclarativeAggregate {
 
   override lazy val aggBufferAttributes: Seq[AttributeReference] = min :: Nil
 
-  override lazy val aggBufferWithKeyAttributes: Seq[AttributeReference] = {
-    if (child.nullable) aggBufferAttributes
-    else min.copy(nullable = false)(min.exprId, min.qualifier,
-      min.isGenerated) :: Nil
-  }
-
   override lazy val initialValues: Seq[Expression] = Seq(
     /* min = */ Literal.create(null, child.dataType)
   )

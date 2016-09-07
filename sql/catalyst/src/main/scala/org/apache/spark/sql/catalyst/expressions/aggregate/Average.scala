@@ -57,7 +57,7 @@ case class Average(child: Expression) extends DeclarativeAggregate {
 
   override lazy val aggBufferAttributes = sum :: count :: Nil
 
-  override lazy val aggBufferWithKeyAttributes: Seq[AttributeReference] = {
+  override lazy val aggBufferAttributesForGroup: Seq[AttributeReference] = {
     if (child.nullable) aggBufferAttributes
     else sum.copy(nullable = false)(sum.exprId, sum.qualifier,
       sum.isGenerated) :: count :: Nil

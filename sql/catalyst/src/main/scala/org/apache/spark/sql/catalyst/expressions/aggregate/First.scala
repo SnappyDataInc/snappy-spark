@@ -58,16 +58,9 @@ case class First(child: Expression, ignoreNullsExpr: Expression) extends Declara
 
   private lazy val first = AttributeReference("first", child.dataType)()
 
-  private lazy val valueSet = AttributeReference("valueSet", BooleanType,
-    nullable = false)()
+  private lazy val valueSet = AttributeReference("valueSet", BooleanType)()
 
   override lazy val aggBufferAttributes: Seq[AttributeReference] = first :: valueSet :: Nil
-
-  override lazy val aggBufferWithKeyAttributes: Seq[AttributeReference] = {
-    if (child.nullable) aggBufferAttributes
-    else first.copy(nullable = false)(first.exprId, first.qualifier,
-      first.isGenerated) :: valueSet :: Nil
-  }
 
   override lazy val initialValues: Seq[Literal] = Seq(
     /* first = */ Literal.create(null, child.dataType),

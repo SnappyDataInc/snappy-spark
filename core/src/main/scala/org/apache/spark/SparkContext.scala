@@ -2036,8 +2036,6 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
     dagScheduler.cancelStage(stageId)
   }
 
-  private val cleanerMap = new ConcurrentHashMap[Class[_], java.lang.Boolean]()
-
   /**
    * Clean a closure to make it ready to serialized and send to tasks
    * (removes unreferenced variables in $outer's, updates REPL variables)
@@ -2051,27 +2049,8 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
    *   serializable
    */
   private[spark] def clean[F <: AnyRef](f: F, checkSerializable: Boolean = true): F = {
-    val clazz = f.getClass
-    val v: java.lang.Boolean = cleanerMap.get(clazz)
-    if (v != null) {
-      if (v.booleanValue()) f
-      else {
-        ClosureCleaner.clean(f, checkSerializable)
-        f
-      }
-    } else {
-      // check if function is serializable without clean
-      try {
-        env.closureSerializer.newInstance().serialize(f.asInstanceOf[AnyRef])
-        cleanerMap.put(clazz, java.lang.Boolean.TRUE)
-        f
-      } catch {
-        case _: Exception =>
-          cleanerMap.put(clazz, java.lang.Boolean.FALSE)
-          ClosureCleaner.clean(f, checkSerializable)
-          f
-      }
-    }
+    ClosureCleaner.clean(f, checkSerializable)
+    f
   }
 
   /**
