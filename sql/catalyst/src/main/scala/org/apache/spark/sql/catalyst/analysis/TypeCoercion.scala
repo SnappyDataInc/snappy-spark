@@ -312,9 +312,8 @@ object TypeCoercion {
       case p @ Equality(left @ TimestampType(), right @ StringType()) =>
         p.makeCopy(Array(left, Cast(right, TimestampType)))
 
-      // We should cast all relative timestamp/date/string comparison into string comparisons
-      // This behaves as a user would expect because timestamp strings sort lexicographically.
-      // i.e. TimeStamp(2013-01-01 00:00 ...) < "2014" = true
+      // Parsing of partial dates/timestamps has been added for SPARK-8995 hence
+      // converting strings to dates/timestamps.
       case p @ BinaryComparison(left @ StringType(), right @ DateType()) =>
         p.makeCopy(Array(Cast(left, DateType), right))
       case p @ BinaryComparison(left @ DateType(), right @ StringType()) =>
