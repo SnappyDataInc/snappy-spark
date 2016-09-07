@@ -102,6 +102,12 @@ object TypeCoercion {
     case (_: TimestampType, _: DateType) | (_: DateType, _: TimestampType) =>
       Some(TimestampType)
 
+    // [SNAP-966] Prefer conversions from strings to date/timestamp and not vice-verse
+    // Parsing of partial dates/timestamps has been added for SPARK-8995 hence
+    // converting strings to dates/timestamps.
+    case (DateType, StringType) | (StringType, DateType) => Some(DateType)
+    case (TimestampType, StringType) | (StringType, TimestampType) => Some(TimestampType)
+
     case (t1, t2) => findTypeForComplex(t1, t2, findTightestCommonType)
   }
 
@@ -119,13 +125,13 @@ object TypeCoercion {
    */
   private def findCommonTypeForBinaryComparison(
       dt1: DataType, dt2: DataType, conf: SQLConf): Option[DataType] = (dt1, dt2) match {
-    // We should cast all relative timestamp/date/string comparison into string comparisons
-    // This behaves as a user would expect because timestamp strings sort lexicographically.
-    // i.e. TimeStamp(2013-01-01 00:00 ...) < "2014" = true
-    case (StringType, DateType) => Some(StringType)
-    case (DateType, StringType) => Some(StringType)
-    case (StringType, TimestampType) => Some(StringType)
-    case (TimestampType, StringType) => Some(StringType)
+    // [SNAP-966] Prefer conversions from strings to date/timestamp and not vice-verse
+    // Parsing of partial dates/timestamps has been added for SPARK-8995 hence
+    // converting strings to dates/timestamps.
+    case (StringType, DateType) => Some(DateType)
+    case (DateType, StringType) => Some(DateType)
+    case (StringType, TimestampType) => Some(TimestampType)
+    case (TimestampType, StringType) => Some(TimestampType)
     case (StringType, NullType) => Some(StringType)
     case (NullType, StringType) => Some(StringType)
 
