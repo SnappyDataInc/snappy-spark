@@ -43,6 +43,12 @@ case class Max(child: Expression) extends DeclarativeAggregate {
 
   override lazy val aggBufferAttributes: Seq[AttributeReference] = max :: Nil
 
+  override lazy val aggBufferWithKeyAttributes: Seq[AttributeReference] = {
+    if (child.nullable) aggBufferAttributes
+    else max.copy(nullable = false)(max.exprId, max.qualifier,
+      max.isGenerated) :: Nil
+  }
+
   override lazy val initialValues: Seq[Literal] = Seq(
     /* max = */ Literal.create(null, child.dataType)
   )

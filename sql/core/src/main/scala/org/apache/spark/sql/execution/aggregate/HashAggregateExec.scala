@@ -68,6 +68,10 @@ case class HashAggregateExec(
     aggregateExpressions.flatMap(_.aggregateFunction.aggBufferAttributes)
   }
 
+  @transient lazy private[this] val aggregateBufferWithKeyAttributes = {
+    aggregateExpressions.flatMap(_.aggregateFunction.aggBufferWithKeyAttributes)
+  }
+
   require(HashAggregateExec.supportsAggregate(aggregateBufferAttributes))
 
   override lazy val allAttributes: AttributeSeq =
@@ -297,7 +301,7 @@ case class HashAggregateExec(
   private val declFunctions = aggregateExpressions.map(_.aggregateFunction)
     .filter(_.isInstanceOf[DeclarativeAggregate])
     .map(_.asInstanceOf[DeclarativeAggregate])
-  private val bufferSchema = StructType.fromAttributes(aggregateBufferAttributes)
+  private val bufferSchema = StructType.fromAttributes(aggregateBufferWithKeyAttributes)
 
   // The name for Vectorized HashMap
   private var vectorizedHashMapTerm: String = _
@@ -368,7 +372,7 @@ case class HashAggregateExec(
       val mergeExpr = declFunctions.flatMap(_.mergeExpressions)
       val mergeProjection = newMutableProjection(
         mergeExpr,
-        aggregateBufferAttributes ++ declFunctions.flatMap(_.inputAggBufferAttributes),
+        aggregateBufferWithKeyAttributes ++ declFunctions.flatMap(_.inputAggBufferAttributes),
         subexpressionEliminationEnabled)
       val joinedRow = new JoinedRow()
 
@@ -433,14 +437,14 @@ case class HashAggregateExec(
       }
       val evaluateKeyVars = evaluateVariables(keyVars)
       ctx.INPUT_ROW = bufferTerm
-      val bufferVars = aggregateBufferAttributes.zipWithIndex.map { case (e, i) =>
+      val bufferVars = aggregateBufferWithKeyAttributes.zipWithIndex.map { case (e, i) =>
         BoundReference(i, e.dataType, e.nullable).genCode(ctx)
       }
       val evaluateBufferVars = evaluateVariables(bufferVars)
       // evaluate the aggregation result
       ctx.currentVars = bufferVars
       val aggResults = declFunctions.map(_.evaluateExpression).map { e =>
-        BindReferences.bindReference(e, aggregateBufferAttributes).genCode(ctx)
+        BindReferences.bindReference(e, aggregateBufferWithKeyAttributes).genCode(ctx)
       }
       val evaluateAggResults = evaluateVariables(aggResults)
       // generate the final result
@@ -648,8 +652,8 @@ case class HashAggregateExec(
     ctx.currentVars = input
     val hashEval = BindReferences.bindReference(hashExpr, child.output).genCode(ctx)
 
-    val inputAttr = aggregateBufferAttributes ++ child.output
-    ctx.currentVars = new Array[ExprCode](aggregateBufferAttributes.length) ++ input
+    val inputAttr = aggregateBufferWithKeyAttributes ++ child.output
+    ctx.currentVars = new Array[ExprCode](aggregateBufferWithKeyAttributes.length) ++ input
 
     val (checkFallbackForGeneratedHashMap, checkFallbackForBytesToBytesMap, resetCounter,
     incCounter) = if (testFallbackStartsAt.isDefined) {
