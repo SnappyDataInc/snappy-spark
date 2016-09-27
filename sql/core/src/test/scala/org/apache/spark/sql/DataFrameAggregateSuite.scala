@@ -87,6 +87,16 @@ class DataFrameAggregateSuite extends QueryTest with SharedSQLContext {
     )
   }
 
+  test("SPARK-17124 agg should be ordering preserving") {
+    val df = spark.range(2)
+    val ret = df.groupBy("id").agg("id" -> "sum", "id" -> "count", "id" -> "min")
+    assert(ret.schema.map(_.name) == Seq("id", "sum(id)", "count(id)", "min(id)"))
+    checkAnswer(
+      ret,
+      Row(0, 0, 1, 0) :: Row(1, 1, 1, 1) :: Nil
+    )
+  }
+
   test("rollup") {
     checkAnswer(
       courseSales.rollup("course", "year").sum("earnings"),
@@ -474,5 +484,13 @@ class DataFrameAggregateSuite extends QueryTest with SharedSQLContext {
     checkAnswer(
       spark.sql("select avg(a) over () from values 1.0, 2.0, 3.0 T(a)"),
       Row(2.0) :: Row(2.0) :: Row(2.0) :: Nil)
+  }
+
+  test("SPARK-17616: distinct aggregate combined with a non-partial aggregate") {
+    val df = Seq((1, 3, "a"), (1, 2, "b"), (3, 4, "c"), (3, 4, "c"), (3, 5, "d"))
+      .toDF("x", "y", "z")
+    checkAnswer(
+      df.groupBy($"x").agg(countDistinct($"y"), sort_array(collect_list($"z"))),
+      Seq(Row(1, 2, Seq("a", "b")), Row(3, 2, Seq("c", "c", "d"))))
   }
 }
