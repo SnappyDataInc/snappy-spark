@@ -18,7 +18,7 @@
 """
 Important classes of Spark SQL and DataFrames:
 
-    - :class:`pyspark.sql.SparkSession`
+    - :class:`pyspark.sql.SQLContext`
       Main entry point for :class:`DataFrame` and SQL functionality.
     - :class:`pyspark.sql.DataFrame`
       A distributed collection of data grouped into named columns.
@@ -26,6 +26,8 @@ Important classes of Spark SQL and DataFrames:
       A column expression in a :class:`DataFrame`.
     - :class:`pyspark.sql.Row`
       A row of data in a :class:`DataFrame`.
+    - :class:`pyspark.sql.HiveContext`
+      Main entry point for accessing data stored in Apache Hive.
     - :class:`pyspark.sql.GroupedData`
       Aggregation methods, returned by :func:`DataFrame.groupBy`.
     - :class:`pyspark.sql.DataFrameNaFunctions`
@@ -43,7 +45,7 @@ from __future__ import absolute_import
 
 
 from pyspark.sql.types import Row
-from pyspark.sql.context import SQLContext, HiveContext, UDFRegistration
+from pyspark.sql.context import SQLContext, HiveContext
 from pyspark.sql.session import SparkSession
 from pyspark.sql.column import Column
 from pyspark.sql.dataframe import DataFrame, DataFrameNaFunctions, DataFrameStatFunctions
@@ -53,8 +55,7 @@ from pyspark.sql.window import Window, WindowSpec
 
 
 __all__ = [
-    'SparkSession', 'SQLContext', 'HiveContext', 'UDFRegistration',
-    'DataFrame', 'GroupedData', 'Column', 'Row',
-    'DataFrameNaFunctions', 'DataFrameStatFunctions', 'Window', 'WindowSpec',
+    'SparkSession', 'SQLContext', 'HiveContext', 'DataFrame', 'GroupedData', 'Column',
+    'Row', 'DataFrameNaFunctions', 'DataFrameStatFunctions', 'Window', 'WindowSpec',
     'DataFrameReader', 'DataFrameWriter'
 ]

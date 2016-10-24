@@ -79,18 +79,11 @@ case class LogicalRelation(
   /** Used to lookup original attribute capitalization */
   val attributeMap: AttributeMap[AttributeReference] = AttributeMap(output.map(o => (o, o)))
 
-  /**
-   * Returns a new instance of this LogicalRelation. According to the semantics of
-   * MultiInstanceRelation, this method returns a copy of this object with
-   * unique expression ids. We respect the `expectedOutputAttributes` and create
-   * new instances of attributes in it.
-   */
-  override def newInstance(): this.type = {
+  def newInstance(): this.type =
     LogicalRelation(
       relation,
-      expectedOutputAttributes.map(_.map(_.newInstance())),
+      expectedOutputAttributes,
       metastoreTableIdentifier).asInstanceOf[this.type]
-  }
 
   override def refresh(): Unit = relation match {
     case fs: HadoopFsRelation => fs.refresh()

@@ -68,7 +68,7 @@ private[spark] class SerializerManager(defaultSerializer: Serializer, conf: Spar
    * loaded yet. */
   private lazy val compressionCodec: CompressionCodec = CompressionCodec.createCodec(conf)
 
-  def canUseKryo(ct: ClassTag[_]): Boolean = {
+  private def canUseKryo(ct: ClassTag[_]): Boolean = {
     primitiveAndPrimitiveArrayClassTags.contains(ct) || ct == stringClassTag
   }
 
@@ -128,18 +128,8 @@ private[spark] class SerializerManager(defaultSerializer: Serializer, conf: Spar
 
   /** Serializes into a chunked byte buffer. */
   def dataSerialize[T: ClassTag](blockId: BlockId, values: Iterator[T]): ChunkedByteBuffer = {
-    dataSerializeWithExplicitClassTag(blockId, values, implicitly[ClassTag[T]])
-  }
-
-  /** Serializes into a chunked byte buffer. */
-  def dataSerializeWithExplicitClassTag(
-      blockId: BlockId,
-      values: Iterator[_],
-      classTag: ClassTag[_]): ChunkedByteBuffer = {
     val bbos = new ChunkedByteBufferOutputStream(1024 * 1024 * 4, ByteBuffer.allocate)
-    val byteStream = new BufferedOutputStream(bbos)
-    val ser = getSerializer(classTag).newInstance()
-    ser.serializeStream(wrapForCompression(blockId, byteStream)).writeAll(values).close()
+    dataSerializeStream(blockId, bbos, values)
     bbos.toChunkedByteBuffer
   }
 
@@ -147,12 +137,11 @@ private[spark] class SerializerManager(defaultSerializer: Serializer, conf: Spar
    * Deserializes an InputStream into an iterator of values and disposes of it when the end of
    * the iterator is reached.
    */
-  def dataDeserializeStream[T](
+  def dataDeserializeStream[T: ClassTag](
       blockId: BlockId,
-      inputStream: InputStream)
-      (classTag: ClassTag[T]): Iterator[T] = {
+      inputStream: InputStream): Iterator[T] = {
     val stream = new BufferedInputStream(inputStream)
-    getSerializer(classTag)
+    getSerializer(implicitly[ClassTag[T]])
       .newInstance()
       .deserializeStream(wrapForCompression(blockId, stream))
       .asIterator.asInstanceOf[Iterator[T]]

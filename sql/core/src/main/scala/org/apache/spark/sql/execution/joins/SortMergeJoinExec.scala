@@ -40,7 +40,7 @@ case class SortMergeJoinExec(
     left: SparkPlan,
     right: SparkPlan) extends BinaryExecNode with CodegenSupport {
 
-  override lazy val metrics = Map(
+  override private[sql] lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
 
   override def output: Seq[Attribute] = {

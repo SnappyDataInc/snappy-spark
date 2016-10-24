@@ -22,6 +22,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 
 import scala.collection.immutable.Map
+import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
 
 import org.apache.hadoop.conf.{Configurable, Configuration}
@@ -316,7 +317,7 @@ class HadoopRDD[K, V](
         try {
           val lsplit = c.inputSplitWithLocationInfo.cast(hsplit)
           val infos = c.getLocationInfo.invoke(lsplit).asInstanceOf[Array[AnyRef]]
-          HadoopRDD.convertSplitLocationInfo(infos)
+          Some(HadoopRDD.convertSplitLocationInfo(infos))
         } catch {
           case e: Exception =>
             logDebug("Failed to use InputSplitWithLocations.", e)
@@ -418,20 +419,21 @@ private[spark] object HadoopRDD extends Logging {
       None
   }
 
-  private[spark] def convertSplitLocationInfo(infos: Array[AnyRef]): Option[Seq[String]] = {
-    Option(infos).map(_.flatMap { loc =>
-      val reflections = HadoopRDD.SPLIT_INFO_REFLECTIONS.get
-      val locationStr = reflections.getLocation.invoke(loc).asInstanceOf[String]
+  private[spark] def convertSplitLocationInfo(infos: Array[AnyRef]): Seq[String] = {
+    val out = ListBuffer[String]()
+    infos.foreach { loc =>
+      val locationStr = HadoopRDD.SPLIT_INFO_REFLECTIONS.get.
+        getLocation.invoke(loc).asInstanceOf[String]
       if (locationStr != "localhost") {
-        if (reflections.isInMemory.invoke(loc).asInstanceOf[Boolean]) {
-          logDebug(s"Partition $locationStr is cached by Hadoop.")
-          Some(HDFSCacheTaskLocation(locationStr).toString)
+        if (HadoopRDD.SPLIT_INFO_REFLECTIONS.get.isInMemory.
+                invoke(loc).asInstanceOf[Boolean]) {
+          logDebug("Partition " + locationStr + " is cached by Hadoop.")
+          out += new HDFSCacheTaskLocation(locationStr).toString
         } else {
-          Some(HostTaskLocation(locationStr).toString)
+          out += new HostTaskLocation(locationStr).toString
         }
-      } else {
-        None
       }
-    })
+    }
+    out.seq
   }
 }

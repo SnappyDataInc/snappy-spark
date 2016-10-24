@@ -15,12 +15,6 @@
  * limitations under the License.
  */
 
-var appLimit = -1;
-
-function setAppLimit(val) {
-    appLimit = val;
-}
-
 // this function works exactly the same as UIUtils.formatDuration
 function formatDuration(milliseconds) {
   if (milliseconds < 100) {
@@ -117,7 +111,7 @@ $(document).ready(function() {
     requestedIncomplete = getParameterByName("showIncomplete", searchString);
     requestedIncomplete = (requestedIncomplete == "true" ? true : false);
 
-    $.getJSON("api/v1/applications?limit=" + appLimit, function(response,status,jqXHR) {
+    $.getJSON("api/v1/applications", function(response,status,jqXHR) {
       var array = [];
       var hasMultipleAttempts = false;
       for (i in response) {

@@ -206,7 +206,6 @@ object RowEncoder {
     case _: ArrayType => ObjectType(classOf[scala.collection.Seq[_]])
     case _: MapType => ObjectType(classOf[scala.collection.Map[_, _]])
     case _: StructType => ObjectType(classOf[Row])
-    case p: PythonUserDefinedType => externalDataTypeFor(p.sqlType)
     case udt: UserDefinedType[_] => ObjectType(udt.userClass)
   }
 
@@ -221,14 +220,8 @@ object RowEncoder {
     CreateExternalRow(fields, schema)
   }
 
-  private def deserializerFor(input: Expression): Expression = {
-    deserializerFor(input, input.dataType)
-  }
-
-  private def deserializerFor(input: Expression, dataType: DataType): Expression = dataType match {
+  private def deserializerFor(input: Expression): Expression = input.dataType match {
     case dt if ScalaReflection.isNativeType(dt) => input
-
-    case p: PythonUserDefinedType => deserializerFor(input, p.sqlType)
 
     case udt: UserDefinedType[_] =>
       val annotation = udt.userClass.getAnnotation(classOf[SQLUserDefinedType])

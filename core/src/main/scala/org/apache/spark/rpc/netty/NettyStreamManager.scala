@@ -66,18 +66,14 @@ private[netty] class NettyStreamManager(rpcEnv: NettyRpcEnv)
   }
 
   override def addFile(file: File): String = {
-    val existingPath = files.putIfAbsent(file.getName, file)
-    require(existingPath == null || existingPath == file,
-      s"File ${file.getName} was already registered with a different path " +
-        s"(old path = $existingPath, new path = $file")
+    require(files.putIfAbsent(file.getName(), file) == null,
+      s"File ${file.getName()} already registered.")
     s"${rpcEnv.address.toSparkURL}/files/${Utils.encodeFileNameToURIRawPath(file.getName())}"
   }
 
   override def addJar(file: File): String = {
-    val existingPath = jars.putIfAbsent(file.getName, file)
-    require(existingPath == null || existingPath == file,
-      s"File ${file.getName} was already registered with a different path " +
-        s"(old path = $existingPath, new path = $file")
+    require(jars.putIfAbsent(file.getName(), file) == null,
+      s"JAR ${file.getName()} already registered.")
     s"${rpcEnv.address.toSparkURL}/jars/${Utils.encodeFileNameToURIRawPath(file.getName())}"
   }
 

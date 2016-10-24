@@ -14,24 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/*
- * Changes for SnappyData data platform.
- *
- * Portions Copyright (c) 2016 SnappyData, Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you
- * may not use this file except in compliance with the License. You
- * may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
- * implied. See the License for the specific language governing
- * permissions and limitations under the License. See accompanying
- * LICENSE file.
- */
 
 package org.apache.spark.sql.execution.datasources.json
 
@@ -281,8 +263,8 @@ private[sql] object InferSchema {
         case (t1: DecimalType, t2: DecimalType) =>
           val scale = math.max(t1.scale, t2.scale)
           val range = math.max(t1.precision - t1.scale, t2.precision - t2.scale)
-          if (range + scale > DecimalType.MAX_PRECISION) {
-            // DecimalType can't support precision > DecimalType.MAX_PRECISION
+          if (range + scale > 38) {
+            // DecimalType can't support precision > 38
             DoubleType
           } else {
             DecimalType(range + scale, scale)

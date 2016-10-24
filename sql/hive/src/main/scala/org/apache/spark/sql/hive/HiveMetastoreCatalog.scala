@@ -300,12 +300,13 @@ private[hive] class HiveMetastoreCatalog(sparkSession: SparkSession) extends Log
         }
 
         val relation = HadoopFsRelation(
+          sparkSession = sparkSession,
           location = fileCatalog,
           partitionSchema = partitionSchema,
           dataSchema = inferredSchema,
           bucketSpec = bucketSpec,
           fileFormat = defaultSource,
-          options = options)(sparkSession = sparkSession)
+          options = options)
 
         val created = LogicalRelation(
           relation,

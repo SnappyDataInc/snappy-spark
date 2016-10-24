@@ -28,7 +28,7 @@ import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName
 import org.apache.spark.sql.sources
 import org.apache.spark.sql.types._
 
-object ParquetFilters {
+private[sql] object ParquetFilters {
   case class SetInFilter[T <: Comparable[T]](
     valueSet: Set[T]) extends UserDefinedPredicate[T] with Serializable {
 

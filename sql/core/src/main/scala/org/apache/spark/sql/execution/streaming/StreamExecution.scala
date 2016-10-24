@@ -49,10 +49,10 @@ class StreamExecution(
     override val id: Long,
     override val name: String,
     checkpointRoot: String,
-    val logicalPlan: LogicalPlan,
+    private[sql] val logicalPlan: LogicalPlan,
     val sink: Sink,
     val trigger: Trigger,
-    val triggerClock: Clock,
+    private[sql] val triggerClock: Clock,
     val outputMode: OutputMode)
   extends StreamingQuery with Logging {
 
@@ -74,7 +74,7 @@ class StreamExecution(
    * input source.
    */
   @volatile
-  var committedOffsets = new StreamProgress
+  private[sql] var committedOffsets = new StreamProgress
 
   /**
    * Tracks the offsets that are available to be processed, but have not yet be committed to the
@@ -102,10 +102,10 @@ class StreamExecution(
   private var state: State = INITIALIZED
 
   @volatile
-  var lastExecution: QueryExecution = null
+  private[sql] var lastExecution: QueryExecution = null
 
   @volatile
-  var streamDeathCause: StreamingQueryException = null
+  private[sql] var streamDeathCause: StreamingQueryException = null
 
   /* Get the call site in the caller thread; will pass this into the micro batch thread */
   private val callSite = Utils.getCallSite()
@@ -115,7 +115,7 @@ class StreamExecution(
    * [[org.apache.spark.util.UninterruptibleThread]] to avoid potential deadlocks in using
    * [[HDFSMetadataLog]]. See SPARK-14131 for more details.
    */
-  val microBatchThread =
+  private[sql] val microBatchThread =
     new UninterruptibleThread(s"stream execution thread for $name") {
       override def run(): Unit = {
         // To fix call site like "run at <unknown>:0", we bridge the call site from the caller
@@ -131,7 +131,8 @@ class StreamExecution(
    * processing is done.  Thus, the Nth record in this log indicated data that is currently being
    * processed and the N-1th entry indicates which offsets have been durably committed to the sink.
    */
-  val offsetLog = new HDFSMetadataLog[CompositeOffset](sparkSession, checkpointFile("offsets"))
+  private[sql] val offsetLog =
+    new HDFSMetadataLog[CompositeOffset](sparkSession, checkpointFile("offsets"))
 
   /** Whether the query is currently active or not */
   override def isActive: Boolean = state == ACTIVE
@@ -158,7 +159,7 @@ class StreamExecution(
    * Starts the execution. This returns only after the thread has started and [[QueryStarted]] event
    * has been posted to all the listeners.
    */
-  def start(): Unit = {
+  private[sql] def start(): Unit = {
     microBatchThread.setDaemon(true)
     microBatchThread.start()
     startLatch.await()  // Wait until thread started and QueryStart event has been posted
@@ -217,7 +218,10 @@ class StreamExecution(
     } finally {
       state = TERMINATED
       sparkSession.streams.notifyQueryTermination(StreamExecution.this)
-      postEvent(new QueryTerminated(this.toInfo, exception.map(_.cause).map(Utils.exceptionString)))
+      postEvent(new QueryTerminated(
+        this.toInfo,
+        exception.map(_.getMessage),
+        exception.map(_.getStackTrace.toSeq).getOrElse(Nil)))
       terminationLatch.countDown()
     }
   }
@@ -290,13 +294,6 @@ class StreamExecution(
       assert(offsetLog.add(currentBatchId, availableOffsets.toCompositeOffset(sources)),
         s"Concurrent update to the log. Multiple streaming jobs detected for $currentBatchId")
       logInfo(s"Committed offsets for batch $currentBatchId.")
-
-      // Now that we have logged the new batch, no further processing will happen for
-      // the previous batch, and it is safe to discard the old metadata.
-      // Note that purge is exclusive, i.e. it purges everything before currentBatchId.
-      // NOTE: If StreamExecution implements pipeline parallelism (multiple batches in
-      // flight at the same time), this cleanup logic will need to change.
-      offsetLog.purge(currentBatchId)
     } else {
       awaitBatchLock.lock()
       try {
@@ -414,9 +411,6 @@ class StreamExecution(
       awaitBatchLock.lock()
       try {
         awaitBatchLockCondition.await(100, TimeUnit.MILLISECONDS)
-        if (streamDeathCause != null) {
-          throw streamDeathCause
-        }
       } finally {
         awaitBatchLock.unlock()
       }
@@ -524,7 +518,7 @@ class StreamExecution(
   case object TERMINATED extends State
 }
 
-object StreamExecution {
+private[sql] object StreamExecution {
   private val _nextId = new AtomicLong(0)
 
   def nextId: Long = _nextId.getAndIncrement()

@@ -255,7 +255,7 @@ class NewHadoopRDD[K, V](
       case Some(c) =>
         try {
           val infos = c.newGetLocationInfo.invoke(split).asInstanceOf[Array[AnyRef]]
-          HadoopRDD.convertSplitLocationInfo(infos)
+          Some(HadoopRDD.convertSplitLocationInfo(infos))
         } catch {
           case e : Exception =>
             logDebug("Failed to use InputSplit#getLocationInfo.", e)

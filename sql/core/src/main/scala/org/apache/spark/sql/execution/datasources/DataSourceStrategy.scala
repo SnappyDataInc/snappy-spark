@@ -43,7 +43,7 @@ import org.apache.spark.unsafe.types.UTF8String
  * Replaces generic operations with specific variants that are designed to work with Spark
  * SQL Data Sources.
  */
-case class DataSourceAnalysis(conf: CatalystConf) extends Rule[LogicalPlan] {
+private[sql] case class DataSourceAnalysis(conf: CatalystConf) extends Rule[LogicalPlan] {
 
   def resolver: Resolver = {
     if (conf.caseSensitiveAnalysis) {
@@ -54,7 +54,7 @@ case class DataSourceAnalysis(conf: CatalystConf) extends Rule[LogicalPlan] {
   }
 
   // The access modifier is used to expose this method to tests.
-  def convertStaticPartitions(
+  private[sql] def convertStaticPartitions(
     sourceAttributes: Seq[Attribute],
     providedPartitions: Map[String, Option[String]],
     targetAttributes: Seq[Attribute],
@@ -187,7 +187,7 @@ case class DataSourceAnalysis(conf: CatalystConf) extends Rule[LogicalPlan] {
 
       InsertIntoHadoopFsRelationCommand(
         outputPath,
-        query.resolve(t.partitionSchema, t.sparkSession.sessionState.analyzer.resolver),
+        t.partitionSchema.fields.map(_.name).map(UnresolvedAttribute(_)),
         t.bucketSpec,
         t.fileFormat,
         () => t.refresh(),
@@ -202,7 +202,7 @@ case class DataSourceAnalysis(conf: CatalystConf) extends Rule[LogicalPlan] {
  * Replaces [[SimpleCatalogRelation]] with data source table if its table property contains data
  * source information.
  */
-class FindDataSourceTable(sparkSession: SparkSession) extends Rule[LogicalPlan] {
+private[sql] class FindDataSourceTable(sparkSession: SparkSession) extends Rule[LogicalPlan] {
   private def readDataSourceTable(sparkSession: SparkSession, table: CatalogTable): LogicalPlan = {
     val userSpecifiedSchema = DDLUtils.getSchemaFromTableProperties(table)
 
@@ -242,7 +242,7 @@ class FindDataSourceTable(sparkSession: SparkSession) extends Rule[LogicalPlan] 
 /**
  * A Strategy for planning scans over data sources defined using the sources API.
  */
-object DataSourceStrategy extends Strategy with Logging {
+private[sql] object DataSourceStrategy extends Strategy with Logging {
   def apply(plan: LogicalPlan): Seq[execution.SparkPlan] = plan match {
     case PhysicalOperation(projects, filters, l @ LogicalRelation(t: CatalystScan, _, _)) =>
       pruneFilterProjectRaw(
@@ -347,16 +347,13 @@ object DataSourceStrategy extends Strategy with Logging {
     // `Filter`s or cannot be handled by `relation`.
     val filterCondition = unhandledPredicates.reduceLeftOption(expressions.And)
 
-    // These metadata values make scan plans uniquely identifiable for equality checking.
-    // TODO(SPARK-17701) using strings for equality checking is brittle
     val metadata: Map[String, String] = {
       val pairs = ArrayBuffer.empty[(String, String)]
 
       if (pushedFilters.nonEmpty) {
         pairs += (PUSHED_FILTERS -> pushedFilters.mkString("[", ", ", "]"))
       }
-      pairs += ("ReadSchema" ->
-        StructType.fromAttributes(projects.map(_.toAttribute)).catalogString)
+
       pairs.toMap
     }
 

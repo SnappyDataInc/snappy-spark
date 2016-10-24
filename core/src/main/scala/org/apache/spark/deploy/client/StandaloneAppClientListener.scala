@@ -36,6 +36,5 @@ private[spark] trait StandaloneAppClientListener {
   def executorAdded(
       fullId: String, workerId: String, hostPort: String, cores: Int, memory: Int): Unit
 
-  def executorRemoved(
-      fullId: String, message: String, exitStatus: Option[Int], workerLost: Boolean): Unit
+  def executorRemoved(fullId: String, message: String, exitStatus: Option[Int]): Unit
 }

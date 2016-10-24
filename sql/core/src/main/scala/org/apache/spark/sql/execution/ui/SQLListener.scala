@@ -46,14 +46,14 @@ case class SparkListenerSQLExecutionEnd(executionId: Long, time: Long)
 case class SparkListenerDriverAccumUpdates(executionId: Long, accumUpdates: Seq[(Long, Long)])
   extends SparkListenerEvent
 
-class SQLHistoryListenerFactory extends SparkHistoryListenerFactory {
+private[sql] class SQLHistoryListenerFactory extends SparkHistoryListenerFactory {
 
   override def createListeners(conf: SparkConf, sparkUI: SparkUI): Seq[SparkListener] = {
     List(new SQLHistoryListener(conf, sparkUI))
   }
 }
 
-class SQLListener(conf: SparkConf) extends SparkListener with Logging {
+private[sql] class SQLListener(conf: SparkConf) extends SparkListener with Logging {
 
   private val retainedExecutions = conf.getInt("spark.sql.ui.retainedExecutions", 1000)
 
@@ -333,7 +333,7 @@ class SQLListener(conf: SparkConf) extends SparkListener with Logging {
 /**
  * A [[SQLListener]] for rendering the SQL UI in the history server.
  */
-class SQLHistoryListener(conf: SparkConf, sparkUI: SparkUI)
+private[spark] class SQLHistoryListener(conf: SparkConf, sparkUI: SparkUI)
   extends SQLListener(conf) {
 
   private var sqlTabAttached = false

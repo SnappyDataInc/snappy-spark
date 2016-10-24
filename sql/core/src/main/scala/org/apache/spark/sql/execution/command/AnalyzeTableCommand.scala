@@ -22,9 +22,8 @@ import scala.util.control.NonFatal
 import org.apache.hadoop.fs.{FileSystem, Path}
 
 import org.apache.spark.sql.{AnalysisException, Row, SparkSession}
-import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.EliminateSubqueryAliases
-import org.apache.spark.sql.catalyst.catalog.{CatalogRelation, CatalogTable, SimpleCatalogRelation}
+import org.apache.spark.sql.catalyst.catalog.{CatalogRelation, CatalogTable}
 
 
 /**
@@ -39,12 +38,10 @@ case class AnalyzeTableCommand(tableName: String) extends RunnableCommand {
   override def run(sparkSession: SparkSession): Seq[Row] = {
     val sessionState = sparkSession.sessionState
     val tableIdent = sessionState.sqlParser.parseTableIdentifier(tableName)
-    val db = tableIdent.database.getOrElse(sessionState.catalog.getCurrentDatabase)
-    val tableIdentwithDB = TableIdentifier(tableIdent.table, Some(db))
-    val relation = EliminateSubqueryAliases(sessionState.catalog.lookupRelation(tableIdentwithDB))
+    val relation = EliminateSubqueryAliases(sessionState.catalog.lookupRelation(tableIdent))
 
     relation match {
-      case relation: CatalogRelation if !relation.isInstanceOf[SimpleCatalogRelation] =>
+      case relation: CatalogRelation =>
         val catalogTable: CatalogTable = relation.catalogTable
         // This method is mainly based on
         // org.apache.hadoop.hive.ql.stats.StatsUtils.getFileSizeForTable(HiveConf, Table)

@@ -37,7 +37,7 @@ import org.apache.parquet.hadoop.util.ContextUtil
 import org.apache.parquet.schema.MessageType
 import org.slf4j.bridge.SLF4JBridgeHandler
 
-import org.apache.spark.{SparkException, TaskContext}
+import org.apache.spark.SparkException
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.InternalRow
@@ -46,13 +46,12 @@ import org.apache.spark.sql.catalyst.expressions.codegen.GenerateUnsafeProjectio
 import org.apache.spark.sql.catalyst.parser.LegacyTypeStringParser
 import org.apache.spark.sql.execution.command.CreateDataSourceTableUtils
 import org.apache.spark.sql.execution.datasources._
-import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types._
 import org.apache.spark.util.SerializableConfiguration
 
-class ParquetFileFormat
+private[sql] class ParquetFileFormat
   extends FileFormat
   with DataSourceRegister
   with Logging
@@ -234,8 +233,7 @@ class ParquetFileFormat
     // Lists `FileStatus`es of all leaf nodes (files) under all base directories.
     val leaves = allFiles.filter { f =>
       isSummaryFile(f.getPath) ||
-        !((f.getPath.getName.startsWith("_") && !f.getPath.getName.contains("=")) ||
-          f.getPath.getName.startsWith("."))
+          !(f.getPath.getName.startsWith("_") || f.getPath.getName.startsWith("."))
     }.toArray.sortBy(_.getPath.toString)
 
     FileTypes(
@@ -268,7 +266,7 @@ class ParquetFileFormat
     true
   }
 
-  override def buildReaderWithPartitionValues(
+  override private[sql] def buildReaderWithPartitionValues(
       sparkSession: SparkSession,
       dataSchema: StructType,
       partitionSchema: StructType,
@@ -357,11 +355,6 @@ class ParquetFileFormat
       val hadoopAttemptContext =
         new TaskAttemptContextImpl(broadcastedHadoopConf.value.value, attemptId)
 
-      // Try to push down filters when filter push-down is enabled.
-      // Notice: This push-down is RowGroups level, not individual records.
-      if (pushed.isDefined) {
-        ParquetInputFormat.setFilterPredicate(hadoopAttemptContext.getConfiguration, pushed.get)
-      }
       val parquetReader = if (enableVectorizedReader) {
         val vectorizedReader = new VectorizedParquetRecordReader()
         vectorizedReader.initialize(split, hadoopAttemptContext)
@@ -373,7 +366,6 @@ class ParquetFileFormat
         vectorizedReader
       } else {
         logDebug(s"Falling back to parquet-mr")
-        // ParquetRecordReader returns UnsafeRow
         val reader = pushed match {
           case Some(filter) =>
             new ParquetRecordReader[InternalRow](
@@ -387,7 +379,6 @@ class ParquetFileFormat
       }
 
       val iter = new RecordReaderIterator(parquetReader)
-      Option(TaskContext.get()).foreach(_.addTaskCompletionListener(_ => iter.close()))
 
       // UnsafeRowParquetRecordReader appends the columns internally to avoid another copy.
       if (parquetReader.isInstanceOf[VectorizedParquetRecordReader] &&
@@ -401,13 +392,8 @@ class ParquetFileFormat
         // This is a horrible erasure hack...  if we type the iterator above, then it actually check
         // the type in next() and we get a class cast exception.  If we make that function return
         // Object, then we can defer the cast until later!
-        if (partitionSchema.length == 0) {
-          // There is no partition columns
-          iter.asInstanceOf[Iterator[InternalRow]]
-        } else {
-          iter.asInstanceOf[Iterator[InternalRow]]
+        iter.asInstanceOf[Iterator[InternalRow]]
             .map(d => appendPartitionColumns(joinedRow(d, file.partitionValues)))
-        }
       }
     }
   }
@@ -430,7 +416,7 @@ class ParquetFileFormat
  * writes the data to the path used to generate the output writer. Callers of this factory
  * has to ensure which files are to be considered as committed.
  */
-private[parquet] class ParquetOutputWriterFactory(
+private[sql] class ParquetOutputWriterFactory(
     sqlConf: SQLConf,
     dataSchema: StructType,
     hadoopConf: Configuration,
@@ -479,7 +465,7 @@ private[parquet] class ParquetOutputWriterFactory(
    * Returns a [[OutputWriter]] that writes data to the give path without using
    * [[OutputCommitter]].
    */
-  override def newWriter(path: String): OutputWriter = new OutputWriter {
+  override private[sql] def newWriter(path: String): OutputWriter = new OutputWriter {
 
     // Create TaskAttemptContext that is used to pass on Configuration to the ParquetRecordWriter
     private val hadoopTaskAttempId = new TaskAttemptID(new TaskID(new JobID, TaskType.MAP, 0), 0)
@@ -526,7 +512,7 @@ private[parquet] class ParquetOutputWriterFactory(
 
 
 // NOTE: This class is instantiated and used on executor side only, no need to be serializable.
-private[parquet] class ParquetOutputWriter(
+private[sql] class ParquetOutputWriter(
     path: String,
     bucketId: Option[Int],
     context: TaskAttemptContext)
@@ -564,13 +550,12 @@ private[parquet] class ParquetOutputWriter(
 
   override def write(row: Row): Unit = throw new UnsupportedOperationException("call writeInternal")
 
-  override def writeInternal(row: InternalRow): Unit = recordWriter.write(null, row)
+  override protected[sql] def writeInternal(row: InternalRow): Unit = recordWriter.write(null, row)
 
   override def close(): Unit = recordWriter.close(context)
 }
 
-
-object ParquetFileFormat extends Logging {
+private[sql] object ParquetFileFormat extends Logging {
   /**
    * If parquet's block size (row group size) setting is larger than the min split size,
    * we use parquet's block size setting as the min split size. Otherwise, we will create
@@ -717,7 +702,7 @@ object ParquetFileFormat extends Logging {
    * distinguish binary and string).  This method generates a correct schema by merging Metastore
    * schema data types and Parquet schema field names.
    */
-  def mergeMetastoreParquetSchema(
+  private[sql] def mergeMetastoreParquetSchema(
       metastoreSchema: StructType,
       parquetSchema: StructType): StructType = {
     def schemaConflictMessage: String =

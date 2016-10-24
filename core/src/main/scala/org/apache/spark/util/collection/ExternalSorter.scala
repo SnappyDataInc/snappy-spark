@@ -622,9 +622,7 @@ private[spark] class ExternalSorter[K, V, C](
       val ds = deserializeStream
       deserializeStream = null
       fileStream = null
-      if (ds != null) {
-        ds.close()
-      }
+      ds.close()
       // NOTE: We don't do file.delete() here because that is done in ExternalSorter.stop().
       // This should also be fixed in ExternalAppendOnlyMap.
     }

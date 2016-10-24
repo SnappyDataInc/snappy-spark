@@ -54,7 +54,7 @@ import org.apache.spark.sql.execution.SparkPlan
  *     is under the threshold with the addition of the next file, add it.  If not, open a new bucket
  *     and add it.  Proceed to the next file.
  */
-object FileSourceStrategy extends Strategy with Logging {
+private[sql] object FileSourceStrategy extends Strategy with Logging {
   def apply(plan: LogicalPlan): Seq[SparkPlan] = plan match {
     case PhysicalOperation(projects, filters,
       l @ LogicalRelation(files: HadoopFsRelation, _, table)) =>
@@ -202,9 +202,7 @@ object FileSourceStrategy extends Strategy with Logging {
           partitions
       }
 
-      // These metadata values make scan plans uniquely identifiable for equality checking.
       val meta = Map(
-        "PartitionFilters" -> partitionKeyFilters.mkString("[", ", ", "]"),
         "Format" -> files.fileFormat.toString,
         "ReadSchema" -> prunedDataSchema.simpleString,
         PUSHED_FILTERS -> pushedDownFilters.mkString("[", ", ", "]"),

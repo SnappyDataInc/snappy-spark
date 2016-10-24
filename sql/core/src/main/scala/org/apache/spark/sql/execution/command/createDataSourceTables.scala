@@ -27,6 +27,7 @@ import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.EliminateSubqueryAliases
 import org.apache.spark.sql.catalyst.catalog._
+import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.internal.HiveSerDe
@@ -73,12 +74,14 @@ case class CreateDataSourceTableCommand(
         s"characters, numbers and _.")
     }
 
+    val tableName = tableIdent.unquotedString
     val sessionState = sparkSession.sessionState
+
     if (sessionState.catalog.tableExists(tableIdent)) {
       if (ignoreIfExists) {
         return Seq.empty[Row]
       } else {
-        throw new AnalysisException(s"Table ${tableIdent.unquotedString} already exists.")
+        throw new AnalysisException(s"Table $tableName already exists.")
       }
     }
 
@@ -136,7 +139,7 @@ case class CreateDataSourceTableAsSelectCommand(
     query: LogicalPlan)
   extends RunnableCommand {
 
-  override protected def innerChildren: Seq[LogicalPlan] = Seq(query)
+  override protected def innerChildren: Seq[QueryPlan[_]] = Seq(query)
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
     // Since we are saving metadata to metastore, we need to check if metastore supports
@@ -154,11 +157,8 @@ case class CreateDataSourceTableAsSelectCommand(
         s"characters, numbers and _.")
     }
 
+    val tableName = tableIdent.unquotedString
     val sessionState = sparkSession.sessionState
-    val db = tableIdent.database.getOrElse(sessionState.catalog.getCurrentDatabase)
-    val tableIdentWithDB = tableIdent.copy(database = Some(db))
-    val tableName = tableIdentWithDB.unquotedString
-
     var createMetastoreTable = false
     var isExternal = true
     val optionsWithPath =
@@ -170,9 +170,7 @@ case class CreateDataSourceTableAsSelectCommand(
       }
 
     var existingSchema = Option.empty[StructType]
-    // Pass a table identifier with database part, so that `tableExists` won't check temp views
-    // unexpectedly.
-    if (sparkSession.sessionState.catalog.tableExists(tableIdentWithDB)) {
+    if (sparkSession.sessionState.catalog.tableExists(tableIdent)) {
       // Check if we need to throw an exception or just return.
       mode match {
         case SaveMode.ErrorIfExists =>
@@ -196,15 +194,14 @@ case class CreateDataSourceTableAsSelectCommand(
           // TODO: Check that options from the resolved relation match the relation that we are
           // inserting into (i.e. using the same compression).
 
-          // Pass a table identifier with database part, so that `tableExists` won't check temp
-          // views unexpectedly.
-          EliminateSubqueryAliases(sessionState.catalog.lookupRelation(tableIdentWithDB)) match {
+          EliminateSubqueryAliases(
+            sessionState.catalog.lookupRelation(tableIdent)) match {
             case l @ LogicalRelation(_: InsertableRelation | _: HadoopFsRelation, _, _) =>
               // check if the file formats match
               l.relation match {
                 case r: HadoopFsRelation if r.fileFormat.getClass != dataSource.providingClass =>
                   throw new AnalysisException(
-                    s"The file format of the existing table $tableName is " +
+                    s"The file format of the existing table $tableIdent is " +
                       s"`${r.fileFormat.getClass.getName}`. It doesn't match the specified " +
                       s"format `$provider`")
                 case _ =>
@@ -221,7 +218,7 @@ case class CreateDataSourceTableAsSelectCommand(
               throw new AnalysisException(s"Saving data in ${o.toString} is not supported.")
           }
         case SaveMode.Overwrite =>
-          sessionState.catalog.dropTable(tableIdentWithDB, ignoreIfNotExists = true)
+          sparkSession.sql(s"DROP TABLE IF EXISTS $tableName")
           // Need to create the table again.
           createMetastoreTable = true
       }
@@ -249,7 +246,7 @@ case class CreateDataSourceTableAsSelectCommand(
       dataSource.write(mode, df)
     } catch {
       case ex: AnalysisException =>
-        logError(s"Failed to write to table $tableName in $mode mode", ex)
+        logError(s"Failed to write to table ${tableIdent.identifier} in $mode mode", ex)
         throw ex
     }
     if (createMetastoreTable) {
@@ -268,7 +265,7 @@ case class CreateDataSourceTableAsSelectCommand(
     }
 
     // Refresh the cache of the table in the catalog.
-    sessionState.catalog.refreshTable(tableIdentWithDB)
+    sessionState.catalog.refreshTable(tableIdent)
     Seq.empty[Row]
   }
 }

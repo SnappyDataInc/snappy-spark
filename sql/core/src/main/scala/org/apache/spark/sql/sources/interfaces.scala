@@ -112,10 +112,8 @@ trait SchemaRelationProvider {
 }
 
 /**
- * ::Experimental::
  * Implemented by objects that can produce a streaming [[Source]] for a specific format or system.
  */
-@Experimental
 trait StreamSourceProvider {
 
   /** Returns the name and schema of the source that can be used to continually read data. */
@@ -134,10 +132,8 @@ trait StreamSourceProvider {
 }
 
 /**
- * ::Experimental::
  * Implemented by objects that can produce a streaming [[Sink]] for a specific format or system.
  */
-@Experimental
 trait StreamSinkProvider {
   def createSink(
       sqlContext: SQLContext,

@@ -36,14 +36,7 @@ compute <- function(mode, partition, serializer, deserializer, key,
       # available since R 3.2.4. So we set the global option here.
       oldOpt <- getOption("stringsAsFactors")
       options(stringsAsFactors = FALSE)
-
-      # Handle binary data types
-      if ("raw" %in% sapply(inputData[[1]], class)) {
-        inputData <- SparkR:::rbindRaws(inputData)
-      } else {
-        inputData <- do.call(rbind.data.frame, inputData)
-      }
-
+      inputData <- do.call(rbind.data.frame, inputData)
       options(stringsAsFactors = oldOpt)
 
       names(inputData) <- colNames

@@ -33,7 +33,7 @@ import org.apache.spark.sql.execution.aggregate.TypedAggregateExpression
 import org.apache.spark.sql.execution.columnar.InMemoryRelation
 import org.apache.spark.sql.execution.datasources.LogicalRelation
 import org.apache.spark.sql.execution.streaming.MemoryPlan
-import org.apache.spark.sql.types.{Metadata, ObjectType}
+import org.apache.spark.sql.types.ObjectType
 
 
 abstract class QueryTest extends PlanTest {
@@ -242,10 +242,9 @@ abstract class QueryTest extends PlanTest {
       case p if p.getClass.getSimpleName == "MetastoreRelation" => return
       case _: MemoryPlan => return
     }.transformAllExpressions {
-      case _: ImperativeAggregate => return
+      case a: ImperativeAggregate => return
       case _: TypedAggregateExpression => return
       case Literal(_, _: ObjectType) => return
-      case _: UserDefinedGenerator => return
     }
 
     // bypass hive tests before we fix all corner cases in hive module.
@@ -267,14 +266,6 @@ abstract class QueryTest extends PlanTest {
     val normalized1 = logicalPlan.transformAllExpressions {
       case udf: ScalaUDF => udf.copy(function = null)
       case gen: UserDefinedGenerator => gen.copy(function = null)
-      // After SPARK-17356: the JSON representation no longer has the Metadata. We need to remove
-      // the Metadata from the normalized plan so that we can compare this plan with the
-      // JSON-deserialzed plan.
-      case a @ Alias(child, name) if a.explicitMetadata.isDefined =>
-        Alias(child, name)(a.exprId, a.qualifier, Some(Metadata.empty), a.isGenerated)
-      case a: AttributeReference if a.metadata != Metadata.empty =>
-        AttributeReference(a.name, a.dataType, a.nullable, Metadata.empty)(a.exprId, a.qualifier,
-          a.isGenerated)
     }
 
     // RDDs/data are not serializable to JSON, so we need to collect LogicalPlans that contains
@@ -403,9 +394,6 @@ object QueryTest {
     sameRows(expectedAnswer, sparkAnswer, isSorted).map { results =>
         s"""
         |Results do not match for query:
-        |Timezone: ${TimeZone.getDefault}
-        |Timezone Env: ${sys.env("TZ")}
-        |
         |${df.queryExecution}
         |== Results ==
         |$results

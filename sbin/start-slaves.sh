@@ -32,7 +32,7 @@ if [ "$SPARK_MASTER_PORT" = "" ]; then
 fi
 
 if [ "$SPARK_MASTER_HOST" = "" ]; then
-  SPARK_MASTER_HOST="`hostname -f`"
+  SPARK_MASTER_HOST="`hostname`"
 fi
 
 # Launch the slaves

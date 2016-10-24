@@ -14,28 +14,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/*
- * Changes for SnappyData data platform.
- *
- * Portions Copyright (c) 2016 SnappyData, Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you
- * may not use this file except in compliance with the License. You
- * may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
- * implied. See the License for the specific language governing
- * permissions and limitations under the License. See accompanying
- * LICENSE file.
- */
-
 package org.apache.spark.streaming.rdd
 
+import java.io.File
 import java.nio.ByteBuffer
+import java.util.UUID
 
 import scala.reflect.ClassTag
 import scala.util.control.NonFatal
@@ -44,7 +27,7 @@ import org.apache.spark._
 import org.apache.spark.rdd.BlockRDD
 import org.apache.spark.storage.{BlockId, StorageLevel}
 import org.apache.spark.streaming.util._
-import org.apache.spark.util.{SerializableConfiguration, Utils}
+import org.apache.spark.util.SerializableConfiguration
 import org.apache.spark.util.io.ChunkedByteBuffer
 
 /**
@@ -137,7 +120,7 @@ class WriteAheadLogBackedBlockRDD[T: ClassTag](
     val blockId = partition.blockId
 
     def getBlockFromBlockManager(): Option[Iterator[T]] = {
-      blockManager.get[T](blockId).map(_.data.asInstanceOf[Iterator[T]])
+      blockManager.get(blockId).map(_.data.asInstanceOf[Iterator[T]])
     }
 
     def getBlockFromWriteAheadLog(): Iterator[T] = {
@@ -152,8 +135,8 @@ class WriteAheadLogBackedBlockRDD[T: ClassTag](
         // FileBasedWriteAheadLog will not create any file or directory at that path. Also,
         // this dummy directory should not already exist otherwise the WAL will try to recover
         // past events from the directory and throw errors.
-        val nonExistentDirectory = Utils.tempFileWith(
-          System.getProperty("java.io.tmpdir"), prefix = null).getAbsolutePath
+        val nonExistentDirectory = new File(
+          System.getProperty("java.io.tmpdir"), UUID.randomUUID().toString).getAbsolutePath
         writeAheadLog = WriteAheadLogUtils.createLogForReceiver(
           SparkEnv.get.conf, nonExistentDirectory, hadoopConf)
         dataRead = writeAheadLog.read(partition.walRecordHandle)
@@ -180,8 +163,7 @@ class WriteAheadLogBackedBlockRDD[T: ClassTag](
         dataRead.rewind()
       }
       serializerManager
-        .dataDeserializeStream(
-          blockId, new ChunkedByteBuffer(dataRead).toInputStream())(elementClassTag)
+        .dataDeserializeStream(blockId, new ChunkedByteBuffer(dataRead).toInputStream())
         .asInstanceOf[Iterator[T]]
     }
 

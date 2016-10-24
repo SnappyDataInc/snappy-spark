@@ -31,7 +31,7 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.storage.StorageLevel.MEMORY_AND_DISK
 
 /** Holds a cached logical plan and its data */
-case class CachedData(plan: LogicalPlan, cachedRepresentation: InMemoryRelation)
+private[sql] case class CachedData(plan: LogicalPlan, cachedRepresentation: InMemoryRelation)
 
 /**
  * Provides support in a SQLContext for caching query results and automatically using these cached
@@ -41,7 +41,7 @@ case class CachedData(plan: LogicalPlan, cachedRepresentation: InMemoryRelation)
  *
  * Internal to Spark SQL.
  */
-class CacheManager extends Logging {
+private[sql] class CacheManager extends Logging {
 
   @transient
   private val cachedData = new scala.collection.mutable.ArrayBuffer[CachedData]
@@ -68,13 +68,13 @@ class CacheManager extends Logging {
   }
 
   /** Clears all cached tables. */
-  def clearCache(): Unit = writeLock {
+  private[sql] def clearCache(): Unit = writeLock {
     cachedData.foreach(_.cachedRepresentation.cachedColumnBuffers.unpersist())
     cachedData.clear()
   }
 
   /** Checks if the cache is empty. */
-  def isEmpty: Boolean = readLock {
+  private[sql] def isEmpty: Boolean = readLock {
     cachedData.isEmpty
   }
 
@@ -83,7 +83,7 @@ class CacheManager extends Logging {
    * Unlike `RDD.cache()`, the default storage level is set to be `MEMORY_AND_DISK` because
    * recomputing the in-memory columnar representation of the underlying table is expensive.
    */
-  def cacheQuery(
+  private[sql] def cacheQuery(
       query: Dataset[_],
       tableName: Option[String] = None,
       storageLevel: StorageLevel = MEMORY_AND_DISK): Unit = writeLock {
@@ -108,7 +108,7 @@ class CacheManager extends Logging {
    * Tries to remove the data for the given [[Dataset]] from the cache.
    * No operation, if it's already uncached.
    */
-  def uncacheQuery(query: Dataset[_], blocking: Boolean = true): Boolean = writeLock {
+  private[sql] def uncacheQuery(query: Dataset[_], blocking: Boolean = true): Boolean = writeLock {
     val planToCache = query.queryExecution.analyzed
     val dataIndex = cachedData.indexWhere(cd => planToCache.sameResult(cd.plan))
     val found = dataIndex >= 0
@@ -120,17 +120,17 @@ class CacheManager extends Logging {
   }
 
   /** Optionally returns cached data for the given [[Dataset]] */
-  def lookupCachedData(query: Dataset[_]): Option[CachedData] = readLock {
+  private[sql] def lookupCachedData(query: Dataset[_]): Option[CachedData] = readLock {
     lookupCachedData(query.queryExecution.analyzed)
   }
 
   /** Optionally returns cached data for the given [[LogicalPlan]]. */
-  def lookupCachedData(plan: LogicalPlan): Option[CachedData] = readLock {
+  private[sql] def lookupCachedData(plan: LogicalPlan): Option[CachedData] = readLock {
     cachedData.find(cd => plan.sameResult(cd.plan))
   }
 
   /** Replaces segments of the given logical plan with cached versions where possible. */
-  def useCachedData(plan: LogicalPlan): LogicalPlan = {
+  private[sql] def useCachedData(plan: LogicalPlan): LogicalPlan = {
     plan transformDown {
       case currentFragment =>
         lookupCachedData(currentFragment)
@@ -143,7 +143,7 @@ class CacheManager extends Logging {
    * Invalidates the cache of any data that contains `plan`. Note that it is possible that this
    * function will over invalidate.
    */
-  def invalidateCache(plan: LogicalPlan): Unit = writeLock {
+  private[sql] def invalidateCache(plan: LogicalPlan): Unit = writeLock {
     cachedData.foreach {
       case data if data.plan.collect { case p if p.sameResult(plan) => p }.nonEmpty =>
         data.cachedRepresentation.recache()
@@ -155,7 +155,7 @@ class CacheManager extends Logging {
    * Invalidates the cache of any data that contains `resourcePath` in one or more
    * `HadoopFsRelation` node(s) as part of its logical plan.
    */
-  def invalidateCachedPath(
+  private[sql] def invalidateCachedPath(
       sparkSession: SparkSession, resourcePath: String): Unit = writeLock {
     val (fs, qualifiedPath) = {
       val path = new Path(resourcePath)

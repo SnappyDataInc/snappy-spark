@@ -267,7 +267,7 @@ spark.lapply <- function(list, func) {
   sc <- getSparkContext()
   rdd <- parallelize(sc, list, length(list))
   results <- map(rdd, func)
-  local <- collectRDD(results)
+  local <- collect(results)
   local
 }
 

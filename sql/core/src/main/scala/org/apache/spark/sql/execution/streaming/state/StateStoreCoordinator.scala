@@ -45,7 +45,7 @@ private object StopCoordinator
   extends StateStoreCoordinatorMessage
 
 /** Helper object used to create reference to [[StateStoreCoordinator]]. */
-object StateStoreCoordinatorRef extends Logging {
+private[sql] object StateStoreCoordinatorRef extends Logging {
 
   private val endpointName = "StateStoreCoordinator"
 
@@ -77,7 +77,7 @@ object StateStoreCoordinatorRef extends Logging {
  * Reference to a [[StateStoreCoordinator]] that can be used to coordinate instances of
  * [[StateStore]]s across all the executors, and get their locations for job scheduling.
  */
-class StateStoreCoordinatorRef private(rpcEndpointRef: RpcEndpointRef) {
+private[sql] class StateStoreCoordinatorRef private(rpcEndpointRef: RpcEndpointRef) {
 
   private[state] def reportActiveInstance(
       storeId: StateStoreId,

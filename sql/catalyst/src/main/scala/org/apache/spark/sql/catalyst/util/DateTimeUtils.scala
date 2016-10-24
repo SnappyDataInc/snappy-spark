@@ -852,10 +852,8 @@ object DateTimeUtils {
 
   /**
    * Lookup the offset for given millis seconds since 1970-01-01 00:00:00 in given timezone.
-   * TODO: Improve handling of normalization differences.
-   * TODO: Replace with JSR-310 or similar system - see SPARK-16788
    */
-  private[sql] def getOffsetFromLocalMillis(millisLocal: Long, tz: TimeZone): Long = {
+  private def getOffsetFromLocalMillis(millisLocal: Long, tz: TimeZone): Long = {
     var guess = tz.getRawOffset
     // the actual offset should be calculated based on milliseconds in UTC
     val offset = tz.getOffset(millisLocal - guess)
@@ -877,11 +875,11 @@ object DateTimeUtils {
         val hh = seconds / 3600
         val mm = seconds / 60 % 60
         val ss = seconds % 60
-        val ms = millisOfDay % 1000
-        val calendar = Calendar.getInstance(tz)
-        calendar.set(year, month - 1, day, hh, mm, ss)
-        calendar.set(Calendar.MILLISECOND, ms)
-        guess = (millisLocal - calendar.getTimeInMillis()).toInt
+        val nano = millisOfDay % 1000 * 1000000
+
+        // create a Timestamp to get the unix timestamp (in UTC)
+        val timestamp = new Timestamp(year - 1900, month - 1, day, hh, mm, ss, nano)
+        guess = (millisLocal - timestamp.getTime).toInt
       }
     }
     guess

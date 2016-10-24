@@ -47,7 +47,7 @@ class SparkPlanInfo(
   }
 }
 
-private[execution] object SparkPlanInfo {
+private[sql] object SparkPlanInfo {
 
   def fromSparkPlan(plan: SparkPlan): SparkPlanInfo = {
     val children = plan match {

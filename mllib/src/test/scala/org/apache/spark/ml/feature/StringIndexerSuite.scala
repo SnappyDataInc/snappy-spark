@@ -120,20 +120,12 @@ class StringIndexerSuite
 
   test("StringIndexerModel can't overwrite output column") {
     val df = spark.createDataFrame(Seq((1, 2), (3, 4))).toDF("input", "output")
-    intercept[IllegalArgumentException] {
-      new StringIndexer()
-        .setInputCol("input")
-        .setOutputCol("output")
-        .fit(df)
-    }
-
     val indexer = new StringIndexer()
       .setInputCol("input")
-      .setOutputCol("indexedInput")
+      .setOutputCol("output")
       .fit(df)
-
     intercept[IllegalArgumentException] {
-      indexer.setOutputCol("output").transform(df)
+      indexer.transform(df)
     }
   }
 

@@ -329,12 +329,7 @@ case class RegExpExtract(subject: Expression, regexp: Expression, idx: Expressio
     val m = pattern.matcher(s.toString)
     if (m.find) {
       val mr: MatchResult = m.toMatchResult
-      val group = mr.group(r.asInstanceOf[Int])
-      if (group == null) { // Pattern matched, but not optional group
-        UTF8String.EMPTY_UTF8
-      } else {
-        UTF8String.fromString(group)
-      }
+      UTF8String.fromString(mr.group(r.asInstanceOf[Int]))
     } else {
       UTF8String.EMPTY_UTF8
     }
@@ -372,11 +367,7 @@ case class RegExpExtract(subject: Expression, regexp: Expression, idx: Expressio
         ${termPattern}.matcher($subject.toString());
       if (${matcher}.find()) {
         java.util.regex.MatchResult ${matchResult} = ${matcher}.toMatchResult();
-        if (${matchResult}.group($idx) == null) {
-          ${ev.value} = UTF8String.EMPTY_UTF8;
-        } else {
-          ${ev.value} = UTF8String.fromString(${matchResult}.group($idx));
-        }
+        ${ev.value} = UTF8String.fromString(${matchResult}.group($idx));
         $setEvNotNull
       } else {
         ${ev.value} = UTF8String.EMPTY_UTF8;

@@ -22,8 +22,7 @@ import org.apache.spark.sql.execution.streaming.{Offset, StreamExecution}
 
 /**
  * :: Experimental ::
- * Exception that stopped a [[StreamingQuery]]. Use `cause` get the actual exception
- * that caused the failure.
+ * Exception that stopped a [[StreamingQuery]].
  * @param query      Query that caused the exception
  * @param message     Message of this exception
  * @param cause       Internal cause of this exception

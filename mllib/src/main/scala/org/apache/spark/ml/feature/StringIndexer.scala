@@ -85,7 +85,6 @@ class StringIndexer @Since("1.4.0") (
 
   @Since("2.0.0")
   override def fit(dataset: Dataset[_]): StringIndexerModel = {
-    transformSchema(dataset.schema, logging = true)
     val counts = dataset.select(col($(inputCol)).cast(StringType))
       .rdd
       .map(_.getString(0))
@@ -161,7 +160,7 @@ class StringIndexerModel (
         "Skip StringIndexerModel.")
       return dataset.toDF
     }
-    transformSchema(dataset.schema, logging = true)
+    validateAndTransformSchema(dataset.schema)
 
     val indexer = udf { label: String =>
       if (labelToIndex.contains(label)) {
@@ -306,7 +305,6 @@ class IndexToString private[ml] (@Since("1.5.0") override val uid: String)
 
   @Since("2.0.0")
   override def transform(dataset: Dataset[_]): DataFrame = {
-    transformSchema(dataset.schema, logging = true)
     val inputColSchema = dataset.schema($(inputCol))
     // If the labels array is empty use column metadata
     val values = if (!isDefined(labels) || $(labels).isEmpty) {

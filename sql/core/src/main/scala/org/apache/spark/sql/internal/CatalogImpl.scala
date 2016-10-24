@@ -151,7 +151,7 @@ class CatalogImpl(sparkSession: SparkSession) extends Catalog {
   }
 
   private def listColumns(tableIdentifier: TableIdentifier): Dataset[Column] = {
-    val tableMetadata = sessionCatalog.getTempViewOrPermanentTableMetadata(tableIdentifier)
+    val tableMetadata = sessionCatalog.getTableMetadata(tableIdentifier)
     val partitionColumnNames = tableMetadata.partitionColumnNames.toSet
     val bucketColumnNames = tableMetadata.bucketColumnNames.toSet
     val columns = tableMetadata.schema.map { c =>
@@ -296,10 +296,8 @@ class CatalogImpl(sparkSession: SparkSession) extends Catalog {
    * @since 2.0.0
    */
   override def dropTempView(viewName: String): Unit = {
-    sparkSession.sessionState.catalog.getTempView(viewName).foreach { tempView =>
-      sparkSession.sharedState.cacheManager.uncacheQuery(Dataset.ofRows(sparkSession, tempView))
-      sessionCatalog.dropTempView(viewName)
-    }
+    sparkSession.sharedState.cacheManager.uncacheQuery(sparkSession.table(viewName))
+    sessionCatalog.dropTable(TableIdentifier(viewName), ignoreIfNotExists = true)
   }
 
   /**

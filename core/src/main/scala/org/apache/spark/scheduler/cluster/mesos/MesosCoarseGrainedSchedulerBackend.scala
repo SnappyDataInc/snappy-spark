@@ -24,7 +24,6 @@ import java.util.concurrent.locks.ReentrantLock
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.collection.mutable.{Buffer, HashMap, HashSet}
-import scala.concurrent.Future
 
 import org.apache.mesos.Protos.{TaskInfo => MesosTaskInfo, _}
 
@@ -553,12 +552,7 @@ private[spark] class MesosCoarseGrainedSchedulerBackend(
       taskId: String,
       reason: String): Unit = {
     stateLock.synchronized {
-      // Do not call removeExecutor() after this scheduler backend was stopped because
-      // removeExecutor() internally will send a message to the driver endpoint but
-      // the driver endpoint is not available now, otherwise an exception will be thrown.
-      if (!stopCalled) {
-        removeExecutor(taskId, SlaveLost(reason))
-      }
+      removeExecutor(taskId, SlaveLost(reason))
       slaves(slaveId).taskIDs.remove(taskId)
     }
   }
@@ -578,7 +572,7 @@ private[spark] class MesosCoarseGrainedSchedulerBackend(
       super.applicationId
     }
 
-  override def doRequestTotalExecutors(requestedTotal: Int): Future[Boolean] = Future.successful {
+  override def doRequestTotalExecutors(requestedTotal: Int): Boolean = {
     // We don't truly know if we can fulfill the full amount of executors
     // since at coarse grain it depends on the amount of slaves available.
     logInfo("Capping the total amount of executors to " + requestedTotal)
@@ -586,7 +580,7 @@ private[spark] class MesosCoarseGrainedSchedulerBackend(
     true
   }
 
-  override def doKillExecutors(executorIds: Seq[String]): Future[Boolean] = Future.successful {
+  override def doKillExecutors(executorIds: Seq[String]): Boolean = {
     if (mesosDriver == null) {
       logWarning("Asked to kill executors before the Mesos driver was started.")
       false

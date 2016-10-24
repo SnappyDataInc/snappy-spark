@@ -70,7 +70,7 @@ import org.apache.spark.util.random.{BernoulliCellSampler, BernoulliSampler, Poi
  * All of the scheduling and execution in Spark is done based on these methods, allowing each RDD
  * to implement its own way of computing itself. Indeed, users can implement custom RDDs (e.g. for
  * reading data from a new storage system) by overriding these functions. Please refer to the
- * [[http://people.csail.mit.edu/matei/papers/2012/nsdi_spark.pdf Spark paper]] for more details
+ * [[http://www.cs.berkeley.edu/~matei/papers/2012/nsdi_spark.pdf Spark paper]] for more details
  * on RDD internals.
  */
 abstract class RDD[T: ClassTag](
@@ -474,17 +474,12 @@ abstract class RDD[T: ClassTag](
   def sample(
       withReplacement: Boolean,
       fraction: Double,
-      seed: Long = Utils.random.nextLong): RDD[T] = {
-    require(fraction >= 0,
-      s"Fraction must be nonnegative, but got ${fraction}")
-
-    withScope {
-      require(fraction >= 0.0, "Negative fraction value: " + fraction)
-      if (withReplacement) {
-        new PartitionwiseSampledRDD[T, T](this, new PoissonSampler[T](fraction), true, seed)
-      } else {
-        new PartitionwiseSampledRDD[T, T](this, new BernoulliSampler[T](fraction), true, seed)
-      }
+      seed: Long = Utils.random.nextLong): RDD[T] = withScope {
+    require(fraction >= 0.0, "Negative fraction value: " + fraction)
+    if (withReplacement) {
+      new PartitionwiseSampledRDD[T, T](this, new PoissonSampler[T](fraction), true, seed)
+    } else {
+      new PartitionwiseSampledRDD[T, T](this, new BernoulliSampler[T](fraction), true, seed)
     }
   }
 
@@ -498,21 +493,13 @@ abstract class RDD[T: ClassTag](
    */
   def randomSplit(
       weights: Array[Double],
-      seed: Long = Utils.random.nextLong): Array[RDD[T]] = {
-    require(weights.forall(_ >= 0),
-      s"Weights must be nonnegative, but got ${weights.mkString("[", ",", "]")}")
-    require(weights.sum > 0,
-      s"Sum of weights must be positive, but got ${weights.mkString("[", ",", "]")}")
-
-    withScope {
-      val sum = weights.sum
-      val normalizedCumWeights = weights.map(_ / sum).scanLeft(0.0d)(_ + _)
-      normalizedCumWeights.sliding(2).map { x =>
-        randomSampleWithRange(x(0), x(1), seed)
-      }.toArray
-    }
+      seed: Long = Utils.random.nextLong): Array[RDD[T]] = withScope {
+    val sum = weights.sum
+    val normalizedCumWeights = weights.map(_ / sum).scanLeft(0.0d)(_ + _)
+    normalizedCumWeights.sliding(2).map { x =>
+      randomSampleWithRange(x(0), x(1), seed)
+    }.toArray
   }
-
 
   /**
    * Internal method exposed for Random Splits in DataFrames. Samples an RDD given a probability

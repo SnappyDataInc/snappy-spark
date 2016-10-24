@@ -26,7 +26,7 @@ class StreamProgress(
     val baseMap: immutable.Map[Source, Offset] = new immutable.HashMap[Source, Offset])
   extends scala.collection.immutable.Map[Source, Offset] {
 
-  def toCompositeOffset(source: Seq[Source]): CompositeOffset = {
+  private[sql] def toCompositeOffset(source: Seq[Source]): CompositeOffset = {
     CompositeOffset(source.map(get))
   }
 

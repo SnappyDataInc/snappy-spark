@@ -68,46 +68,16 @@ class CSVTypeCastSuite extends SparkFunSuite {
   }
 
   test("Nullable types are handled") {
-    assertNull(
-      CSVTypeCast.castTo("-", ByteType, nullable = true, CSVOptions("nullValue", "-")))
-    assertNull(
-      CSVTypeCast.castTo("-", ShortType, nullable = true, CSVOptions("nullValue", "-")))
-    assertNull(
-      CSVTypeCast.castTo("-", IntegerType, nullable = true, CSVOptions("nullValue", "-")))
-    assertNull(
-      CSVTypeCast.castTo("-", LongType, nullable = true, CSVOptions("nullValue", "-")))
-    assertNull(
-      CSVTypeCast.castTo("-", FloatType, nullable = true, CSVOptions("nullValue", "-")))
-    assertNull(
-      CSVTypeCast.castTo("-", DoubleType, nullable = true, CSVOptions("nullValue", "-")))
-    assertNull(
-      CSVTypeCast.castTo("-", BooleanType, nullable = true, CSVOptions("nullValue", "-")))
-    assertNull(
-      CSVTypeCast.castTo("-", DecimalType.DoubleDecimal, true, CSVOptions("nullValue", "-")))
-    assertNull(
-      CSVTypeCast.castTo("-", TimestampType, nullable = true, CSVOptions("nullValue", "-")))
-    assertNull(
-      CSVTypeCast.castTo("-", DateType, nullable = true, CSVOptions("nullValue", "-")))
-    assertNull(
-      CSVTypeCast.castTo("-", StringType, nullable = true, CSVOptions("nullValue", "-")))
+    assert(CSVTypeCast.castTo("", IntegerType, nullable = true, CSVOptions()) == null)
   }
 
-  test("String type should also respect `nullValue`") {
-    assertNull(
-      CSVTypeCast.castTo("", StringType, nullable = true, CSVOptions()))
+  test("String type should always return the same as the input") {
+    assert(
+      CSVTypeCast.castTo("", StringType, nullable = true, CSVOptions()) ==
+        UTF8String.fromString(""))
     assert(
       CSVTypeCast.castTo("", StringType, nullable = false, CSVOptions()) ==
         UTF8String.fromString(""))
-
-    assert(
-      CSVTypeCast.castTo("", StringType, nullable = true, CSVOptions("nullValue", "null")) ==
-        UTF8String.fromString(""))
-    assert(
-      CSVTypeCast.castTo("", StringType, nullable = false, CSVOptions("nullValue", "null")) ==
-        UTF8String.fromString(""))
-
-    assertNull(
-      CSVTypeCast.castTo(null, StringType, nullable = true, CSVOptions("nullValue", "null")))
   }
 
   test("Throws exception for empty string with non null type") {
@@ -126,18 +96,13 @@ class CSVTypeCastSuite extends SparkFunSuite {
     assert(CSVTypeCast.castTo("1.00", DoubleType) == 1.0)
     assert(CSVTypeCast.castTo("true", BooleanType) == true)
 
-    val timestampsOptions = CSVOptions("timestampFormat", "dd/MM/yyyy hh:mm")
+    val options = CSVOptions("dateFormat", "dd/MM/yyyy hh:mm")
     val customTimestamp = "31/01/2015 00:00"
-    val expectedTime = timestampsOptions.timestampFormat.parse(customTimestamp).getTime
-    val castedTimestamp =
-      CSVTypeCast.castTo(customTimestamp, TimestampType, nullable = true, timestampsOptions)
-    assert(castedTimestamp == expectedTime * 1000L)
-
-    val customDate = "31/01/2015"
-    val dateOptions = CSVOptions("dateFormat", "dd/MM/yyyy")
-    val expectedDate = dateOptions.dateFormat.parse(customDate).getTime
-    val castedDate = CSVTypeCast.castTo(customTimestamp, DateType, nullable = true, dateOptions)
-    assert(castedDate == DateTimeUtils.millisToDays(expectedDate))
+    val expectedTime = options.dateFormat.parse("31/01/2015 00:00").getTime
+    assert(CSVTypeCast.castTo(customTimestamp, TimestampType, nullable = true, options) ==
+      expectedTime * 1000L)
+    assert(CSVTypeCast.castTo(customTimestamp, DateType, nullable = true, options) ==
+      DateTimeUtils.millisToDays(expectedTime))
 
     val timestamp = "2015-01-01 00:00:00"
     assert(CSVTypeCast.castTo(timestamp, TimestampType) ==
@@ -200,4 +165,20 @@ class CSVTypeCastSuite extends SparkFunSuite {
     assert(doubleVal2 == Double.PositiveInfinity)
   }
 
+  test("Type-specific null values are used for casting") {
+    assertNull(
+      CSVTypeCast.castTo("-", ByteType, nullable = true, CSVOptions("nullValue", "-")))
+    assertNull(
+      CSVTypeCast.castTo("-", ShortType, nullable = true, CSVOptions("nullValue", "-")))
+    assertNull(
+      CSVTypeCast.castTo("-", IntegerType, nullable = true, CSVOptions("nullValue", "-")))
+    assertNull(
+      CSVTypeCast.castTo("-", LongType, nullable = true, CSVOptions("nullValue", "-")))
+    assertNull(
+      CSVTypeCast.castTo("-", FloatType, nullable = true, CSVOptions("nullValue", "-")))
+    assertNull(
+      CSVTypeCast.castTo("-", DoubleType, nullable = true, CSVOptions("nullValue", "-")))
+    assertNull(
+      CSVTypeCast.castTo("-", DecimalType.DoubleDecimal, true, CSVOptions("nullValue", "-")))
+  }
 }

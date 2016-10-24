@@ -26,11 +26,11 @@ import org.apache.spark.sql.execution.metric.SQLMetrics
 /**
  * Physical plan node for scanning data from a local collection.
  */
-case class LocalTableScanExec(
+private[sql] case class LocalTableScanExec(
     output: Seq[Attribute],
     rows: Seq[InternalRow]) extends LeafExecNode {
 
-  override lazy val metrics = Map(
+  private[sql] override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
 
   private val unsafeRows: Array[InternalRow] = {

@@ -111,6 +111,10 @@ class DDLSuite extends QueryTest with SharedSQLContext with BeforeAndAfterEach {
     catalog.createPartitions(tableName, Seq(part), ignoreIfExists = false)
   }
 
+  private def appendTrailingSlash(path: String): String = {
+    if (!path.endsWith(File.separator)) path + File.separator else path
+  }
+
   test("the qualified path of a database is stored in the catalog") {
     val catalog = spark.sessionState.catalog
 
@@ -118,31 +122,23 @@ class DDLSuite extends QueryTest with SharedSQLContext with BeforeAndAfterEach {
       val path = tmpDir.toString
       // The generated temp path is not qualified.
       assert(!path.startsWith("file:/"))
-      val uri = tmpDir.toURI
-      sql(s"CREATE DATABASE db1 LOCATION '$uri'")
+      sql(s"CREATE DATABASE db1 LOCATION '$path'")
       val pathInCatalog = new Path(catalog.getDatabaseMetadata("db1").locationUri).toUri
       assert("file" === pathInCatalog.getScheme)
-      val expectedPath = new Path(path).toUri
-      assert(expectedPath.getPath === pathInCatalog.getPath)
+      val expectedPath = if (path.endsWith(File.separator)) path.dropRight(1) else path
+      assert(expectedPath === pathInCatalog.getPath)
 
       withSQLConf(SQLConf.WAREHOUSE_PATH.key -> path) {
         sql(s"CREATE DATABASE db2")
-        val pathInCatalog2 = new Path(catalog.getDatabaseMetadata("db2").locationUri).toUri
-        assert("file" === pathInCatalog2.getScheme)
-        val expectedPath2 = new Path(spark.sessionState.conf.warehousePath + "/" + "db2.db").toUri
-        assert(expectedPath2.getPath === pathInCatalog2.getPath)
+        val pathInCatalog = new Path(catalog.getDatabaseMetadata("db2").locationUri).toUri
+        assert("file" === pathInCatalog.getScheme)
+        val expectedPath = appendTrailingSlash(spark.sessionState.conf.warehousePath) + "db2.db"
+        assert(expectedPath === pathInCatalog.getPath)
       }
 
       sql("DROP DATABASE db1")
       sql("DROP DATABASE db2")
     }
-  }
-
-  private def makeQualifiedPath(path: String): String = {
-    // copy-paste from SessionCatalog
-    val hadoopPath = new Path(path)
-    val fs = hadoopPath.getFileSystem(sparkContext.hadoopConfiguration)
-    fs.makeQualified(hadoopPath).toString
   }
 
   test("Create/Drop Database") {
@@ -158,7 +154,8 @@ class DDLSuite extends QueryTest with SharedSQLContext with BeforeAndAfterEach {
 
             sql(s"CREATE DATABASE $dbName")
             val db1 = catalog.getDatabaseMetadata(dbNameWithoutBackTicks)
-            val expectedLocation = makeQualifiedPath(path + "/" + s"$dbNameWithoutBackTicks.db")
+            val expectedLocation =
+              "file:" + appendTrailingSlash(path) + s"$dbNameWithoutBackTicks.db"
             assert(db1 == CatalogDatabase(
               dbNameWithoutBackTicks,
               "",
@@ -184,8 +181,8 @@ class DDLSuite extends QueryTest with SharedSQLContext with BeforeAndAfterEach {
         sql(s"CREATE DATABASE $dbName")
         val db1 = catalog.getDatabaseMetadata(dbName)
         val expectedLocation =
-          makeQualifiedPath(s"${System.getProperty("user.dir")}/spark-warehouse" +
-            "/" + s"$dbName.db")
+          "file:" + appendTrailingSlash(System.getProperty("user.dir")) +
+            s"spark-warehouse/$dbName.db"
         assert(db1 == CatalogDatabase(
           dbName,
           "",
@@ -203,17 +200,17 @@ class DDLSuite extends QueryTest with SharedSQLContext with BeforeAndAfterEach {
     val catalog = spark.sessionState.catalog
     val databaseNames = Seq("db1", "`database`")
     withTempDir { tmpDir =>
-      val path = new Path(tmpDir.toString).toUri.toString
+      val path = tmpDir.toString
+      val dbPath = "file:" + path
       databaseNames.foreach { dbName =>
         try {
           val dbNameWithoutBackTicks = cleanIdentifier(dbName)
           sql(s"CREATE DATABASE $dbName Location '$path'")
           val db1 = catalog.getDatabaseMetadata(dbNameWithoutBackTicks)
-          val expPath = makeQualifiedPath(tmpDir.toString)
           assert(db1 == CatalogDatabase(
             dbNameWithoutBackTicks,
             "",
-            expPath,
+            if (dbPath.endsWith(File.separator)) dbPath.dropRight(1) else dbPath,
             Map.empty))
           sql(s"DROP DATABASE $dbName CASCADE")
           assert(!catalog.databaseExists(dbNameWithoutBackTicks))
@@ -236,7 +233,8 @@ class DDLSuite extends QueryTest with SharedSQLContext with BeforeAndAfterEach {
             val dbNameWithoutBackTicks = cleanIdentifier(dbName)
             sql(s"CREATE DATABASE $dbName")
             val db1 = catalog.getDatabaseMetadata(dbNameWithoutBackTicks)
-            val expectedLocation = makeQualifiedPath(path + "/" + s"$dbNameWithoutBackTicks.db")
+            val expectedLocation =
+              "file:" + appendTrailingSlash(path) + s"$dbNameWithoutBackTicks.db"
             assert(db1 == CatalogDatabase(
               dbNameWithoutBackTicks,
               "",
@@ -277,7 +275,7 @@ class DDLSuite extends QueryTest with SharedSQLContext with BeforeAndAfterEach {
         databaseNames.foreach { dbName =>
           try {
             val dbNameWithoutBackTicks = cleanIdentifier(dbName)
-            val location = makeQualifiedPath(path + "/" + s"$dbNameWithoutBackTicks.db")
+            val location = "file:" + appendTrailingSlash(path) + s"$dbNameWithoutBackTicks.db"
 
             sql(s"CREATE DATABASE $dbName")
 
@@ -395,17 +393,6 @@ class DDLSuite extends QueryTest with SharedSQLContext with BeforeAndAfterEach {
     assert(catalog.getTableMetadata(tableIdent1) === expectedTable)
   }
 
-  test("Analyze in-memory cataloged tables(SimpleCatalogRelation)") {
-    withTable("tbl") {
-      sql("CREATE TABLE tbl(a INT, b INT) USING parquet")
-      val e = intercept[AnalysisException] {
-        sql("ANALYZE TABLE tbl COMPUTE STATISTICS")
-      }.getMessage
-      assert(e.contains("ANALYZE TABLE is only supported for Hive tables, " +
-        "but 'tbl' is a SimpleCatalogRelation"))
-    }
-  }
-
   test("create table using") {
     val catalog = spark.sessionState.catalog
     withTable("tbl") {
@@ -449,8 +436,7 @@ class DDLSuite extends QueryTest with SharedSQLContext with BeforeAndAfterEach {
   }
 
   test("create temporary view using") {
-    val csvFile =
-      Thread.currentThread().getContextClassLoader.getResource("test-data/cars.csv").toString
+    val csvFile = Thread.currentThread().getContextClassLoader.getResource("cars.csv").toString()
     withView("testview") {
       sql(s"CREATE OR REPLACE TEMPORARY VIEW testview (c1: String, c2: String)  USING " +
         "org.apache.spark.sql.execution.datasources.csv.CSVFileFormat  " +
@@ -640,64 +626,6 @@ class DDLSuite extends QueryTest with SharedSQLContext with BeforeAndAfterEach {
 
   test("alter table: add partition (datasource table)") {
     testAddPartitions(isDatasourceTable = true)
-  }
-
-  test("alter table: recover partitions (sequential)") {
-    withSQLConf("spark.rdd.parallelListingThreshold" -> "10") {
-      testRecoverPartitions()
-    }
-  }
-
-  test("alter table: recover partition (parallel)") {
-    withSQLConf("spark.rdd.parallelListingThreshold" -> "1") {
-      testRecoverPartitions()
-    }
-  }
-
-  private def testRecoverPartitions() {
-    val catalog = spark.sessionState.catalog
-    // table to alter does not exist
-    intercept[AnalysisException] {
-      sql("ALTER TABLE does_not_exist RECOVER PARTITIONS")
-    }
-
-    val tableIdent = TableIdentifier("tab1")
-    createTable(catalog, tableIdent)
-    val part1 = Map("a" -> "1", "b" -> "5")
-    createTablePartition(catalog, part1, tableIdent)
-    assert(catalog.listPartitions(tableIdent).map(_.spec).toSet == Set(part1))
-
-    val part2 = Map("a" -> "2", "b" -> "6")
-    val root = new Path(catalog.getTableMetadata(tableIdent).storage.locationUri.get)
-    val fs = root.getFileSystem(spark.sparkContext.hadoopConfiguration)
-    // valid
-    fs.mkdirs(new Path(new Path(root, "a=1"), "b=5"))
-    fs.createNewFile(new Path(new Path(root, "a=1/b=5"), "a.csv"))  // file
-    fs.createNewFile(new Path(new Path(root, "a=1/b=5"), "_SUCCESS"))  // file
-    fs.mkdirs(new Path(new Path(root, "A=2"), "B=6"))
-    fs.createNewFile(new Path(new Path(root, "A=2/B=6"), "b.csv"))  // file
-    fs.createNewFile(new Path(new Path(root, "A=2/B=6"), "c.csv"))  // file
-    fs.createNewFile(new Path(new Path(root, "A=2/B=6"), ".hiddenFile"))  // file
-    fs.mkdirs(new Path(new Path(root, "A=2/B=6"), "_temporary"))
-
-    // invalid
-    fs.mkdirs(new Path(new Path(root, "a"), "b"))  // bad name
-    fs.mkdirs(new Path(new Path(root, "b=1"), "a=1"))  // wrong order
-    fs.mkdirs(new Path(root, "a=4")) // not enough columns
-    fs.createNewFile(new Path(new Path(root, "a=1"), "b=4"))  // file
-    fs.createNewFile(new Path(new Path(root, "a=1"), "_SUCCESS"))  // _SUCCESS
-    fs.mkdirs(new Path(new Path(root, "a=1"), "_temporary"))  // _temporary
-    fs.mkdirs(new Path(new Path(root, "a=1"), ".b=4"))  // start with .
-
-    try {
-      sql("ALTER TABLE tab1 RECOVER PARTITIONS")
-      assert(catalog.listPartitions(tableIdent).map(_.spec).toSet ==
-        Set(part1, part2))
-      assert(catalog.getPartition(tableIdent, part1).parameters("numFiles") == "1")
-      assert(catalog.getPartition(tableIdent, part2).parameters("numFiles") == "2")
-    } finally {
-      fs.delete(root, true)
-    }
   }
 
   test("alter table: add partition is not supported for views") {
@@ -1424,9 +1352,7 @@ class DDLSuite extends QueryTest with SharedSQLContext with BeforeAndAfterEach {
     (1 to 10).map { i => (i, i) }.toDF("a", "b").createTempView("my_temp_tab")
     sql(s"CREATE EXTERNAL TABLE my_ext_tab LOCATION '$path'")
     sql(s"CREATE VIEW my_view AS SELECT 1")
-    intercept[NoSuchTableException] {
-      sql("TRUNCATE TABLE my_temp_tab")
-    }
+    assertUnsupported("TRUNCATE TABLE my_temp_tab")
     assertUnsupported("TRUNCATE TABLE my_ext_tab")
     assertUnsupported("TRUNCATE TABLE my_view")
   }

@@ -526,7 +526,7 @@ abstract class BinaryOperator extends BinaryExpression with ExpectsInputTypes {
 }
 
 
-object BinaryOperator {
+private[sql] object BinaryOperator {
   def unapply(e: BinaryOperator): Option[(Expression, Expression)] = Some((e.left, e.right))
 }
 

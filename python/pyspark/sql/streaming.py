@@ -269,7 +269,7 @@ class DataStreamReader(OptionUtils):
 
         .. note:: Experimental.
 
-        :param schema: a :class:`pyspark.sql.types.StructType` object
+        :param schema: a StructType object
 
         >>> s = spark.readStream.schema(sdf_schema)
         """
@@ -310,12 +310,12 @@ class DataStreamReader(OptionUtils):
 
         :param path: optional string for file-system backed data sources.
         :param format: optional string for format of the data source. Default to 'parquet'.
-        :param schema: optional :class:`pyspark.sql.types.StructType` for the input schema.
+        :param schema: optional :class:`StructType` for the input schema.
         :param options: all other string options
 
-        >>> json_sdf = spark.readStream.format("json") \\
-        ...     .schema(sdf_schema) \\
-        ...     .load(tempfile.mkdtemp())
+        >>> json_sdf = spark.readStream.format("json")\
+                                       .schema(sdf_schema)\
+                                       .load(tempfile.mkdtemp())
         >>> json_sdf.isStreaming
         True
         >>> json_sdf.schema == sdf_schema
@@ -338,8 +338,7 @@ class DataStreamReader(OptionUtils):
     def json(self, path, schema=None, primitivesAsString=None, prefersDecimal=None,
              allowComments=None, allowUnquotedFieldNames=None, allowSingleQuotes=None,
              allowNumericLeadingZero=None, allowBackslashEscapingAnyCharacter=None,
-             mode=None, columnNameOfCorruptRecord=None, dateFormat=None,
-             timestampFormat=None):
+             mode=None, columnNameOfCorruptRecord=None):
         """
         Loads a JSON file stream (one object per line) and returns a :class`DataFrame`.
 
@@ -350,7 +349,7 @@ class DataStreamReader(OptionUtils):
 
         :param path: string represents path to the JSON dataset,
                      or RDD of Strings storing JSON objects.
-        :param schema: an optional :class:`pyspark.sql.types.StructType` for the input schema.
+        :param schema: an optional :class:`StructType` for the input schema.
         :param primitivesAsString: infers all primitive values as a string type. If None is set,
                                    it uses the default value, ``false``.
         :param prefersDecimal: infers all floating-point values as a decimal type. If the values
@@ -382,14 +381,6 @@ class DataStreamReader(OptionUtils):
                                           ``spark.sql.columnNameOfCorruptRecord``. If None is set,
                                           it uses the value specified in
                                           ``spark.sql.columnNameOfCorruptRecord``.
-        :param dateFormat: sets the string that indicates a date format. Custom date formats
-                           follow the formats at ``java.text.SimpleDateFormat``. This
-                           applies to date type. If None is set, it uses the
-                           default value value, ``yyyy-MM-dd``.
-        :param timestampFormat: sets the string that indicates a timestamp format. Custom date
-                                formats follow the formats at ``java.text.SimpleDateFormat``.
-                                This applies to timestamp type. If None is set, it uses the
-                                default value value, ``yyyy-MM-dd'T'HH:mm:ss.SSSZZ``.
 
         >>> json_sdf = spark.readStream.json(tempfile.mkdtemp(), schema = sdf_schema)
         >>> json_sdf.isStreaming
@@ -402,8 +393,7 @@ class DataStreamReader(OptionUtils):
             allowComments=allowComments, allowUnquotedFieldNames=allowUnquotedFieldNames,
             allowSingleQuotes=allowSingleQuotes, allowNumericLeadingZero=allowNumericLeadingZero,
             allowBackslashEscapingAnyCharacter=allowBackslashEscapingAnyCharacter,
-            mode=mode, columnNameOfCorruptRecord=columnNameOfCorruptRecord, dateFormat=dateFormat,
-            timestampFormat=timestampFormat)
+            mode=mode, columnNameOfCorruptRecord=columnNameOfCorruptRecord)
         if isinstance(path, basestring):
             return self._df(self._jreader.json(path))
         else:
@@ -460,8 +450,8 @@ class DataStreamReader(OptionUtils):
     def csv(self, path, schema=None, sep=None, encoding=None, quote=None, escape=None,
             comment=None, header=None, inferSchema=None, ignoreLeadingWhiteSpace=None,
             ignoreTrailingWhiteSpace=None, nullValue=None, nanValue=None, positiveInf=None,
-            negativeInf=None, dateFormat=None, timestampFormat=None, maxColumns=None,
-            maxCharsPerColumn=None, maxMalformedLogPerPartition=None, mode=None):
+            negativeInf=None, dateFormat=None, maxColumns=None, maxCharsPerColumn=None,
+            maxMalformedLogPerPartition=None, mode=None):
         """Loads a CSV file stream and returns the result as a  :class:`DataFrame`.
 
         This function will go through the input once to determine the input schema if
@@ -471,7 +461,7 @@ class DataStreamReader(OptionUtils):
         .. note:: Experimental.
 
         :param path: string, or list of strings, for input path(s).
-        :param schema: an optional :class:`pyspark.sql.types.StructType` for the input schema.
+        :param schema: an optional :class:`StructType` for the input schema.
         :param sep: sets the single character as a separator for each field and value.
                     If None is set, it uses the default value, ``,``.
         :param encoding: decodes the CSV files by the given encoding type. If None is set,
@@ -495,8 +485,7 @@ class DataStreamReader(OptionUtils):
                                          being read should be skipped. If None is set, it uses
                                          the default value, ``false``.
         :param nullValue: sets the string representation of a null value. If None is set, it uses
-                          the default value, empty string. Since 2.0.1, this ``nullValue`` param
-                          applies to all supported types including the string type.
+                          the default value, empty string.
         :param nanValue: sets the string representation of a non-number value. If None is set, it
                          uses the default value, ``NaN``.
         :param positiveInf: sets the string representation of a positive infinity value. If None
@@ -505,12 +494,9 @@ class DataStreamReader(OptionUtils):
                             is set, it uses the default value, ``Inf``.
         :param dateFormat: sets the string that indicates a date format. Custom date formats
                            follow the formats at ``java.text.SimpleDateFormat``. This
-                           applies to date type. If None is set, it uses the
-                           default value value, ``yyyy-MM-dd``.
-        :param timestampFormat: sets the string that indicates a timestamp format. Custom date
-                                formats follow the formats at ``java.text.SimpleDateFormat``.
-                                This applies to timestamp type. If None is set, it uses the
-                                default value value, ``yyyy-MM-dd'T'HH:mm:ss.SSSZZ``.
+                           applies to both date type and timestamp type. By default, it is None
+                           which means trying to parse times and date by
+                           ``java.sql.Timestamp.valueOf()`` and ``java.sql.Date.valueOf()``.
         :param maxColumns: defines a hard limit of how many columns a record can have. If None is
                            set, it uses the default value, ``20480``.
         :param maxCharsPerColumn: defines the maximum number of characters allowed for any given
@@ -535,8 +521,7 @@ class DataStreamReader(OptionUtils):
             header=header, inferSchema=inferSchema, ignoreLeadingWhiteSpace=ignoreLeadingWhiteSpace,
             ignoreTrailingWhiteSpace=ignoreTrailingWhiteSpace, nullValue=nullValue,
             nanValue=nanValue, positiveInf=positiveInf, negativeInf=negativeInf,
-            dateFormat=dateFormat, timestampFormat=timestampFormat, maxColumns=maxColumns,
-            maxCharsPerColumn=maxCharsPerColumn,
+            dateFormat=dateFormat, maxColumns=maxColumns, maxCharsPerColumn=maxCharsPerColumn,
             maxMalformedLogPerPartition=maxMalformedLogPerPartition, mode=mode)
         if isinstance(path, basestring):
             return self._df(self._jreader.csv(path))
@@ -590,7 +575,7 @@ class DataStreamWriter(object):
 
         .. note:: Experimental.
 
-        :param source: string, name of the data source, which for now can be 'parquet'.
+        :param source: string, name of the data source, e.g. 'json', 'parquet'.
 
         >>> writer = sdf.writeStream.format('json')
         """

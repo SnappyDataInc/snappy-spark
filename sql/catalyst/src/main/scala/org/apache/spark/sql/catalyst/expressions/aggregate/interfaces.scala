@@ -14,24 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/*
- * Changes for SnappyData data platform.
- *
- * Portions Copyright (c) 2016 SnappyData, Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you
- * may not use this file except in compliance with the License. You
- * may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
- * implied. See the License for the specific language governing
- * permissions and limitations under the License. See accompanying
- * LICENSE file.
- */
 
 package org.apache.spark.sql.catalyst.expressions.aggregate
 
@@ -42,14 +24,14 @@ import org.apache.spark.sql.catalyst.expressions.codegen.CodegenFallback
 import org.apache.spark.sql.types._
 
 /** The mode of an [[AggregateFunction]]. */
-sealed trait AggregateMode
+private[sql] sealed trait AggregateMode
 
 /**
  * An [[AggregateFunction]] with [[Partial]] mode is used for partial aggregation.
  * This function updates the given aggregation buffer with the original input of this
  * function. When it has processed all input rows, the aggregation buffer is returned.
  */
-case object Partial extends AggregateMode
+private[sql] case object Partial extends AggregateMode
 
 /**
  * An [[AggregateFunction]] with [[PartialMerge]] mode is used to merge aggregation buffers
@@ -57,7 +39,7 @@ case object Partial extends AggregateMode
  * This function updates the given aggregation buffer by merging multiple aggregation buffers.
  * When it has processed all input rows, the aggregation buffer is returned.
  */
-case object PartialMerge extends AggregateMode
+private[sql] case object PartialMerge extends AggregateMode
 
 /**
  * An [[AggregateFunction]] with [[Final]] mode is used to merge aggregation buffers
@@ -65,7 +47,7 @@ case object PartialMerge extends AggregateMode
  * This function updates the given aggregation buffer by merging multiple aggregation buffers.
  * When it has processed all input rows, the final result of this function is returned.
  */
-case object Final extends AggregateMode
+private[sql] case object Final extends AggregateMode
 
 /**
  * An [[AggregateFunction]] with [[Complete]] mode is used to evaluate this function directly
@@ -73,13 +55,13 @@ case object Final extends AggregateMode
  * This function updates the given aggregation buffer with the original input of this
  * function. When it has processed all input rows, the final result of this function is returned.
  */
-case object Complete extends AggregateMode
+private[sql] case object Complete extends AggregateMode
 
 /**
  * A place holder expressions used in code-gen, it does not change the corresponding value
  * in the row.
  */
-case object NoOp extends Expression with Unevaluable {
+private[sql] case object NoOp extends Expression with Unevaluable {
   override def nullable: Boolean = true
   override def dataType: DataType = NullType
   override def children: Seq[Expression] = Nil
@@ -102,7 +84,7 @@ object AggregateExpression {
  * A container for an [[AggregateFunction]] with its [[AggregateMode]] and a field
  * (`isDistinct`) indicating if DISTINCT keyword is specified for this function.
  */
-case class AggregateExpression(
+private[sql] case class AggregateExpression(
     aggregateFunction: AggregateFunction,
     mode: AggregateMode,
     isDistinct: Boolean,
@@ -183,9 +165,6 @@ sealed abstract class AggregateFunction extends Expression with ImplicitCastInpu
 
   /** Attributes of fields in aggBufferSchema. */
   def aggBufferAttributes: Seq[AttributeReference]
-
-  /** Attributes of fields in aggBufferSchema used for group by. */
-  def aggBufferAttributesForGroup: Seq[AttributeReference] = aggBufferAttributes
 
   /**
    * Attributes of fields in input aggregation buffers (immutable aggregation buffers that are
@@ -371,11 +350,6 @@ abstract class DeclarativeAggregate
   val initialValues: Seq[Expression]
 
   /**
-   * Expressions for initializing empty aggregation buffers for group by.
-   */
-  def initialValuesForGroup: Seq[Expression] = initialValues
-
-  /**
    * Expressions for updating the mutable aggregation buffer based on an input row.
    */
   val updateExpressions: Seq[Expression]
@@ -397,16 +371,8 @@ abstract class DeclarativeAggregate
   /** An expression-based aggregate's bufferSchema is derived from bufferAttributes. */
   final override def aggBufferSchema: StructType = StructType.fromAttributes(aggBufferAttributes)
 
-  lazy val inputAggBufferbaseExprID = NamedExpression.allocateExprID(aggBufferAttributes.length)
-
-  /* final lazy val inputAggBufferAttributes: Seq[AttributeReference] =
-    aggBufferAttributes.map(_.newInstance()) */
-
-  @transient final lazy val inputAggBufferAttributes: Seq[AttributeReference] =
-    aggBufferAttributes.zipWithIndex.map {
-    case ( attr, i) => attr.withExprId( ExprId( inputAggBufferbaseExprID.id + i,
-      inputAggBufferbaseExprID.jvmId))
-  }
+  final lazy val inputAggBufferAttributes: Seq[AttributeReference] =
+    aggBufferAttributes.map(_.newInstance())
 
   /**
    * A helper class for representing an attribute used in merging two

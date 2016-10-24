@@ -311,7 +311,7 @@ object SparkSubmit {
     // In Mesos cluster mode, non-local python files are automatically downloaded by Mesos.
     if (args.isPython && !isYarnCluster && !isMesosCluster) {
       if (Utils.nonLocalPaths(args.primaryResource).nonEmpty) {
-        printErrorAndExit(s"Only local python files are supported: ${args.primaryResource}")
+        printErrorAndExit(s"Only local python files are supported: $args.primaryResource")
       }
       val nonLocalPyFiles = Utils.nonLocalPaths(args.pyFiles).mkString(",")
       if (nonLocalPyFiles.nonEmpty) {
@@ -322,7 +322,7 @@ object SparkSubmit {
     // Require all R files to be local
     if (args.isR && !isYarnCluster) {
       if (Utils.nonLocalPaths(args.primaryResource).nonEmpty) {
-        printErrorAndExit(s"Only local R files are supported: ${args.primaryResource}")
+        printErrorAndExit(s"Only local R files are supported: $args.primaryResource")
       }
     }
 
@@ -633,14 +633,7 @@ object SparkSubmit {
     // explicitly sets `spark.submit.pyFiles` in his/her default properties file.
     sysProps.get("spark.submit.pyFiles").foreach { pyFiles =>
       val resolvedPyFiles = Utils.resolveURIs(pyFiles)
-      val formattedPyFiles = if (!isYarnCluster && !isMesosCluster) {
-        PythonRunner.formatPaths(resolvedPyFiles).mkString(",")
-      } else {
-        // Ignoring formatting python path in yarn and mesos cluster mode, these two modes
-        // support dealing with remote python files, they could distribute and add python files
-        // locally.
-        resolvedPyFiles
-      }
+      val formattedPyFiles = PythonRunner.formatPaths(resolvedPyFiles).mkString(",")
       sysProps("spark.submit.pyFiles") = formattedPyFiles
     }
 
@@ -904,12 +897,9 @@ private[spark] object SparkSubmitUtils {
     val localIvyRoot = new File(ivySettings.getDefaultIvyUserDir, "local")
     localIvy.setLocal(true)
     localIvy.setRepository(new FileRepository(localIvyRoot))
-    val ivyPattern = Seq(localIvyRoot.getAbsolutePath, "[organisation]", "[module]", "[revision]",
-      "ivys", "ivy.xml").mkString(File.separator)
-    localIvy.addIvyPattern(ivyPattern)
-    val artifactPattern = Seq(localIvyRoot.getAbsolutePath, "[organisation]", "[module]",
-      "[revision]", "[type]s", "[artifact](-[classifier]).[ext]").mkString(File.separator)
-    localIvy.addArtifactPattern(artifactPattern)
+    val ivyPattern = Seq("[organisation]", "[module]", "[revision]", "[type]s",
+      "[artifact](-[classifier]).[ext]").mkString(File.separator)
+    localIvy.addIvyPattern(localIvyRoot.getAbsolutePath + File.separator + ivyPattern)
     localIvy.setName("local-ivy-cache")
     cr.add(localIvy)
 
@@ -954,7 +944,7 @@ private[spark] object SparkSubmitUtils {
     artifacts.foreach { mvn =>
       val ri = ModuleRevisionId.newInstance(mvn.groupId, mvn.artifactId, mvn.version)
       val dd = new DefaultDependencyDescriptor(ri, false, false)
-      dd.addDependencyConfiguration(ivyConfName, ivyConfName + "(runtime)")
+      dd.addDependencyConfiguration(ivyConfName, ivyConfName)
       // scalastyle:off println
       printStream.println(s"${dd.getDependencyId} added as a dependency")
       // scalastyle:on println

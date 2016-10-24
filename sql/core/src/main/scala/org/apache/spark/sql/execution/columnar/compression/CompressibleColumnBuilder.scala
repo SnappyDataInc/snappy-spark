@@ -66,7 +66,11 @@ private[columnar] trait CompressibleColumnBuilder[T <: AtomicType]
   }
 
   private def gatherCompressibilityStats(row: InternalRow, ordinal: Int): Unit = {
-    compressionEncoders.foreach(_.gatherCompressibilityStats(row, ordinal))
+    var i = 0
+    while (i < compressionEncoders.length) {
+      compressionEncoders(i).gatherCompressibilityStats(row, ordinal)
+      i += 1
+    }
   }
 
   abstract override def appendFrom(row: InternalRow, ordinal: Int): Unit = {

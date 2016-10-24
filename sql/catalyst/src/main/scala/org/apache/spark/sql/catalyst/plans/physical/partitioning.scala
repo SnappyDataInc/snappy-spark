@@ -14,24 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/*
- * Changes for SnappyData data platform.
- *
- * Portions Copyright (c) 2016 SnappyData, Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you
- * may not use this file except in compliance with the License. You
- * may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
- * implied. See the License for the specific language governing
- * permissions and limitations under the License. See accompanying
- * LICENSE file.
- */
 
 package org.apache.spark.sql.catalyst.plans.physical
 
@@ -250,54 +232,10 @@ case object SinglePartition extends Partitioning {
 /**
  * Represents a partitioning where rows are split up across partitions based on the hash
  * of `expressions`.  All rows where `expressions` evaluate to the same values are guaranteed to be
- * in the same partition. Moreover while evaluating expressions if they are given in different order
- * than this partitioning then also it is considered equal.
- */
-case class OrderlessHashPartitioning(expressions: Seq[Expression],
-    numPartitions: Int, numBuckets: Int)
-    extends Expression with Partitioning with Unevaluable {
-
-  override def children: Seq[Expression] = expressions
-  override def nullable: Boolean = false
-  override def dataType: DataType = IntegerType
-
-  private def matchExpressions(otherExpression: Seq[Expression]): Boolean = {
-    expressions.length == otherExpression.length && expressions.forall(a =>
-      otherExpression.exists(e => e.semanticEquals(a)))
-  }
-
-  override def satisfies(required: Distribution): Boolean = required match {
-    case UnspecifiedDistribution => true
-    case ClusteredDistribution(requiredClustering) =>
-      matchExpressions(requiredClustering)
-    case _ => false
-  }
-
-  private def anyOrderEquals(other: HashPartitioning) : Boolean = {
-    other.numBuckets == this.numBuckets &&
-    other.numPartitions == this.numPartitions &&
-        matchExpressions(other.expressions)
-  }
-
-  override def compatibleWith(other: Partitioning): Boolean = other match {
-    case p: HashPartitioning => anyOrderEquals(p)
-    case _ => false
-  }
-
-  override def guarantees(other: Partitioning): Boolean = other match {
-    case p: HashPartitioning => anyOrderEquals(p)
-    case _ => false
-  }
-
-}
-
-/**
- * Represents a partitioning where rows are split up across partitions based on the hash
- * of `expressions`.  All rows where `expressions` evaluate to the same values are guaranteed to be
  * in the same partition.
  */
-case class HashPartitioning(expressions: Seq[Expression], numPartitions: Int,
-    numBuckets: Int = 0) extends Expression with Partitioning with Unevaluable {
+case class HashPartitioning(expressions: Seq[Expression], numPartitions: Int)
+  extends Expression with Partitioning with Unevaluable {
 
   override def children: Seq[Expression] = expressions
   override def nullable: Boolean = false
@@ -311,14 +249,12 @@ case class HashPartitioning(expressions: Seq[Expression], numPartitions: Int,
   }
 
   override def compatibleWith(other: Partitioning): Boolean = other match {
-    case o: HashPartitioning =>
-      this.numBuckets == o.numBuckets && this.semanticEquals(o)
+    case o: HashPartitioning => this.semanticEquals(o)
     case _ => false
   }
 
   override def guarantees(other: Partitioning): Boolean = other match {
-    case o: HashPartitioning =>
-      this.numBuckets == o.numBuckets && this.semanticEquals(o)
+    case o: HashPartitioning => this.semanticEquals(o)
     case _ => false
   }
 

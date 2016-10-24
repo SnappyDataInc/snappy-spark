@@ -204,7 +204,7 @@ sealed trait BufferSetterGetterUtils {
 /**
  * A Mutable [[Row]] representing a mutable aggregation buffer.
  */
-private[aggregate] class MutableAggregationBufferImpl(
+private[sql] class MutableAggregationBufferImpl (
     schema: StructType,
     toCatalystConverters: Array[Any => Any],
     toScalaConverters: Array[Any => Any],
@@ -266,7 +266,7 @@ private[aggregate] class MutableAggregationBufferImpl(
 /**
  * A [[Row]] representing an immutable aggregation buffer.
  */
-private[aggregate] class InputAggregationBuffer(
+private[sql] class InputAggregationBuffer private[sql] (
     schema: StructType,
     toCatalystConverters: Array[Any => Any],
     toScalaConverters: Array[Any => Any],
@@ -319,7 +319,7 @@ private[aggregate] class InputAggregationBuffer(
  * The internal wrapper used to hook a [[UserDefinedAggregateFunction]] `udaf` in the
  * internal aggregation code path.
  */
-case class ScalaUDAF(
+private[sql] case class ScalaUDAF(
     children: Seq[Expression],
     udaf: UserDefinedAggregateFunction,
     mutableAggBufferOffset: Int = 0,

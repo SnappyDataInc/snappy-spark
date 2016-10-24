@@ -582,8 +582,6 @@ class StructType(DataType):
         else:
             if isinstance(obj, dict):
                 return tuple(obj.get(n) for n in self.names)
-            elif isinstance(obj, Row) and getattr(obj, "__from_dict__", False):
-                return tuple(obj[n] for n in self.names)
             elif isinstance(obj, (list, tuple)):
                 return tuple(obj)
             elif hasattr(obj, "__dict__"):
@@ -788,10 +786,9 @@ def _parse_struct_fields_string(s):
 def _parse_datatype_string(s):
     """
     Parses the given data type string to a :class:`DataType`. The data type string format equals
-    to :class:`DataType.simpleString`, except that top level struct type can omit
-    the ``struct<>`` and atomic types use ``typeName()`` as their format, e.g. use ``byte`` instead
-    of ``tinyint`` for :class:`ByteType`. We can also use ``int`` as a short name
-    for :class:`IntegerType`.
+    to `DataType.simpleString`, except that top level struct type can omit the `struct<>` and
+    atomic types use `typeName()` as their format, e.g. use `byte` instead of `tinyint` for
+    ByteType. We can also use `int` as a short name for IntegerType.
 
     >>> _parse_datatype_string("int ")
     IntegerType
@@ -1245,7 +1242,7 @@ _acceptable_types = {
     TimestampType: (datetime.datetime,),
     ArrayType: (list, tuple, array),
     MapType: (dict,),
-    StructType: (tuple, list, dict),
+    StructType: (tuple, list),
 }
 
 
@@ -1316,10 +1313,10 @@ def _verify_type(obj, dataType, nullable=True):
     assert _type in _acceptable_types, "unknown datatype: %s for object %r" % (dataType, obj)
 
     if _type is StructType:
-        # check the type and fields later
-        pass
+        if not isinstance(obj, (tuple, list)):
+            raise TypeError("StructType can not accept object %r in type %s" % (obj, type(obj)))
     else:
-        # subclass of them can not be fromInternal in JVM
+        # subclass of them can not be fromInternald in JVM
         if type(obj) not in _acceptable_types[_type]:
             raise TypeError("%s can not accept object %r in type %s" % (dataType, obj, type(obj)))
 
@@ -1345,25 +1342,11 @@ def _verify_type(obj, dataType, nullable=True):
             _verify_type(v, dataType.valueType, dataType.valueContainsNull)
 
     elif isinstance(dataType, StructType):
-        if isinstance(obj, dict):
-            for f in dataType.fields:
-                _verify_type(obj.get(f.name), f.dataType, f.nullable)
-        elif isinstance(obj, Row) and getattr(obj, "__from_dict__", False):
-            # the order in obj could be different than dataType.fields
-            for f in dataType.fields:
-                _verify_type(obj[f.name], f.dataType, f.nullable)
-        elif isinstance(obj, (tuple, list)):
-            if len(obj) != len(dataType.fields):
-                raise ValueError("Length of object (%d) does not match with "
-                                 "length of fields (%d)" % (len(obj), len(dataType.fields)))
-            for v, f in zip(obj, dataType.fields):
-                _verify_type(v, f.dataType, f.nullable)
-        elif hasattr(obj, "__dict__"):
-            d = obj.__dict__
-            for f in dataType.fields:
-                _verify_type(d.get(f.name), f.dataType, f.nullable)
-        else:
-            raise TypeError("StructType can not accept object %r in type %s" % (obj, type(obj)))
+        if len(obj) != len(dataType.fields):
+            raise ValueError("Length of object (%d) does not match with "
+                             "length of fields (%d)" % (len(obj), len(dataType.fields)))
+        for v, f in zip(obj, dataType.fields):
+            _verify_type(v, f.dataType, f.nullable)
 
 
 # This is used to unpickle a Row from JVM
@@ -1426,7 +1409,6 @@ class Row(tuple):
             names = sorted(kwargs.keys())
             row = tuple.__new__(self, [kwargs[n] for n in names])
             row.__fields__ = names
-            row.__from_dict__ = True
             return row
 
         else:
@@ -1502,7 +1484,7 @@ class Row(tuple):
             raise AttributeError(item)
 
     def __setattr__(self, key, value):
-        if key != '__fields__' and key != "__from_dict__":
+        if key != '__fields__':
             raise Exception("Row is read-only")
         self.__dict__[key] = value
 

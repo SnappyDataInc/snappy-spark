@@ -17,25 +17,18 @@
 
 package org.apache.spark.sql.execution.command
 
-import scala.collection.{GenMap, GenSeq}
-import scala.collection.parallel.ForkJoinTaskSupport
-import scala.concurrent.forkjoin.ForkJoinPool
 import scala.util.control.NonFatal
-
-import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs._
-import org.apache.hadoop.mapred.{FileInputFormat, JobConf}
 
 import org.apache.spark.sql.{AnalysisException, Row, SparkSession}
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.catalyst.catalog.{CatalogDatabase, CatalogTable, CatalogTablePartition, CatalogTableType, SessionCatalog}
+import org.apache.spark.sql.catalyst.catalog.{CatalogDatabase, CatalogTable}
+import org.apache.spark.sql.catalyst.catalog.{CatalogTablePartition, CatalogTableType, SessionCatalog}
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.expressions.{Attribute, AttributeReference}
 import org.apache.spark.sql.execution.command.CreateDataSourceTableUtils._
 import org.apache.spark.sql.execution.datasources.BucketSpec
-import org.apache.spark.sql.execution.datasources.PartitioningUtils
 import org.apache.spark.sql.types._
-import org.apache.spark.util.SerializableConfiguration
+
 
 // Note: The definition of these commands are based on the ones described in
 // https://cwiki.apache.org/confluence/display/Hive/LanguageManual+DDL
@@ -190,25 +183,32 @@ case class DropTableCommand(
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
     val catalog = sparkSession.sessionState.catalog
-    // If the command DROP VIEW is to drop a table or DROP TABLE is to drop a view
-    // issue an exception.
-    catalog.getTableMetadataOption(tableName).map(_.tableType match {
-      case CatalogTableType.VIEW if !isView =>
-        throw new AnalysisException(
-          "Cannot drop a view with DROP TABLE. Please use DROP VIEW instead")
-      case o if o != CatalogTableType.VIEW && isView =>
-        throw new AnalysisException(
-          s"Cannot drop a table with DROP VIEW. Please use DROP TABLE instead")
-      case _ =>
-    })
-    try {
-      sparkSession.sharedState.cacheManager.uncacheQuery(
-        sparkSession.table(tableName.quotedString))
-    } catch {
-      case NonFatal(e) => log.warn(e.toString, e)
+    if (!catalog.tableExists(tableName)) {
+      if (!ifExists) {
+        val objectName = if (isView) "View" else "Table"
+        throw new AnalysisException(s"$objectName to drop '$tableName' does not exist")
+      }
+    } else {
+      // If the command DROP VIEW is to drop a table or DROP TABLE is to drop a view
+      // issue an exception.
+      catalog.getTableMetadataOption(tableName).map(_.tableType match {
+        case CatalogTableType.VIEW if !isView =>
+          throw new AnalysisException(
+            "Cannot drop a view with DROP TABLE. Please use DROP VIEW instead")
+        case o if o != CatalogTableType.VIEW && isView =>
+          throw new AnalysisException(
+            s"Cannot drop a table with DROP VIEW. Please use DROP TABLE instead")
+        case _ =>
+      })
+      try {
+        sparkSession.sharedState.cacheManager.uncacheQuery(
+          sparkSession.table(tableName.quotedString))
+      } catch {
+        case NonFatal(e) => log.warn(e.toString, e)
+      }
+      catalog.refreshTable(tableName)
+      catalog.dropTable(tableName, ifExists)
     }
-    catalog.refreshTable(tableName)
-    catalog.dropTable(tableName, ifExists)
     Seq.empty[Row]
   }
 }
@@ -268,7 +268,7 @@ case class AlterTableUnsetPropertiesCommand(
       propKeys.foreach { k =>
         if (!table.properties.contains(k)) {
           throw new AnalysisException(
-            s"Attempted to unset non-existent property '$k' in table '${table.identifier}'")
+            s"Attempted to unset non-existent property '$k' in table '$tableName'")
         }
       }
     }
@@ -323,11 +323,11 @@ case class AlterTableSerDePropertiesCommand(
       catalog.alterTable(newTable)
     } else {
       val spec = partSpec.get
-      val part = catalog.getPartition(table.identifier, spec)
+      val part = catalog.getPartition(tableName, spec)
       val newPart = part.copy(storage = part.storage.copy(
         serde = serdeClassName.orElse(part.storage.serde),
         serdeProperties = part.storage.serdeProperties ++ serdeProperties.getOrElse(Map())))
-      catalog.alterPartitions(table.identifier, Seq(newPart))
+      catalog.alterPartitions(tableName, Seq(newPart))
     }
     Seq.empty[Row]
   }
@@ -363,7 +363,7 @@ case class AlterTableAddPartitionCommand(
       // inherit table storage format (possibly except for location)
       CatalogTablePartition(spec, table.storage.copy(locationUri = location))
     }
-    catalog.createPartitions(table.identifier, parts, ignoreIfExists = ifNotExists)
+    catalog.createPartitions(tableName, parts, ignoreIfExists = ifNotExists)
     Seq.empty[Row]
   }
 
@@ -418,209 +418,10 @@ case class AlterTableDropPartitionCommand(
       throw new AnalysisException(
         "ALTER TABLE DROP PARTITIONS is not allowed for tables defined using the datasource API")
     }
-    catalog.dropPartitions(table.identifier, specs, ignoreIfNotExists = ifExists)
+    catalog.dropPartitions(tableName, specs, ignoreIfNotExists = ifExists)
     Seq.empty[Row]
   }
 
-}
-
-
-case class PartitionStatistics(numFiles: Int, totalSize: Long)
-
-/**
- * Recover Partitions in ALTER TABLE: recover all the partition in the directory of a table and
- * update the catalog.
- *
- * The syntax of this command is:
- * {{{
- *   ALTER TABLE table RECOVER PARTITIONS;
- *   MSCK REPAIR TABLE table;
- * }}}
- */
-case class AlterTableRecoverPartitionsCommand(
-    tableName: TableIdentifier,
-    cmd: String = "ALTER TABLE RECOVER PARTITIONS") extends RunnableCommand {
-
-  // These are list of statistics that can be collected quickly without requiring a scan of the data
-  // see https://github.com/apache/hive/blob/master/
-  //   common/src/java/org/apache/hadoop/hive/common/StatsSetupConst.java
-  val NUM_FILES = "numFiles"
-  val TOTAL_SIZE = "totalSize"
-  val DDL_TIME = "transient_lastDdlTime"
-
-  private def getPathFilter(hadoopConf: Configuration): PathFilter = {
-    // Dummy jobconf to get to the pathFilter defined in configuration
-    // It's very expensive to create a JobConf(ClassUtil.findContainingJar() is slow)
-    val jobConf = new JobConf(hadoopConf, this.getClass)
-    val pathFilter = FileInputFormat.getInputPathFilter(jobConf)
-    new PathFilter {
-      override def accept(path: Path): Boolean = {
-        val name = path.getName
-        if (name != "_SUCCESS" && name != "_temporary" && !name.startsWith(".")) {
-          pathFilter == null || pathFilter.accept(path)
-        } else {
-          false
-        }
-      }
-    }
-  }
-
-  override def run(spark: SparkSession): Seq[Row] = {
-    val catalog = spark.sessionState.catalog
-    val table = catalog.getTableMetadata(tableName)
-    val tableIdentWithDB = table.identifier.quotedString
-    if (DDLUtils.isDatasourceTable(table)) {
-      throw new AnalysisException(
-        s"Operation not allowed: $cmd on datasource tables: $tableIdentWithDB")
-    }
-    if (!DDLUtils.isTablePartitioned(table)) {
-      throw new AnalysisException(
-        s"Operation not allowed: $cmd only works on partitioned tables: $tableIdentWithDB")
-    }
-    if (table.storage.locationUri.isEmpty) {
-      throw new AnalysisException(s"Operation not allowed: $cmd only works on table with " +
-        s"location provided: $tableIdentWithDB")
-    }
-
-    val root = new Path(table.storage.locationUri.get)
-    logInfo(s"Recover all the partitions in $root")
-    val fs = root.getFileSystem(spark.sparkContext.hadoopConfiguration)
-
-    val threshold = spark.conf.get("spark.rdd.parallelListingThreshold", "10").toInt
-    val hadoopConf = spark.sparkContext.hadoopConfiguration
-    val pathFilter = getPathFilter(hadoopConf)
-    val partitionSpecsAndLocs = scanPartitions(
-      spark, fs, pathFilter, root, Map(), table.partitionColumnNames.map(_.toLowerCase), threshold)
-    val total = partitionSpecsAndLocs.length
-    logInfo(s"Found $total partitions in $root")
-
-    val partitionStats = if (spark.sqlContext.conf.gatherFastStats) {
-      gatherPartitionStats(spark, partitionSpecsAndLocs, fs, pathFilter, threshold)
-    } else {
-      GenMap.empty[String, PartitionStatistics]
-    }
-    logInfo(s"Finished to gather the fast stats for all $total partitions.")
-
-    addPartitions(spark, table, partitionSpecsAndLocs, partitionStats)
-    logInfo(s"Recovered all partitions ($total).")
-    Seq.empty[Row]
-  }
-
-  @transient private lazy val evalTaskSupport = new ForkJoinTaskSupport(new ForkJoinPool(8))
-
-  private def scanPartitions(
-      spark: SparkSession,
-      fs: FileSystem,
-      filter: PathFilter,
-      path: Path,
-      spec: TablePartitionSpec,
-      partitionNames: Seq[String],
-      threshold: Int): GenSeq[(TablePartitionSpec, Path)] = {
-    if (partitionNames.isEmpty) {
-      return Seq(spec -> path)
-    }
-
-    val statuses = fs.listStatus(path, filter)
-    val statusPar: GenSeq[FileStatus] =
-      if (partitionNames.length > 1 && statuses.length > threshold || partitionNames.length > 2) {
-        // parallelize the list of partitions here, then we can have better parallelism later.
-        val parArray = statuses.par
-        parArray.tasksupport = evalTaskSupport
-        parArray
-      } else {
-        statuses
-      }
-    statusPar.flatMap { st =>
-      val name = st.getPath.getName
-      if (st.isDirectory && name.contains("=")) {
-        val ps = name.split("=", 2)
-        val columnName = PartitioningUtils.unescapePathName(ps(0)).toLowerCase
-        // TODO: Validate the value
-        val value = PartitioningUtils.unescapePathName(ps(1))
-        // comparing with case-insensitive, but preserve the case
-        if (columnName == partitionNames.head) {
-          scanPartitions(spark, fs, filter, st.getPath, spec ++ Map(columnName -> value),
-            partitionNames.drop(1), threshold)
-        } else {
-          logWarning(s"expect partition column ${partitionNames.head}, but got ${ps(0)}, ignore it")
-          Seq()
-        }
-      } else {
-        logWarning(s"ignore ${new Path(path, name)}")
-        Seq()
-      }
-    }
-  }
-
-  private def gatherPartitionStats(
-      spark: SparkSession,
-      partitionSpecsAndLocs: GenSeq[(TablePartitionSpec, Path)],
-      fs: FileSystem,
-      pathFilter: PathFilter,
-      threshold: Int): GenMap[String, PartitionStatistics] = {
-    if (partitionSpecsAndLocs.length > threshold) {
-      val hadoopConf = spark.sparkContext.hadoopConfiguration
-      val serializableConfiguration = new SerializableConfiguration(hadoopConf)
-      val serializedPaths = partitionSpecsAndLocs.map(_._2.toString).toArray
-
-      // Set the number of parallelism to prevent following file listing from generating many tasks
-      // in case of large #defaultParallelism.
-      val numParallelism = Math.min(serializedPaths.length,
-        Math.min(spark.sparkContext.defaultParallelism, 10000))
-      // gather the fast stats for all the partitions otherwise Hive metastore will list all the
-      // files for all the new partitions in sequential way, which is super slow.
-      logInfo(s"Gather the fast stats in parallel using $numParallelism tasks.")
-      spark.sparkContext.parallelize(serializedPaths, numParallelism)
-        .mapPartitions { paths =>
-          val pathFilter = getPathFilter(serializableConfiguration.value)
-          paths.map(new Path(_)).map{ path =>
-            val fs = path.getFileSystem(serializableConfiguration.value)
-            val statuses = fs.listStatus(path, pathFilter)
-            (path.toString, PartitionStatistics(statuses.length, statuses.map(_.getLen).sum))
-          }
-        }.collectAsMap()
-    } else {
-      partitionSpecsAndLocs.map { case (_, location) =>
-        val statuses = fs.listStatus(location, pathFilter)
-        (location.toString, PartitionStatistics(statuses.length, statuses.map(_.getLen).sum))
-      }.toMap
-    }
-  }
-
-  private def addPartitions(
-      spark: SparkSession,
-      table: CatalogTable,
-      partitionSpecsAndLocs: GenSeq[(TablePartitionSpec, Path)],
-      partitionStats: GenMap[String, PartitionStatistics]): Unit = {
-    val total = partitionSpecsAndLocs.length
-    var done = 0L
-    // Hive metastore may not have enough memory to handle millions of partitions in single RPC,
-    // we should split them into smaller batches. Since Hive client is not thread safe, we cannot
-    // do this in parallel.
-    val batchSize = 100
-    partitionSpecsAndLocs.toIterator.grouped(batchSize).foreach { batch =>
-      val now = System.currentTimeMillis() / 1000
-      val parts = batch.map { case (spec, location) =>
-        val params = partitionStats.get(location.toString).map {
-          case PartitionStatistics(numFiles, totalSize) =>
-            // This two fast stat could prevent Hive metastore to list the files again.
-            Map(NUM_FILES -> numFiles.toString,
-              TOTAL_SIZE -> totalSize.toString,
-              // Workaround a bug in HiveMetastore that try to mutate a read-only parameters.
-              // see metastore/src/java/org/apache/hadoop/hive/metastore/HiveMetaStore.java
-              DDL_TIME -> now.toString)
-        }.getOrElse(Map.empty)
-        // inherit table storage format (possibly except for location)
-        CatalogTablePartition(
-          spec,
-          table.storage.copy(locationUri = Some(location.toUri.toString)),
-          params)
-      }
-      spark.sessionState.catalog.createPartitions(tableName, parts, ignoreIfExists = true)
-      done += parts.length
-      logDebug(s"Recovered ${parts.length} partitions ($done/$total so far)")
-    }
-  }
 }
 
 
@@ -647,7 +448,7 @@ case class AlterTableSetLocationCommand(
     partitionSpec match {
       case Some(spec) =>
         // Partition spec is specified, so we set the location only for this partition
-        val part = catalog.getPartition(table.identifier, spec)
+        val part = catalog.getPartition(tableName, spec)
         val newPart =
           if (DDLUtils.isDatasourceTable(table)) {
             throw new AnalysisException(
@@ -656,7 +457,7 @@ case class AlterTableSetLocationCommand(
           } else {
             part.copy(storage = part.storage.copy(locationUri = Some(location)))
           }
-        catalog.alterPartitions(table.identifier, Seq(newPart))
+        catalog.alterPartitions(tableName, Seq(newPart))
       case None =>
         // No partition spec is specified, so we set the location for the table itself
         val newTable =

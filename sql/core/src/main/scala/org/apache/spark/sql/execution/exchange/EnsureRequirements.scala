@@ -47,11 +47,10 @@ case class EnsureRequirements(conf: SQLConf) extends Rule[SparkPlan] {
    */
   private def createPartitioning(
       requiredDistribution: Distribution,
-      numPartitions: Int, numBuckets: Int = 0): Partitioning = {
+      numPartitions: Int): Partitioning = {
     requiredDistribution match {
       case AllTuples => SinglePartition
-      case ClusteredDistribution(clustering) =>
-        HashPartitioning(clustering, numPartitions, numBuckets)
+      case ClusteredDistribution(clustering) => HashPartitioning(clustering, numPartitions)
       case OrderedDistribution(ordering) => RangePartitioning(ordering, numPartitions)
       case dist => sys.error(s"Do not know how to satisfy distribution $dist")
     }
@@ -181,20 +180,10 @@ case class EnsureRequirements(conf: SQLConf) extends Rule[SparkPlan] {
       // partitioned by the same partitioning into the same number of partitions. In that case,
       // don't try to make them match `defaultPartitions`, just use the existing partitioning.
       val maxChildrenNumPartitions = children.map(_.outputPartitioning.numPartitions).max
-      val numBuckets = {
-        children.map(child => {
-          if (child.outputPartitioning.isInstanceOf[OrderlessHashPartitioning]) {
-            child.outputPartitioning.asInstanceOf[OrderlessHashPartitioning].numBuckets
-          }
-          else {
-            0
-          }
-        }).reduceLeft(_ max _)
-      }
       val useExistingPartitioning = children.zip(requiredChildDistributions).forall {
         case (child, distribution) =>
           child.outputPartitioning.guarantees(
-            createPartitioning(distribution, maxChildrenNumPartitions, numBuckets))
+            createPartitioning(distribution, maxChildrenNumPartitions))
       }
 
       children = if (useExistingPartitioning) {
@@ -216,10 +205,10 @@ case class EnsureRequirements(conf: SQLConf) extends Rule[SparkPlan] {
           // number of partitions. Otherwise, we use maxChildrenNumPartitions.
           if (shufflesAllChildren) defaultNumPreShufflePartitions else maxChildrenNumPartitions
         }
+
         children.zip(requiredChildDistributions).map {
           case (child, distribution) =>
-            val targetPartitioning = createPartitioning(distribution,
-              numPartitions)
+            val targetPartitioning = createPartitioning(distribution, numPartitions)
             if (child.outputPartitioning.guarantees(targetPartitioning)) {
               child
             } else {
@@ -247,16 +236,7 @@ case class EnsureRequirements(conf: SQLConf) extends Rule[SparkPlan] {
     children = children.zip(requiredChildOrderings).map { case (child, requiredOrdering) =>
       if (requiredOrdering.nonEmpty) {
         // If child.outputOrdering is [a, b] and requiredOrdering is [a], we do not need to sort.
-        val orderingMatched = if (requiredOrdering.length > child.outputOrdering.length) {
-          false
-        } else {
-          requiredOrdering.zip(child.outputOrdering).forall {
-            case (requiredOrder, childOutputOrder) =>
-              requiredOrder.semanticEquals(childOutputOrder)
-          }
-        }
-
-        if (!orderingMatched) {
+        if (requiredOrdering != child.outputOrdering.take(requiredOrdering.length)) {
           SortExec(requiredOrdering, global = false, child = child)
         } else {
           child

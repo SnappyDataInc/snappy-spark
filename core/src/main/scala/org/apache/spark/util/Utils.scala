@@ -14,24 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/*
- * Changes for SnappyData data platform.
- *
- * Portions Copyright (c) 2016 SnappyData, Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you
- * may not use this file except in compliance with the License. You
- * may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
- * implied. See the License for the specific language governing
- * permissions and limitations under the License. See accompanying
- * LICENSE file.
- */
 
 package org.apache.spark.util
 
@@ -73,7 +55,6 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config.{DYN_ALLOCATION_INITIAL_EXECUTORS, DYN_ALLOCATION_MIN_EXECUTORS, EXECUTOR_INSTANCES}
 import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, SerializerInstance}
-import org.apache.spark.storage.StorageUtils
 
 /** CallSite represents a place in user code. It can have a short and a long form. */
 private[spark] case class CallSite(shortForm: String, longForm: String)
@@ -301,8 +282,7 @@ private[spark] object Utils extends Logging {
           maxAttempts + " attempts!")
       }
       try {
-        dir = new File(root, namePrefix + "-" +
-            StorageUtils.newNonSecureRandomUUID().toString)
+        dir = new File(root, namePrefix + "-" + UUID.randomUUID.toString)
         if (dir.exists() || !dir.mkdirs()) {
           dir = null
         }
@@ -718,26 +698,6 @@ private[spark] object Utils extends Logging {
   }
 
   /**
-   * Validate that a given URI is actually a valid URL as well.
-   * @param uri The URI to validate
-   */
-  @throws[MalformedURLException]("when the URI is an invalid URL")
-  def validateURL(uri: URI): Unit = {
-    Option(uri.getScheme).getOrElse("file") match {
-      case "http" | "https" | "ftp" =>
-        try {
-          uri.toURL
-        } catch {
-          case e: MalformedURLException =>
-            val ex = new MalformedURLException(s"URI (${uri.toString}) is not a valid URL.")
-            ex.initCause(e)
-            throw ex
-        }
-      case _ => // will not be turned into a URL anyway
-    }
-  }
-
-  /**
    * Get the path of a temporary directory.  Spark's local directories can be configured through
    * multiple settings, which are used with the following precedence:
    *
@@ -864,7 +824,7 @@ private[spark] object Utils extends Logging {
    */
   def randomizeInPlace[T](arr: Array[T], rand: Random = new Random): Array[T] = {
     for (i <- (arr.length - 1) to 1 by -1) {
-      val j = rand.nextInt(i + 1)
+      val j = rand.nextInt(i)
       val tmp = arr(j)
       arr(j) = arr(i)
       arr(i) = tmp
@@ -1989,7 +1949,7 @@ private[spark] object Utils extends Logging {
     val path = Option(filePath).getOrElse(getDefaultPropertiesFile())
     Option(path).foreach { confFile =>
       getPropertiesFromFile(confFile).filter { case (k, v) =>
-        k.startsWith("spark.") || k.startsWith("snappydata.")
+        k.startsWith("spark.")
       }.foreach { case (k, v) =>
         conf.setIfMissing(k, v)
         sys.props.getOrElseUpdate(k, v)
@@ -2410,28 +2370,7 @@ private[spark] object Utils extends Logging {
    * Returns a path of temporary file which is in the same directory with `path`.
    */
   def tempFileWith(path: File): File = {
-    var temp: File = null
-    do {
-      temp = new File(path.getAbsolutePath + "." +
-          StorageUtils.newNonSecureRandomUUID())
-    } while (temp.exists())
-    temp
-  }
-
-  /**
-   * Returns a path of temporary file which is in the same directory with `path`.
-   */
-  def tempFileWith(parent: String, prefix: String): File = {
-    var temp: File = null
-    do {
-      val name = if (prefix == null) {
-        StorageUtils.newNonSecureRandomUUID().toString
-      } else {
-        prefix + '.' + StorageUtils.newNonSecureRandomUUID().toString
-      }
-      temp = new File(parent, name)
-    } while (temp.exists())
-    temp
+    new File(path.getAbsolutePath + "." + UUID.randomUUID())
   }
 
   /**

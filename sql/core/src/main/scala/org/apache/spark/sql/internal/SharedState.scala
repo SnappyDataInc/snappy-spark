@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.internal
 
+import org.apache.hadoop.conf.Configuration
+
 import org.apache.spark.SparkContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SQLContext}

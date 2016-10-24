@@ -123,7 +123,6 @@ of the most common options to set are:
     Number of cores to use for the driver process, only in cluster mode.
   </td>
 </tr>
-<tr>
   <td><code>spark.driver.maxResultSize</code></td>
   <td>1g</td>
   <td>
@@ -218,7 +217,7 @@ Apart from these, the following properties are also available, and may be useful
     <br /><em>Note:</em> In client mode, this config must not be set through the <code>SparkConf</code>
     directly in your application, because the driver JVM has already started at that point.
     Instead, please set this through the <code>--driver-class-path</code> command line option or in
-    your default properties file.
+    your default properties file.</td>
   </td>
 </tr>
 <tr>
@@ -245,7 +244,7 @@ Apart from these, the following properties are also available, and may be useful
     <br /><em>Note:</em> In client mode, this config must not be set through the <code>SparkConf</code>
     directly in your application, because the driver JVM has already started at that point.
     Instead, please set this through the <code>--driver-library-path</code> command line option or in
-    your default properties file.
+    your default properties file.</td>
   </td>
 </tr>
 <tr>
@@ -595,14 +594,6 @@ Apart from these, the following properties are also available, and may be useful
   <td>1000</td>
   <td>
     How many stages the Spark UI and status APIs remember before garbage
-    collecting.
-  </td>
-</tr>
-<tr>
-  <td><code>spark.ui.retainedTasks</code></td>
-  <td>100000</td>
-  <td>
-    How many tasks the Spark UI and status APIs remember before garbage
     collecting.
   </td>
 </tr>
@@ -1213,7 +1204,7 @@ Apart from these, the following properties are also available, and may be useful
   <td>false</td>
   <td>
     Whether to use dynamic resource allocation, which scales the number of executors registered
-    with this application up and down based on the workload.
+    with this application up and down based on the workload. 
     For more detail, see the description
     <a href="job-scheduling.html#dynamic-resource-allocation">here</a>.
     <br><br>
@@ -1354,9 +1345,8 @@ Apart from these, the following properties are also available, and may be useful
   <td><code>spark.authenticate.enableSaslEncryption</code></td>
   <td>false</td>
   <td>
-    Enable encrypted communication when authentication is
-    enabled. This is supported by the block transfer service and the
-    RPC endpoints.
+    Enable encrypted communication when authentication is enabled. This option is currently
+    only supported by the block transfer service.
   </td>
 </tr>
 <tr>
@@ -1458,10 +1448,8 @@ Apart from these, the following properties are also available, and may be useful
             the properties must be overwritten in the protocol-specific namespace.</p>
 
             <p>Use <code>spark.ssl.YYY.XXX</code> settings to overwrite the global configuration for
-            particular protocol denoted by <code>YYY</code>. Example values for <code>YYY</code>
-            include <code>fs</code>, <code>ui</code>, <code>standalone</code>, and
-            <code>historyServer</code>.  See <a href="security.html#ssl-configuration">SSL
-            Configuration</a> for details on hierarchical SSL configuration for services.</p>
+            particular protocol denoted by <code>YYY</code>. Currently <code>YYY</code> can be
+            only <code>fs</code> for file server.</p>
         </td>
     </tr>
     <tr>

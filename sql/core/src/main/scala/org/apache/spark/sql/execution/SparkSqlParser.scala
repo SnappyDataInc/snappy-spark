@@ -18,6 +18,7 @@
 package org.apache.spark.sql.execution
 
 import scala.collection.JavaConverters._
+import scala.util.Try
 
 import org.antlr.v4.runtime.{ParserRuleContext, Token}
 import org.antlr.v4.runtime.tree.TerminalNode
@@ -405,20 +406,6 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder {
   }
 
   /**
-   * Create a [[AlterTableRecoverPartitionsCommand]] command.
-   *
-   * For example:
-   * {{{
-   *   MSCK REPAIR TABLE tablename
-   * }}}
-   */
-  override def visitRepairTable(ctx: RepairTableContext): LogicalPlan = withOrigin(ctx) {
-    AlterTableRecoverPartitionsCommand(
-      visitTableIdentifier(ctx.tableIdentifier),
-      "MSCK REPAIR TABLE")
-  }
-
-  /**
    * Convert a table property list into a key-value map.
    * This should be called through [[visitPropertyKeyValues]] or [[visitPropertyKeys]].
    */
@@ -777,19 +764,6 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder {
   }
 
   /**
-   * Create an [[AlterTableRecoverPartitionsCommand]] command
-   *
-   * For example:
-   * {{{
-   *   ALTER TABLE table RECOVER PARTITIONS;
-   * }}}
-   */
-  override def visitRecoverPartitions(
-      ctx: RecoverPartitionsContext): LogicalPlan = withOrigin(ctx) {
-    AlterTableRecoverPartitionsCommand(visitTableIdentifier(ctx.tableIdentifier))
-  }
-
-  /**
    * Create an [[AlterTableSetLocationCommand]] command
    *
    * For example:
@@ -1018,6 +992,12 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder {
 
     selectQuery match {
       case Some(q) =>
+        // Just use whatever is projected in the select statement as our schema
+        if (schema.nonEmpty) {
+          operationNotAllowed(
+            "Schema may not be specified in a Create Table As Select (CTAS) statement",
+            ctx)
+        }
         // Hive does not allow to use a CTAS statement to create a partitioned table.
         if (tableDesc.partitionColumnNames.nonEmpty) {
           val errorMessage = "A Create Table As Select (CTAS) statement is not allowed to " +
@@ -1026,12 +1006,6 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder {
             "OPTIONS (...) PARTITIONED BY ...\" to create a partitioned table through a " +
             "CTAS statement."
           operationNotAllowed(errorMessage, ctx)
-        }
-        // Just use whatever is projected in the select statement as our schema
-        if (schema.nonEmpty) {
-          operationNotAllowed(
-            "Schema may not be specified in a Create Table As Select (CTAS) statement",
-            ctx)
         }
 
         val hasStorageProperties = (ctx.createFileFormat != null) || (ctx.rowFormat != null)
@@ -1178,7 +1152,7 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder {
         entry("mapkey.delim", ctx.keysTerminatedBy) ++
         Option(ctx.linesSeparatedBy).toSeq.map { token =>
           val value = string(token)
-          validate(
+          assert(
             value == "\n",
             s"LINES TERMINATED BY only supports newline '\\n' right now: $value",
             ctx)
@@ -1235,7 +1209,7 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder {
    *
    * For example:
    * {{{
-   *   CREATE [OR REPLACE] [TEMPORARY] VIEW [IF NOT EXISTS] [db_name.]view_name
+   *   CREATE [TEMPORARY] VIEW [IF NOT EXISTS] [db_name.]view_name
    *   [(column_name [COMMENT column_comment], ...) ]
    *   [COMMENT view_comment]
    *   [TBLPROPERTIES (property_name = property_value, ...)]
@@ -1250,44 +1224,60 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder {
       val schema = identifiers.map { ic =>
         CatalogColumn(ic.identifier.getText, null, nullable = true, Option(ic.STRING).map(string))
       }
-
-      val sql = Option(source(ctx.query))
-      val tableDesc = CatalogTable(
-        identifier = visitTableIdentifier(ctx.tableIdentifier),
-        tableType = CatalogTableType.VIEW,
-        schema = schema,
-        storage = CatalogStorageFormat.empty,
-        properties = Option(ctx.tablePropertyList).map(visitPropertyKeyValues).getOrElse(Map.empty),
-        viewOriginalText = sql,
-        viewText = sql,
-        comment = Option(ctx.STRING).map(string))
-
-      CreateViewCommand(
-        tableDesc,
-        plan(ctx.query),
-        allowExisting = ctx.EXISTS != null,
-        replace = ctx.REPLACE != null,
-        isTemporary = ctx.TEMPORARY != null)
+      createView(
+        ctx,
+        ctx.tableIdentifier,
+        comment = Option(ctx.STRING).map(string),
+        schema,
+        ctx.query,
+        Option(ctx.tablePropertyList).map(visitPropertyKeyValues).getOrElse(Map.empty),
+        ctx.EXISTS != null,
+        ctx.REPLACE != null,
+        ctx.TEMPORARY != null
+      )
     }
   }
 
   /**
-   * Alter the query of a view. This creates a [[AlterViewAsCommand]] command.
-   *
-   * For example:
-   * {{{
-   *   ALTER VIEW [db_name.]view_name AS SELECT ...;
-   * }}}
+   * Alter the query of a view. This creates a [[CreateViewCommand]] command.
    */
   override def visitAlterViewQuery(ctx: AlterViewQueryContext): LogicalPlan = withOrigin(ctx) {
-    val tableDesc = CatalogTable(
-      identifier = visitTableIdentifier(ctx.tableIdentifier),
-      tableType = CatalogTableType.VIEW,
-      storage = CatalogStorageFormat.empty,
-      schema = Nil,
-      viewOriginalText = Option(source(ctx.query)))
+    createView(
+      ctx,
+      ctx.tableIdentifier,
+      comment = None,
+      Seq.empty,
+      ctx.query,
+      Map.empty,
+      allowExist = false,
+      replace = true,
+      isTemporary = false)
+  }
 
-    AlterViewAsCommand(tableDesc, plan(ctx.query))
+  /**
+   * Create a [[CreateViewCommand]] command.
+   */
+  private def createView(
+      ctx: ParserRuleContext,
+      name: TableIdentifierContext,
+      comment: Option[String],
+      schema: Seq[CatalogColumn],
+      query: QueryContext,
+      properties: Map[String, String],
+      allowExist: Boolean,
+      replace: Boolean,
+      isTemporary: Boolean): LogicalPlan = {
+    val sql = Option(source(query))
+    val tableDesc = CatalogTable(
+      identifier = visitTableIdentifier(name),
+      tableType = CatalogTableType.VIEW,
+      schema = schema,
+      storage = CatalogStorageFormat.empty,
+      properties = properties,
+      viewOriginalText = sql,
+      viewText = sql,
+      comment = comment)
+    CreateViewCommand(tableDesc, plan(query), allowExist, replace, isTemporary)
   }
 
   /**

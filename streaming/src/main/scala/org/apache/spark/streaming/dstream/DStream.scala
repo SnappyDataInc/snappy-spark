@@ -14,31 +14,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-/*
- * Changes for SnappyData data platform.
- *
- * Portions Copyright (c) 2016 SnappyData, Inc. All rights reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License"); you
- * may not use this file except in compliance with the License. You
- * may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
- * implied. See the License for the specific language governing
- * permissions and limitations under the License. See accompanying
- * LICENSE file.
- */
 
 package org.apache.spark.streaming.dstream
 
 
 import java.io.{IOException, ObjectInputStream, ObjectOutputStream}
-import java.util.concurrent.ConcurrentHashMap
 
+import scala.collection.mutable.HashMap
 import scala.language.implicitConversions
 import scala.reflect.ClassTag
 import scala.util.matching.Regex
@@ -99,17 +81,9 @@ abstract class DStream[T: ClassTag] (
   // Methods and fields available on all DStreams
   // =======================================================================
 
-  import scala.collection.JavaConverters._
   // RDDs generated, marked as private[streaming] so that testsuites can access it
   @transient
-  // private[streaming] var generatedRDDs = new HashMap[Time, RDD[T]]()
-  private[streaming] var generatedRDDs: scala.collection.mutable.Map[Time, RDD[T]] = _
-
-  initGeneratedRDDs()
-
-  def initGeneratedRDDs(): Unit = {
-    generatedRDDs = new ConcurrentHashMap[Time, RDD[T]]().asScala
-  }
+  private[streaming] var generatedRDDs = new HashMap[Time, RDD[T]]()
 
   // Time zero for the DStream
   private[streaming] var zeroTime: Time = null
@@ -215,18 +189,6 @@ abstract class DStream[T: ClassTag] (
    * its parent DStreams.
    */
   private[streaming] def initialize(time: Time) {
-    initialize(time, skipInitialized = false)
-  }
-
-  /**
-   * Initialize the DStream by setting the "zero" time, based on which
-   * the validity of future times is calculated. This method also recursively initializes
-   * its parent DStreams.
-   */
-  private[streaming] def initialize(time: Time, skipInitialized: Boolean) {
-    if (skipInitialized && isInitialized) {
-      return
-    }
     if (zeroTime != null && zeroTime != time) {
       throw new SparkException(s"ZeroTime is already initialized to $zeroTime"
         + s", cannot initialize it again to $time")
@@ -250,7 +212,7 @@ abstract class DStream[T: ClassTag] (
     }
 
     // Initialize the dependencies
-    dependencies.foreach(_.initialize(zeroTime, skipInitialized))
+    dependencies.foreach(_.initialize(zeroTime))
   }
 
   private def validateAtInit(): Unit = {
@@ -258,11 +220,9 @@ abstract class DStream[T: ClassTag] (
       case StreamingContextState.INITIALIZED =>
         // good to go
       case StreamingContextState.ACTIVE =>
-        /*
         throw new IllegalStateException(
           "Adding new inputs, transformations, and output operations after " +
             "starting a context is not supported")
-        */
       case StreamingContextState.STOPPED =>
         throw new IllegalStateException(
           "Adding new inputs, transformations, and output operations after " +
@@ -574,8 +534,7 @@ abstract class DStream[T: ClassTag] (
   private def readObject(ois: ObjectInputStream): Unit = Utils.tryOrIOException {
     logDebug(s"${this.getClass().getSimpleName}.readObject used")
     ois.defaultReadObject()
-    // generatedRDDs = new HashMap[Time, RDD[T]]()
-    initGeneratedRDDs()
+    generatedRDDs = new HashMap[Time, RDD[T]]()
   }
 
   // =======================================================================
@@ -691,12 +650,8 @@ abstract class DStream[T: ClassTag] (
   private def foreachRDD(
       foreachFunc: (RDD[T], Time) => Unit,
       displayInnerRDDOps: Boolean): Unit = {
-    val dStream = new ForEachDStream(this,
-      context.sparkContext.clean(foreachFunc, false), displayInnerRDDOps)
-    if (ssc.getState() == StreamingContextState.ACTIVE) {
-      dStream.initialize(ssc.graph.zeroTime, skipInitialized = true)
-    }
-    dStream.register()
+    new ForEachDStream(this,
+      context.sparkContext.clean(foreachFunc, false), displayInnerRDDOps).register()
   }
 
   /**

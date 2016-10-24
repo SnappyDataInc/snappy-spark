@@ -27,7 +27,7 @@ import org.apache.spark.sql.sources.InsertableRelation
 /**
  * Inserts the results of `query` in to a relation that extends [[InsertableRelation]].
  */
-case class InsertIntoDataSourceCommand(
+private[sql] case class InsertIntoDataSourceCommand(
     logicalRelation: LogicalRelation,
     query: LogicalPlan,
     overwrite: Boolean)

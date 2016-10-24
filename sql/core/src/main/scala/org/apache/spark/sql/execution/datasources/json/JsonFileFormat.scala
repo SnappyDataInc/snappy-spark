@@ -28,7 +28,6 @@ import org.apache.hadoop.mapreduce.{Job, RecordWriter, TaskAttemptContext}
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat
 
-import org.apache.spark.TaskContext
 import org.apache.spark.internal.Logging
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{AnalysisException, Row, SparkSession}
@@ -56,7 +55,7 @@ class JsonFileFormat extends TextBasedFileFormat with DataSourceRegister {
           .getOrElse(sparkSession.sessionState.conf.columnNameOfCorruptRecord)
       val jsonFiles = files.filterNot { status =>
         val name = status.getPath.getName
-        (name.startsWith("_") && !name.contains("=")) || name.startsWith(".")
+        name.startsWith("_") || name.startsWith(".")
       }.toArray
 
       val jsonSchema = InferSchema.infer(
@@ -86,7 +85,7 @@ class JsonFileFormat extends TextBasedFileFormat with DataSourceRegister {
           bucketId: Option[Int],
           dataSchema: StructType,
           context: TaskAttemptContext): OutputWriter = {
-        new JsonOutputWriter(path, parsedOptions, bucketId, dataSchema, context)
+        new JsonOutputWriter(path, bucketId, dataSchema, context)
       }
     }
   }
@@ -107,9 +106,7 @@ class JsonFileFormat extends TextBasedFileFormat with DataSourceRegister {
       .getOrElse(sparkSession.sessionState.conf.columnNameOfCorruptRecord)
 
     (file: PartitionedFile) => {
-      val linesReader = new HadoopFileLinesReader(file, broadcastedHadoopConf.value.value)
-      Option(TaskContext.get()).foreach(_.addTaskCompletionListener(_ => linesReader.close()))
-      val lines = linesReader.map(_.toString)
+      val lines = new HadoopFileLinesReader(file, broadcastedHadoopConf.value.value).map(_.toString)
 
       JacksonParser.parseJson(
         lines,
@@ -158,7 +155,6 @@ class JsonFileFormat extends TextBasedFileFormat with DataSourceRegister {
 
 private[json] class JsonOutputWriter(
     path: String,
-    options: JSONOptions,
     bucketId: Option[Int],
     dataSchema: StructType,
     context: TaskAttemptContext)
@@ -185,7 +181,7 @@ private[json] class JsonOutputWriter(
   override def write(row: Row): Unit = throw new UnsupportedOperationException("call writeInternal")
 
   override protected[sql] def writeInternal(row: InternalRow): Unit = {
-    JacksonGenerator(dataSchema, gen, options)(row)
+    JacksonGenerator(dataSchema, gen)(row)
     gen.flush()
 
     result.set(writer.toString)

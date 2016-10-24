@@ -47,7 +47,7 @@ def _monkey_patch_RDD(sparkSession):
 
         This is a shorthand for ``spark.createDataFrame(rdd, schema, sampleRatio)``
 
-        :param schema: a :class:`pyspark.sql.types.StructType` or list of names of columns
+        :param schema: a StructType or list of names of columns
         :param samplingRatio: the sample ratio of rows used for inferring
         :return: a DataFrame
 
@@ -274,9 +274,9 @@ class SparkSession(object):
     @since(2.0)
     def range(self, start, end=None, step=1, numPartitions=None):
         """
-        Create a :class:`DataFrame` with single :class:`pyspark.sql.types.LongType` column named
-        ``id``, containing elements in a range from ``start`` to ``end`` (exclusive) with
-        step value ``step``.
+        Create a :class:`DataFrame` with single LongType column named `id`,
+        containing elements in a range from `start` to `end` (exclusive) with
+        step value `step`.
 
         :param start: the start value
         :param end: the end value (exclusive)
@@ -307,7 +307,7 @@ class SparkSession(object):
         Infer schema from list of Row or tuple.
 
         :param data: list of Row or tuple
-        :return: :class:`pyspark.sql.types.StructType`
+        :return: StructType
         """
         if not data:
             raise ValueError("can not infer schema from empty dataset")
@@ -326,7 +326,7 @@ class SparkSession(object):
 
         :param rdd: an RDD of Row or tuple
         :param samplingRatio: sampling ratio, or no sampling (default)
-        :return: :class:`pyspark.sql.types.StructType`
+        :return: StructType
         """
         first = rdd.first()
         if not first:
@@ -384,15 +384,17 @@ class SparkSession(object):
 
         if schema is None or isinstance(schema, (list, tuple)):
             struct = self._inferSchemaFromList(data)
-            converter = _create_converter(struct)
-            data = map(converter, data)
             if isinstance(schema, (list, tuple)):
                 for i, name in enumerate(schema):
                     struct.fields[i].name = name
                     struct.names[i] = name
             schema = struct
 
-        elif not isinstance(schema, StructType):
+        elif isinstance(schema, StructType):
+            for row in data:
+                _verify_type(row, schema)
+
+        else:
             raise TypeError("schema should be StructType or list or None, but got: %s" % schema)
 
         # convert python objects to sql data
@@ -401,7 +403,7 @@ class SparkSession(object):
 
     @since(2.0)
     @ignore_unicode_prefix
-    def createDataFrame(self, data, schema=None, samplingRatio=None, verifySchema=True):
+    def createDataFrame(self, data, schema=None, samplingRatio=None):
         """
         Creates a :class:`DataFrame` from an :class:`RDD`, a list or a :class:`pandas.DataFrame`.
 
@@ -412,31 +414,28 @@ class SparkSession(object):
         from ``data``, which should be an RDD of :class:`Row`,
         or :class:`namedtuple`, or :class:`dict`.
 
-        When ``schema`` is :class:`pyspark.sql.types.DataType` or
-        :class:`pyspark.sql.types.StringType`, it must match the
-        real data, or an exception will be thrown at runtime. If the given schema is not
-        :class:`pyspark.sql.types.StructType`, it will be wrapped into a
-        :class:`pyspark.sql.types.StructType` as its only field, and the field name will be "value",
-        each record will also be wrapped into a tuple, which can be converted to row later.
+        When ``schema`` is :class:`DataType` or datatype string, it must match the real data, or
+        exception will be thrown at runtime. If the given schema is not StructType, it will be
+        wrapped into a StructType as its only field, and the field name will be "value", each record
+        will also be wrapped into a tuple, which can be converted to row later.
 
         If schema inference is needed, ``samplingRatio`` is used to determined the ratio of
         rows used for schema inference. The first row will be used if ``samplingRatio`` is ``None``.
 
         :param data: an RDD of any kind of SQL data representation(e.g. row, tuple, int, boolean,
             etc.), or :class:`list`, or :class:`pandas.DataFrame`.
-        :param schema: a :class:`pyspark.sql.types.DataType` or a
-            :class:`pyspark.sql.types.StringType` or a list of
-            column names, default is ``None``.  The data type string format equals to
-            :class:`pyspark.sql.types.DataType.simpleString`, except that top level struct type can
-            omit the ``struct<>`` and atomic types use ``typeName()`` as their format, e.g. use
-            ``byte`` instead of ``tinyint`` for :class:`pyspark.sql.types.ByteType`. We can also use
-            ``int`` as a short name for ``IntegerType``.
+        :param schema: a :class:`DataType` or a datatype string or a list of column names, default
+            is None.  The data type string format equals to `DataType.simpleString`, except that
+            top level struct type can omit the `struct<>` and atomic types use `typeName()` as
+            their format, e.g. use `byte` instead of `tinyint` for ByteType. We can also use `int`
+            as a short name for IntegerType.
         :param samplingRatio: the sample ratio of rows used for inferring
-        :param verifySchema: verify data types of every row against schema.
         :return: :class:`DataFrame`
 
-        .. versionchanged:: 2.0.1
-           Added verifySchema.
+        .. versionchanged:: 2.0
+           The schema parameter can be a DataType or a datatype string after 2.0. If it's not a
+           StructType, it will be wrapped into a StructType and each record will also be wrapped
+           into a tuple.
 
         >>> l = [('Alice', 1)]
         >>> spark.createDataFrame(l).collect()
@@ -501,18 +500,17 @@ class SparkSession(object):
                 schema = [str(x) for x in data.columns]
             data = [r.tolist() for r in data.to_records(index=False)]
 
-        verify_func = _verify_type if verifySchema else lambda _, t: True
         if isinstance(schema, StructType):
             def prepare(obj):
-                verify_func(obj, schema)
+                _verify_type(obj, schema)
                 return obj
         elif isinstance(schema, DataType):
-            dataType = schema
-            schema = StructType().add("value", schema)
+            datatype = schema
 
             def prepare(obj):
-                verify_func(obj, dataType)
-                return obj,
+                _verify_type(obj, datatype)
+                return (obj, )
+            schema = StructType().add("value", datatype)
         else:
             if isinstance(schema, list):
                 schema = [x.encode('utf-8') if not isinstance(x, str) else x for x in schema]
@@ -597,7 +595,6 @@ class SparkSession(object):
         """Stop the underlying :class:`SparkContext`.
         """
         self._sc.stop()
-        SparkSession._instantiatedContext = None
 
     @since(2.0)
     def __enter__(self):

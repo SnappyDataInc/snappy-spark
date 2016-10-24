@@ -251,7 +251,6 @@ private[client] class Shim_v0_12 extends Shim with Logging {
     val table = hive.getTable(database, tableName)
     parts.foreach { s =>
       val location = s.storage.locationUri.map(new Path(table.getPath, _)).orNull
-      val params = if (s.parameters.nonEmpty) s.parameters.asJava else null
       val spec = s.spec.asJava
       if (hive.getPartition(table, spec, false) != null && ignoreIfExists) {
         // Ignore this partition since it already exists and ignoreIfExists == true
@@ -265,7 +264,7 @@ private[client] class Shim_v0_12 extends Shim with Logging {
           table,
           spec,
           location,
-          params, // partParams
+          null, // partParams
           null, // inputFormat
           null, // outputFormat
           -1: JInteger, // numBuckets
@@ -418,11 +417,8 @@ private[client] class Shim_v0_13 extends Shim_v0_12 {
       parts: Seq[CatalogTablePartition],
       ignoreIfExists: Boolean): Unit = {
     val addPartitionDesc = new AddPartitionDesc(db, table, ignoreIfExists)
-    parts.zipWithIndex.foreach { case (s, i) =>
+    parts.foreach { s =>
       addPartitionDesc.addPartition(s.spec.asJava, s.storage.locationUri.orNull)
-      if (s.parameters.nonEmpty) {
-        addPartitionDesc.getPartition(i).setPartParams(s.parameters.asJava)
-      }
     }
     hive.createPartitions(addPartitionDesc)
   }

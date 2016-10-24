@@ -55,7 +55,7 @@ case class GenerateExec(
     child: SparkPlan)
   extends UnaryExecNode {
 
-  override lazy val metrics = Map(
+  private[sql] override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
 
   override def producedAttributes: AttributeSet = AttributeSet(output)

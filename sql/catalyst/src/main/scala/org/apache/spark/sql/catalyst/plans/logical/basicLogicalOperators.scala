@@ -127,7 +127,7 @@ abstract class SetOperation(left: LogicalPlan, right: LogicalPlan) extends Binar
   }
 }
 
-object SetOperation {
+private[sql] object SetOperation {
   def unapply(p: SetOperation): Option[(LogicalPlan, LogicalPlan)] = Some((p.left, p.right))
 }
 
@@ -365,7 +365,7 @@ case class InsertIntoTable(
   override def children: Seq[LogicalPlan] = child :: Nil
   override def output: Seq[Attribute] = Seq.empty
 
-  lazy val expectedColumns = {
+  private[spark] lazy val expectedColumns = {
     if (table.output.isEmpty) {
       None
     } else {
@@ -422,12 +422,9 @@ case class Sort(
 
 /** Factory for constructing new `Range` nodes. */
 object Range {
-  def apply(start: Long, end: Long, step: Long, numSlices: Option[Int]): Range = {
+  def apply(start: Long, end: Long, step: Long, numSlices: Int): Range = {
     val output = StructType(StructField("id", LongType, nullable = false) :: Nil).toAttributes
     new Range(start, end, step, numSlices, output)
-  }
-  def apply(start: Long, end: Long, step: Long, numSlices: Int): Range = {
-    Range(start, end, step, Some(numSlices))
   }
 }
 
@@ -435,7 +432,7 @@ case class Range(
     start: Long,
     end: Long,
     step: Long,
-    numSlices: Option[Int],
+    numSlices: Int,
     output: Seq[Attribute])
   extends LeafNode with MultiInstanceRelation {
 
@@ -452,14 +449,6 @@ case class Range(
     }
   }
 
-  def toSQL(): String = {
-    if (numSlices.isDefined) {
-      s"SELECT id AS `${output.head.name}` FROM range($start, $end, $step, ${numSlices.get})"
-    } else {
-      s"SELECT id AS `${output.head.name}` FROM range($start, $end, $step)"
-    }
-  }
-
   override def newInstance(): Range = copy(output = output.map(_.newInstance()))
 
   override lazy val statistics: Statistics = {
@@ -468,7 +457,11 @@ case class Range(
   }
 
   override def simpleString: String = {
-    s"Range ($start, $end, step=$step, splits=$numSlices)"
+    if (step == 1) {
+      s"Range ($start, $end, splits=$numSlices)"
+    } else {
+      s"Range ($start, $end, step=$step, splits=$numSlices)"
+    }
   }
 }
 
@@ -516,7 +509,7 @@ case class Window(
   def windowOutputSet: AttributeSet = AttributeSet(windowExpressions.map(_.toAttribute))
 }
 
-object Expand {
+private[sql] object Expand {
   /**
    * Extract attribute set according to the grouping id.
    *

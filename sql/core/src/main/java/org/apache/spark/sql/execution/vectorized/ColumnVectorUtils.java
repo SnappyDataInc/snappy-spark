@@ -86,9 +86,8 @@ public class ColumnVectorUtils {
         col.getChildColumn(0).putInts(0, capacity, c.months);
         col.getChildColumn(1).putLongs(0, capacity, c.microseconds);
       } else if (t instanceof DateType) {
-        col.putInts(0, capacity, row.getInt(fieldIdx));
-      } else if (t instanceof TimestampType) {
-        col.putLongs(0, capacity, row.getLong(fieldIdx));
+        Date date = (Date)row.get(fieldIdx, t);
+        col.putInts(0, capacity, DateTimeUtils.fromJavaDate(date));
       }
     }
   }

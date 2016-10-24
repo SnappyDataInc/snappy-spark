@@ -20,7 +20,6 @@ package org.apache.spark.sql.execution.datasources.json
 import java.io.ByteArrayOutputStream
 
 import scala.collection.mutable.ArrayBuffer
-import scala.util.Try
 
 import com.fasterxml.jackson.core._
 
@@ -57,30 +56,28 @@ object JacksonParser extends Logging {
   def convertRootField(
       factory: JsonFactory,
       parser: JsonParser,
-      schema: DataType,
-      configOptions: JSONOptions): Any = {
+      schema: DataType): Any = {
     import com.fasterxml.jackson.core.JsonToken._
     (parser.getCurrentToken, schema) match {
       case (START_ARRAY, st: StructType) =>
         // SPARK-3308: support reading top level JSON arrays and take every element
         // in such an array as a row
-        convertArray(factory, parser, st, configOptions)
+        convertArray(factory, parser, st)
 
       case (START_OBJECT, ArrayType(st, _)) =>
         // the business end of SPARK-3308:
         // when an object is found but an array is requested just wrap it in a list
-        convertField(factory, parser, st, configOptions) :: Nil
+        convertField(factory, parser, st) :: Nil
 
       case _ =>
-        convertField(factory, parser, schema, configOptions)
+        convertField(factory, parser, schema)
     }
   }
 
   private def convertField(
       factory: JsonFactory,
       parser: JsonParser,
-      schema: DataType,
-      configOptions: JSONOptions): Any = {
+      schema: DataType): Any = {
     import com.fasterxml.jackson.core.JsonToken._
     (parser.getCurrentToken, schema) match {
       case (null | VALUE_NULL, _) =>
@@ -88,7 +85,7 @@ object JacksonParser extends Logging {
 
       case (FIELD_NAME, _) =>
         parser.nextToken()
-        convertField(factory, parser, schema, configOptions)
+        convertField(factory, parser, schema)
 
       case (VALUE_STRING, StringType) =>
         UTF8String.fromString(parser.getText)
@@ -102,29 +99,19 @@ object JacksonParser extends Logging {
 
       case (VALUE_STRING, DateType) =>
         val stringValue = parser.getText
-        // This one will lose microseconds parts.
-        // See https://issues.apache.org/jira/browse/SPARK-10681.x
-        Try(DateTimeUtils.millisToDays(configOptions.dateFormat.parse(parser.getText).getTime))
-          .getOrElse {
-            // If it fails to parse, then tries the way used in 2.0 and 1.x for backwards
-            // compatibility.
-            Try(DateTimeUtils.millisToDays(DateTimeUtils.stringToTime(parser.getText).getTime))
-              .getOrElse {
-                // In Spark 1.5.0, we store the data as number of days since epoch in string.
-                // So, we just convert it to Int.
-                stringValue.toInt
-              }
-          }
+        if (stringValue.contains("-")) {
+          // The format of this string will probably be "yyyy-mm-dd".
+          DateTimeUtils.millisToDays(DateTimeUtils.stringToTime(parser.getText).getTime)
+        } else {
+          // In Spark 1.5.0, we store the data as number of days since epoch in string.
+          // So, we just convert it to Int.
+          stringValue.toInt
+        }
 
       case (VALUE_STRING, TimestampType) =>
         // This one will lose microseconds parts.
         // See https://issues.apache.org/jira/browse/SPARK-10681.
-        Try(configOptions.timestampFormat.parse(parser.getText).getTime * 1000L)
-          .getOrElse {
-            // If it fails to parse, then tries the way used in 2.0 and 1.x for backwards
-            // compatibility.
-            DateTimeUtils.stringToTime(parser.getText).getTime * 1000L
-          }
+        DateTimeUtils.stringToTime(parser.getText).getTime * 1000L
 
       case (VALUE_NUMBER_INT, TimestampType) =>
         parser.getLongValue * 1000000L
@@ -192,16 +179,16 @@ object JacksonParser extends Logging {
         false
 
       case (START_OBJECT, st: StructType) =>
-        convertObject(factory, parser, st, configOptions)
+        convertObject(factory, parser, st)
 
       case (START_ARRAY, ArrayType(st, _)) =>
-        convertArray(factory, parser, st, configOptions)
+        convertArray(factory, parser, st)
 
       case (START_OBJECT, MapType(StringType, kt, _)) =>
-        convertMap(factory, parser, kt, configOptions)
+        convertMap(factory, parser, kt)
 
       case (_, udt: UserDefinedType[_]) =>
-        convertField(factory, parser, udt.sqlType, configOptions)
+        convertField(factory, parser, udt.sqlType)
 
       case (token, dataType) =>
         // We cannot parse this token based on the given data type. So, we throw a
@@ -220,13 +207,12 @@ object JacksonParser extends Logging {
   private def convertObject(
       factory: JsonFactory,
       parser: JsonParser,
-      schema: StructType,
-      configOptions: JSONOptions): InternalRow = {
+      schema: StructType): InternalRow = {
     val row = new GenericMutableRow(schema.length)
     while (nextUntil(parser, JsonToken.END_OBJECT)) {
       schema.getFieldIndex(parser.getCurrentName) match {
         case Some(index) =>
-          row.update(index, convertField(factory, parser, schema(index).dataType, configOptions))
+          row.update(index, convertField(factory, parser, schema(index).dataType))
 
         case None =>
           parser.skipChildren()
@@ -242,13 +228,12 @@ object JacksonParser extends Logging {
   private def convertMap(
       factory: JsonFactory,
       parser: JsonParser,
-      valueType: DataType,
-      configOptions: JSONOptions): MapData = {
+      valueType: DataType): MapData = {
     val keys = ArrayBuffer.empty[UTF8String]
     val values = ArrayBuffer.empty[Any]
     while (nextUntil(parser, JsonToken.END_OBJECT)) {
       keys += UTF8String.fromString(parser.getCurrentName)
-      values += convertField(factory, parser, valueType, configOptions)
+      values += convertField(factory, parser, valueType)
     }
     ArrayBasedMapData(keys.toArray, values.toArray)
   }
@@ -256,11 +241,10 @@ object JacksonParser extends Logging {
   private def convertArray(
       factory: JsonFactory,
       parser: JsonParser,
-      elementType: DataType,
-      configOptions: JSONOptions): ArrayData = {
+      elementType: DataType): ArrayData = {
     val values = ArrayBuffer.empty[Any]
     while (nextUntil(parser, JsonToken.END_ARRAY)) {
-      values += convertField(factory, parser, elementType, configOptions)
+      values += convertField(factory, parser, elementType)
     }
 
     new GenericArrayData(values.toArray)
@@ -301,7 +285,7 @@ object JacksonParser extends Logging {
           Utils.tryWithResource(factory.createParser(record)) { parser =>
             parser.nextToken()
 
-            convertRootField(factory, parser, schema, configOptions) match {
+            convertRootField(factory, parser, schema) match {
               case null => failedRecord(record)
               case row: InternalRow => row :: Nil
               case array: ArrayData =>

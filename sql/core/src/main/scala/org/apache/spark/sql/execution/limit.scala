@@ -39,10 +39,9 @@ case class CollectLimitExec(limit: Int, child: SparkPlan) extends UnaryExecNode 
   override def executeCollect(): Array[InternalRow] = child.executeTake(limit)
   private val serializer: Serializer = new UnsafeRowSerializer(child.output.size)
   protected override def doExecute(): RDD[InternalRow] = {
-    val locallyLimited = child.execute().mapPartitionsInternal(_.take(limit))
     val shuffled = new ShuffledRowRDD(
       ShuffleExchange.prepareShuffleDependency(
-        locallyLimited, child.output, SinglePartition, serializer))
+        child.execute(), child.output, SinglePartition, serializer))
     shuffled.mapPartitionsInternal(_.take(limit))
   }
 }
@@ -115,11 +114,11 @@ case class GlobalLimitExec(limit: Int, child: SparkPlan) extends BaseLimitExec {
 case class TakeOrderedAndProjectExec(
     limit: Int,
     sortOrder: Seq[SortOrder],
-    projectList: Seq[NamedExpression],
+    projectList: Option[Seq[NamedExpression]],
     child: SparkPlan) extends UnaryExecNode {
 
   override def output: Seq[Attribute] = {
-    projectList.map(_.toAttribute)
+    projectList.map(_.map(_.toAttribute)).getOrElse(child.output)
   }
 
   override def outputPartitioning: Partitioning = SinglePartition
@@ -127,8 +126,8 @@ case class TakeOrderedAndProjectExec(
   override def executeCollect(): Array[InternalRow] = {
     val ord = new LazilyGeneratedOrdering(sortOrder, child.output)
     val data = child.execute().map(_.copy()).takeOrdered(limit)(ord)
-    if (projectList != child.output) {
-      val proj = UnsafeProjection.create(projectList, child.output)
+    if (projectList.isDefined) {
+      val proj = UnsafeProjection.create(projectList.get, child.output)
       data.map(r => proj(r).copy())
     } else {
       data
@@ -149,8 +148,8 @@ case class TakeOrderedAndProjectExec(
         localTopK, child.output, SinglePartition, serializer))
     shuffled.mapPartitions { iter =>
       val topK = org.apache.spark.util.collection.Utils.takeOrdered(iter.map(_.copy()), limit)(ord)
-      if (projectList != child.output) {
-        val proj = UnsafeProjection.create(projectList, child.output)
+      if (projectList.isDefined) {
+        val proj = UnsafeProjection.create(projectList.get, child.output)
         topK.map(r => proj(r))
       } else {
         topK

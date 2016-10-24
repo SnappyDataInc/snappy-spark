@@ -57,7 +57,7 @@ case class UnaryMinus(child: Expression) extends UnaryExpression
     }
   }
 
-  override def sql: String = s"(- ${child.sql})"
+  override def sql: String = s"(-${child.sql})"
 }
 
 @ExpressionDescription(
@@ -75,7 +75,7 @@ case class UnaryPositive(child: Expression)
 
   protected override def nullSafeEval(input: Any): Any = input
 
-  override def sql: String = s"(+ ${child.sql})"
+  override def sql: String = s"(+${child.sql})"
 }
 
 /**
@@ -125,7 +125,7 @@ abstract class BinaryArithmetic extends BinaryOperator {
   }
 }
 
-object BinaryArithmetic {
+private[sql] object BinaryArithmetic {
   def unapply(e: BinaryArithmetic): Option[(Expression, Expression)] = Some((e.left, e.right))
 }
 
@@ -309,11 +309,7 @@ case class Remainder(left: Expression, right: Expression)
       if (input1 == null) {
         null
       } else {
-        input1 match {
-          case d: Double => d % input2.asInstanceOf[java.lang.Double]
-          case f: Float => f % input2.asInstanceOf[java.lang.Float]
-          case _ => integral.rem(input1, input2)
-        }
+        integral.rem(input1, input2)
       }
     }
   }

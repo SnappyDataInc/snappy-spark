@@ -17,7 +17,6 @@
 
 package org.apache.spark.sql.execution.datasources
 
-import java.io.Closeable
 import java.net.URI
 
 import org.apache.hadoop.conf.Configuration
@@ -31,8 +30,7 @@ import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl
  * An adaptor from a [[PartitionedFile]] to an [[Iterator]] of [[Text]], which are all of the lines
  * in that file.
  */
-class HadoopFileLinesReader(
-    file: PartitionedFile, conf: Configuration) extends Iterator[Text] with Closeable {
+class HadoopFileLinesReader(file: PartitionedFile, conf: Configuration) extends Iterator[Text] {
   private val iterator = {
     val fileSplit = new FileSplit(
       new Path(new URI(file.filePath)),
@@ -50,6 +48,4 @@ class HadoopFileLinesReader(
   override def hasNext: Boolean = iterator.hasNext
 
   override def next(): Text = iterator.next()
-
-  override def close(): Unit = iterator.close()
 }

@@ -27,7 +27,6 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration
 import org.apache.hadoop.yarn.server.api.{ApplicationInitializationContext, ApplicationTerminationContext}
 import org.scalatest.{BeforeAndAfterEach, Matchers}
 
-import org.apache.spark.SecurityManager
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.network.shuffle.ShuffleTestAccessor
 import org.apache.spark.network.shuffle.protocol.ExecutorShuffleInfo
@@ -78,8 +77,6 @@ class YarnShuffleServiceSuite extends SparkFunSuite with Matchers with BeforeAnd
 
   test("executor state kept across NM restart") {
     s1 = new YarnShuffleService
-    // set auth to true to test the secrets recovery
-    yarnConfig.setBoolean(SecurityManager.SPARK_AUTH_CONF, true)
     s1.init(yarnConfig)
     val app1Id = ApplicationId.newInstance(0, 1)
     val app1Data: ApplicationInitializationContext =
@@ -92,8 +89,6 @@ class YarnShuffleServiceSuite extends SparkFunSuite with Matchers with BeforeAnd
 
     val execStateFile = s1.registeredExecutorFile
     execStateFile should not be (null)
-    val secretsFile = s1.secretsFile
-    secretsFile should not be (null)
     val shuffleInfo1 = new ExecutorShuffleInfo(Array("/foo", "/bar"), 3, SORT_MANAGER)
     val shuffleInfo2 = new ExecutorShuffleInfo(Array("/bippy"), 5, SORT_MANAGER)
 
@@ -123,7 +118,6 @@ class YarnShuffleServiceSuite extends SparkFunSuite with Matchers with BeforeAnd
     s1.stop()
     s2 = new YarnShuffleService
     s2.init(yarnConfig)
-    s2.secretsFile should be (secretsFile)
     s2.registeredExecutorFile should be (execStateFile)
 
     val handler2 = s2.blockHandler
@@ -141,7 +135,6 @@ class YarnShuffleServiceSuite extends SparkFunSuite with Matchers with BeforeAnd
     s3 = new YarnShuffleService
     s3.init(yarnConfig)
     s3.registeredExecutorFile should be (execStateFile)
-    s3.secretsFile should be (secretsFile)
 
     val handler3 = s3.blockHandler
     val resolver3 = ShuffleTestAccessor.getBlockResolver(handler3)
@@ -155,10 +148,7 @@ class YarnShuffleServiceSuite extends SparkFunSuite with Matchers with BeforeAnd
 
   test("removed applications should not be in registered executor file") {
     s1 = new YarnShuffleService
-    yarnConfig.setBoolean(SecurityManager.SPARK_AUTH_CONF, false)
     s1.init(yarnConfig)
-    val secretsFile = s1.secretsFile
-    secretsFile should be (null)
     val app1Id = ApplicationId.newInstance(0, 1)
     val app1Data: ApplicationInitializationContext =
       new ApplicationInitializationContext("user", app1Id, null)

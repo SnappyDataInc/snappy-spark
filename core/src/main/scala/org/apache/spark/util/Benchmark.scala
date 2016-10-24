@@ -69,17 +69,12 @@ private[spark] class Benchmark(
    * @param name of the benchmark case
    * @param numIters if non-zero, forces exactly this many iterations to be run
    */
-  def addCase(
-      name: String,
-      numIters: Int = 0,
-      prepare: () => Unit = () => { },
-      cleanup: () => Unit = () => { })(f: Int => Unit): Unit = {
-    val timedF = (timer: Benchmark.Timer) => {
+  def addCase(name: String, numIters: Int = 0)(f: Int => Unit): Unit = {
+    addTimerCase(name, numIters) { timer =>
       timer.startTiming()
       f(timer.iteration)
       timer.stopTiming()
     }
-    benchmarks += Benchmark.Case(name, timedF, numIters, prepare, cleanup)
   }
 
   /**
@@ -106,12 +101,7 @@ private[spark] class Benchmark(
 
     val results = benchmarks.map { c =>
       println("  Running case: " + c.name)
-      try {
-        c.prepare()
-        measure(valuesPerIteration, c.numIters)(c.fn)
-      } finally {
-        c.cleanup()
-      }
+      measure(valuesPerIteration, c.numIters)(c.fn)
     }
     println
 
@@ -198,12 +188,7 @@ private[spark] object Benchmark {
     }
   }
 
-  case class Case(
-      name: String,
-      fn: Timer => Unit,
-      numIters: Int,
-      prepare: () => Unit = () => { },
-      cleanup: () => Unit = () => { })
+  case class Case(name: String, fn: Timer => Unit, numIters: Int)
   case class Result(avgMs: Double, bestRate: Double, bestMs: Double)
 
   /**

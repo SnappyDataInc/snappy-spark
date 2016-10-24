@@ -18,15 +18,13 @@
 package org.apache.spark.sql.execution.metric
 
 import java.text.NumberFormat
-import java.util.Locale
 
 import org.apache.spark.SparkContext
 import org.apache.spark.scheduler.AccumulableInfo
 import org.apache.spark.util.{AccumulatorContext, AccumulatorV2, Utils}
 
 
-final class SQLMetric(val metricType: String, initValue: Long = 0L)
-    extends AccumulatorV2[Long, Long] {
+class SQLMetric(val metricType: String, initValue: Long = 0L) extends AccumulatorV2[Long, Long] {
   // This is a workaround for SPARK-11013.
   // We may use -1 as initial value of the accumulator, if the accumulator is valid, we will
   // update it at the end of task and the value will be at least 0. Then we can filter out the -1
@@ -57,17 +55,17 @@ final class SQLMetric(val metricType: String, initValue: Long = 0L)
   override def value: Long = _value
 
   // Provide special identifier as metadata so we can tell that this is a `SQLMetric` later
-  override def toInfo(update: Option[Any], value: Option[Any]): AccumulableInfo = {
+  private[spark] override def toInfo(update: Option[Any], value: Option[Any]): AccumulableInfo = {
     new AccumulableInfo(
       id, name, update, value, true, true, Some(AccumulatorContext.SQL_ACCUM_IDENTIFIER))
   }
 }
 
 
-object SQLMetrics {
-  private val SUM_METRIC = "sum"
-  private val SIZE_METRIC = "size"
-  private val TIMING_METRIC = "timing"
+private[sql] object SQLMetrics {
+  private[sql] val SUM_METRIC = "sum"
+  private[sql] val SIZE_METRIC = "size"
+  private[sql] val TIMING_METRIC = "timing"
 
   def createMetric(sc: SparkContext, name: String): SQLMetric = {
     val acc = new SQLMetric(SUM_METRIC)
@@ -103,7 +101,8 @@ object SQLMetrics {
    */
   def stringValue(metricsType: String, values: Seq[Long]): String = {
     if (metricsType == SUM_METRIC) {
-      val numberFormat = NumberFormat.getIntegerInstance(Locale.ENGLISH)
+      val numberFormat = NumberFormat.getInstance()
+      numberFormat.setGroupingUsed(false)
       numberFormat.format(values.sum)
     } else {
       val strFormat: Long => String = if (metricsType == SIZE_METRIC) {

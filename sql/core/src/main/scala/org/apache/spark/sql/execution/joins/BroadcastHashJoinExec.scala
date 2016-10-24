@@ -45,7 +45,7 @@ case class BroadcastHashJoinExec(
     right: SparkPlan)
   extends BinaryExecNode with HashJoin with CodegenSupport {
 
-  override lazy val metrics = Map(
+  override private[sql] lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
 
   override def requiredChildDistribution: Seq[Distribution] = {
