@@ -289,6 +289,9 @@ object ScalaReflection extends ScalaReflection {
       case t if isSubtype(t, localTypeOf[java.lang.String]) =>
         Invoke(getPath, "toString", ObjectType(classOf[String]), returnNullable = false)
 
+      case t if isSubtype(t, localTypeOf[UTF8String]) =>
+        Invoke(getPath, "cloneIfRequired", ObjectType(classOf[UTF8String]), returnNullable = false)
+
       case t if isSubtype(t, localTypeOf[java.math.BigDecimal]) =>
         Invoke(getPath, "toJavaBigDecimal", ObjectType(classOf[java.math.BigDecimal]),
           returnNullable = false)
@@ -560,6 +563,12 @@ object ScalaReflection extends ScalaReflection {
           inputObject :: Nil,
           returnNullable = false)
 
+      case t if isSubtype(t, localTypeOf[UTF8String]) =>
+        Invoke(
+          inputObject,
+          "cloneIfRequired",
+          StringType)
+
       case t if isSubtype(t, localTypeOf[java.sql.Timestamp]) =>
         StaticInvoke(
           DateTimeUtils.getClass,
@@ -773,6 +782,7 @@ object ScalaReflection extends ScalaReflection {
         val Schema(dataType, nullable) = schemaFor(elementType)
         Schema(ArrayType(dataType, containsNull = nullable), nullable = true)
       case t if isSubtype(t, localTypeOf[String]) => Schema(StringType, nullable = true)
+      case t if isSubtype(t, localTypeOf[UTF8String]) => Schema(StringType, nullable = true)
       case t if isSubtype(t, localTypeOf[java.sql.Timestamp]) =>
         Schema(TimestampType, nullable = true)
       case t if isSubtype(t, localTypeOf[java.sql.Date]) =>

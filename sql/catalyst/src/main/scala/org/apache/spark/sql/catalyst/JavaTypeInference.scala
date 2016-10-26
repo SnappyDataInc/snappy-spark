@@ -240,6 +240,8 @@ object JavaTypeInference {
 
       case c if c == classOf[java.lang.String] =>
         Invoke(getPath, "toString", ObjectType(classOf[String]))
+      case c if c == classOf[UTF8String] =>
+        Invoke(getPath, "toString", ObjectType(classOf[String]))
 
       case c if c == classOf[java.math.BigDecimal] =>
         Invoke(getPath, "toJavaBigDecimal", ObjectType(classOf[java.math.BigDecimal]))
@@ -420,6 +422,8 @@ object JavaTypeInference {
           Invoke(inputObject, "floatValue", FloatType)
         case c if c == classOf[java.lang.Double] =>
           Invoke(inputObject, "doubleValue", DoubleType)
+        case c if c == classOf[UTF8String] =>
+          Invoke(inputObject, "cloneIfRequired", StringType)
 
         case _ if typeToken.isArray =>
           toCatalystArray(inputObject, typeToken.getComponentType)

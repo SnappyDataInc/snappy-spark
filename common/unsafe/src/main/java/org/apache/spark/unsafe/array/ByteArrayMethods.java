@@ -57,37 +57,38 @@ public class ByteArrayMethods {
    * @return true if the arrays are equal, false otherwise
    */
   public static boolean arrayEquals(
-      Object leftBase, long leftOffset, Object rightBase, long rightOffset, final long length) {
-    int i = 0;
-
-    // check if stars align and we can get both offsets to be aligned
-    if ((leftOffset % 8) == (rightOffset % 8)) {
-      while ((leftOffset + i) % 8 != 0 && i < length) {
-        if (Platform.getByte(leftBase, leftOffset + i) !=
-            Platform.getByte(rightBase, rightOffset + i)) {
-              return false;
+      final Object leftBase, long leftOffset, final Object rightBase,
+      long rightOffset, final long length) {
+    long endOffset = leftOffset + length;
+    // for architectures that support unaligned accesses, chew it up 8 then 4 bytes at a time
+    if (unaligned || ((leftOffset & 0x7) == 0 && (rightOffset & 0x7) == 0)) {
+      endOffset -= 8;
+      while (leftOffset <= endOffset) {
+        if (Platform.getLong(leftBase, leftOffset) !=
+            Platform.getLong(rightBase, rightOffset)) {
+          return false;
         }
-        i += 1;
+        leftOffset += 8;
+        rightOffset += 8;
       }
-    }
-    // for architectures that support unaligned accesses, chew it up 8 bytes at a time
-    if (unaligned || (((leftOffset + i) % 8 == 0) && ((rightOffset + i) % 8 == 0))) {
-      while (i <= length - 8) {
-        if (Platform.getLong(leftBase, leftOffset + i) !=
-            Platform.getLong(rightBase, rightOffset + i)) {
-              return false;
+      endOffset += 4;
+      while (leftOffset <= endOffset) {
+        if (Platform.getInt(leftBase, leftOffset) !=
+            Platform.getInt(rightBase, rightOffset)) {
+          return false;
         }
-        i += 8;
+        leftOffset += 4;
+        rightOffset += 4;
       }
+      endOffset += 4;
     }
-    // this will finish off the unaligned comparisons, or do the entire aligned
-    // comparison whichever is needed.
-    while (i < length) {
-      if (Platform.getByte(leftBase, leftOffset + i) !=
-          Platform.getByte(rightBase, rightOffset + i)) {
-            return false;
+    while (leftOffset < endOffset) {
+      if (Platform.getByte(leftBase, leftOffset) !=
+        Platform.getByte(rightBase, rightOffset)) {
+        return false;
       }
-      i += 1;
+      leftOffset++;
+      rightOffset++;
     }
     return true;
   }
