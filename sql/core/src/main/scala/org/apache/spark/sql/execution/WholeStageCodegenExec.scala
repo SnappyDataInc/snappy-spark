@@ -744,8 +744,11 @@ case class CollapseCodegenStages(conf: SQLConf) extends Rule[SparkPlan] {
     // domain object can not be written into unsafe row.
     case plan if plan.output.length == 1 && plan.output.head.dataType.isInstanceOf[ObjectType] =>
       plan.withNewChildren(plan.children.map(insertWholeStageCodegen))
-    case plan: CodegenSupport if supportCodegen(plan) =>
+    case plan: CodegenSupport => if (supportCodegen(plan)) {
       WholeStageCodegenExec(insertInputAdapter(plan))(WholeStageCodegenId.getNextStageId())
+    } else {
+      plan.withNewChildren(plan.children.map(insertInputAdapter))
+    }
     case other =>
       other.withNewChildren(other.children.map(insertWholeStageCodegen))
   }

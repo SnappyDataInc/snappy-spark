@@ -54,23 +54,52 @@ object GenerateSafeProjection extends CodeGenerator[Seq[Expression], Projection]
 
     val rowClass = classOf[GenericInternalRow].getName
 
-    val fieldWriters = schema.map(_.dataType).zipWithIndex.map { case (dt, i) =>
+    val isHomogenousStruct = {
+      var i = 1
+      val ref =  CodeGenerator.javaType(schema.fields(0).dataType)
+      var broken = !CodeGenerator.isPrimitiveType(ref) || schema.length <= 1
+      while (!broken && i < schema.length) {
+        if (CodeGenerator.javaType(schema.fields(i).dataType) != ref) {
+          broken = true
+        }
+        i += 1
+      }
+      !broken
+    }
+    val allFields =  if (isHomogenousStruct) {
+      val counter = ctx.freshName("counter")
+      val dt = schema.fields(0).dataType
       val converter = convertToSafe(
         ctx,
         JavaCode.expression(CodeGenerator.getValue(tmpInput, dt, i.toString), dt),
         dt)
       s"""
-        if (!$tmpInput.isNullAt($i)) {
-          ${converter.code}
-          $values[$i] = ${converter.value};
+        for (int $counter = 0; $counter < ${schema.length}; ++$counter) {
+         if (!$tmpInput.isNullAt($counter)) {
+            ${converter.code}
+            $values[$counter] = ${converter.value};
+          }
         }
       """
+    } else {
+      val fieldWriters = schema.map(_.dataType).zipWithIndex.map { case (dt, i) =>
+        val converter = convertToSafe(
+          ctx,
+          JavaCode.expression(CodeGenerator.getValue(tmpInput, dt, i.toString), dt),
+          dt)
+        s"""
+          if (!$tmpInput.isNullAt($i)) {
+            ${converter.code}
+            $values[$i] = ${converter.value};
+          }
+        """
+      }
+      ctx.splitExpressions(
+        expressions = fieldWriters,
+        funcName = "writeFields",
+        arguments = Seq("InternalRow" -> tmpInput, "Object[]" -> values)
+      )
     }
-    val allFields = ctx.splitExpressions(
-      expressions = fieldWriters,
-      funcName = "writeFields",
-      arguments = Seq("InternalRow" -> tmpInput, "Object[]" -> values)
-    )
     val code =
       code"""
          |final InternalRow $tmpInput = $input;

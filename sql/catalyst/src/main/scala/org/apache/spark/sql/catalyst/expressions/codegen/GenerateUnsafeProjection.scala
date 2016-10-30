@@ -66,18 +66,58 @@ object GenerateUnsafeProjection extends CodeGenerator[Seq[Expression], UnsafePro
     val structRowWriter = ctx.addMutableState(rowWriterClass, "rowWriter",
       v => s"$v = new $rowWriterClass($rowWriter, ${fieldEvals.length});")
     val previousCursor = ctx.freshName("previousCursor")
-    s"""
-       |final InternalRow $tmpInput = $input;
-       |if ($tmpInput instanceof UnsafeRow) {
-       |  $rowWriter.write($index, (UnsafeRow) $tmpInput);
-       |} else {
-       |  // Remember the current cursor so that we can calculate how many bytes are
-       |  // written later.
-       |  final int $previousCursor = $rowWriter.cursor();
-       |  ${writeExpressionsToBuffer(ctx, tmpInput, fieldEvals, schemas, structRowWriter)}
-       |  $rowWriter.setOffsetAndSizeFromPreviousCursor($index, $previousCursor);
-       |}
-     """.stripMargin
+
+    val isHomogenousStruct = {
+      var i = 1
+      val ref = CodeGenerator.javaType(t.fields(0).dataType)
+      var broken = !CodeGenerator.isPrimitiveType(ref) || t.length <=1
+      while (!broken && i < t.length) {
+        if (CodeGenerator.javaType(t.fields(i).dataType) != ref) {
+          broken = true
+        }
+        i +=1
+      }
+      !broken
+    }
+    if (isHomogenousStruct) {
+      val counter = ctx.freshName("counter")
+      val rowWriterChild = ctx.freshName("rowWriterChild")
+      val dt = t.fields(0).dataType
+
+      s"""
+         |final InternalRow $tmpInput = $input;
+         |if ($tmpInput instanceof UnsafeRow) {
+         |  $rowWriter.write($index, (UnsafeRow) $tmpInput);
+         |} else {
+         |  // Remember the current cursor so that we can calculate how many bytes are
+         |  // written later.
+         |  final int $previousCursor = $rowWriter.cursor();
+         |  $rowWriterClass $rowWriterChild = new $rowWriterClass($rowWriter, ${t.length});
+         |  $rowWriterChild.reset();
+         |  for (int $counter = 0; $counter < ${t.length}; $counter++) {
+         |    if ($tmpInput.isNullAt($index)) {
+         |      $rowWriterChild.setNullAt($index);
+         |    } else {
+         |      $rowWriterChild.write($counter, ${CodeGenerator.getValue(tmpInput, dt, counter)});
+         |    }
+         |  }
+         |  $rowWriter.setOffsetAndSizeFromPreviousCursor($index, $previousCursor);
+         |}
+      """.stripMargin
+    } else {
+      s"""
+         |final InternalRow $tmpInput = $input;
+         |if ($tmpInput instanceof UnsafeRow) {
+         |  $rowWriter.write($index, (UnsafeRow) $tmpInput);
+         |} else {
+         |  // Remember the current cursor so that we can calculate how many bytes are
+         |  // written later.
+         |  final int $previousCursor = $rowWriter.cursor();
+         |  ${writeExpressionsToBuffer(ctx, tmpInput, fieldEvals, schemas, structRowWriter)}
+         |  $rowWriter.setOffsetAndSizeFromPreviousCursor($index, $previousCursor);
+         |}
+       """.stripMargin
+    }
   }
 
   private def writeExpressionsToBuffer(
