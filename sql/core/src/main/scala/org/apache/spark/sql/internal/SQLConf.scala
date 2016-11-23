@@ -582,6 +582,13 @@ object SQLConf {
       .timeConf(TimeUnit.MILLISECONDS)
       .createWithDefault(10L)
 
+  val STRING_AS_CLOB = SQLConfigBuilder("spark.sql.stringAsClob")
+      .internal()
+      .doc("Whether STRING type should be rendered as CLOB." +
+          " Default is false, which treats STRING as VARCHAR with max size.")
+      .booleanConf
+      .createWithDefault(false)
+
   object Deprecated {
     val MAPRED_REDUCE_TASKS = "mapred.reduce.tasks"
   }
@@ -721,6 +728,8 @@ private[sql] class SQLConf extends Serializable with CatalystConf with Logging {
   def variableSubstituteEnabled: Boolean = getConf(VARIABLE_SUBSTITUTE_ENABLED)
 
   def variableSubstituteDepth: Int = getConf(VARIABLE_SUBSTITUTE_DEPTH)
+
+  def stringAsClob: Boolean = getConf(STRING_AS_CLOB)
 
   def warehousePath: String = {
     new Path(getConf(WAREHOUSE_PATH).replace("${system:user.dir}",
