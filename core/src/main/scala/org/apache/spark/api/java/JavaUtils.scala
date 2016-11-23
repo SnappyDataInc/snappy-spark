@@ -31,14 +31,15 @@ private[spark] object JavaUtils {
     }
 
   // Workaround for SPARK-3926 / SI-8911
-  def mapAsSerializableJavaMap[A, B](underlying: collection.Map[A, B]): SerializableMapWrapper[A, B]
-    = new SerializableMapWrapper(underlying)
+  def mapAsSerializableJavaMap[A, B](underlying: scala.collection.Map[A, B]):
+  SerializableMapWrapper[A, B]
+  = new SerializableMapWrapper(underlying)
 
   // Implementation is copied from scala.collection.convert.Wrappers.MapWrapper,
   // but implements java.io.Serializable. It can't just be subclassed to make it
   // Serializable since the MapWrapper class has no no-arg constructor. This class
   // doesn't need a no-arg constructor though.
-  class SerializableMapWrapper[A, B](underlying: collection.Map[A, B])
+  class SerializableMapWrapper[A, B](underlying: scala.collection.Map[A, B])
     extends ju.AbstractMap[A, B] with java.io.Serializable { self =>
 
     override def size: Int = underlying.size

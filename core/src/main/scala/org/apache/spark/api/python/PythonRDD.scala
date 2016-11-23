@@ -461,7 +461,7 @@ private[spark] object PythonRDD extends Logging {
   JavaRDD[Array[Byte]] = {
     val file = new DataInputStream(new FileInputStream(filename))
     try {
-      val objs = new collection.mutable.ArrayBuffer[Array[Byte]]
+      val objs = new scala.collection.mutable.ArrayBuffer[Array[Byte]]
       try {
         while (true) {
           val length = file.readInt()

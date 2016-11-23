@@ -509,7 +509,7 @@ private[spark] class BlockManagerInfo(
   def blocks: JHashMap[BlockId, BlockStatus] = _blocks
 
   // This does not include broadcast blocks.
-  def cachedBlocks: collection.Set[BlockId] = _cachedBlocks
+  def cachedBlocks: scala.collection.Set[BlockId] = _cachedBlocks
 
   override def toString: String = "BlockManagerInfo " + timeMs + " " + _remainingMem
 
