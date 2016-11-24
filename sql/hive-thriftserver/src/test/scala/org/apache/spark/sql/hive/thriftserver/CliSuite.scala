@@ -14,6 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for SnappyData data platform.
+ *
+ * Portions Copyright (c) 2016 SnappyData, Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark.sql.hive.thriftserver
 
@@ -42,6 +60,8 @@ class CliSuite extends SparkFunSuite with BeforeAndAfterAll with Logging {
   val warehousePath = Utils.createTempDir()
   val metastorePath = Utils.createTempDir()
   val scratchDirPath = Utils.createTempDir()
+  val sparkHome = new File(sys.props.getOrElse("spark.test.home",
+    fail("spark.test.home is not set!")))
 
   override def beforeAll(): Unit = {
     super.beforeAll()
@@ -82,7 +102,7 @@ class CliSuite extends SparkFunSuite with BeforeAndAfterAll with Logging {
     val queriesString = queries.map(_ + "\n").mkString
 
     val command = {
-      val cliScript = "../../bin/spark-sql".split("/").mkString(File.separator)
+      val cliScript = "./bin/spark-sql".split("/").mkString(File.separator)
       val jdbcUrl = s"jdbc:derby:;databaseName=$metastorePath;create=true"
       s"""$cliScript
          |  --master local
@@ -123,7 +143,7 @@ class CliSuite extends SparkFunSuite with BeforeAndAfterAll with Logging {
       }
     }
 
-    val process = new ProcessBuilder(command: _*).start()
+    val process = new ProcessBuilder(command: _*).directory(sparkHome).start()
 
     val stdinWriter = new OutputStreamWriter(process.getOutputStream, StandardCharsets.UTF_8)
     stdinWriter.write(queriesString)
@@ -200,8 +220,9 @@ class CliSuite extends SparkFunSuite with BeforeAndAfterAll with Logging {
   }
 
   test("Commands using SerDe provided in --jars") {
-    val jarFile =
-      "../hive/src/test/resources/hive-hcatalog-core-0.13.1.jar"
+    val jar = "hive/src/test/resources/hive-hcatalog-core-0.13.1.jar"
+    val jarFile = sys.props.get("spark.project.home").map(
+      _ + "/sql/" + jar).getOrElse("../" + jar)
         .split("/")
         .mkString(File.separator)
 

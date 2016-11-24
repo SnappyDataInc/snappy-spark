@@ -132,7 +132,7 @@ from a Hive table, or from [Spark data sources](#data-sources).
 
 As an example, the following creates a DataFrame based on the content of a JSON file:
 
-{% include_example create_DataFrames r/RSparkSQLExample.R %}
+{% include_example create_df r/RSparkSQLExample.R %}
 
 </div>
 </div>
@@ -140,7 +140,7 @@ As an example, the following creates a DataFrame based on the content of a JSON 
 
 ## Untyped Dataset Operations (aka DataFrame Operations)
 
-DataFrames provide a domain-specific language for structured data manipulation in [Scala](api/scala/index.html#org.apache.spark.sql.Dataset), [Java](api/java/index.html?org/apache/spark/sql/Dataset.html), [Python](api/python/pyspark.sql.html#pyspark.sql.DataFrame) and [R](api/R/DataFrame.html).
+DataFrames provide a domain-specific language for structured data manipulation in [Scala](api/scala/index.html#org.apache.spark.sql.Dataset), [Java](api/java/index.html?org/apache/spark/sql/Dataset.html), [Python](api/python/pyspark.sql.html#pyspark.sql.DataFrame) and [R](api/R/SparkDataFrame.html).
 
 As mentioned above, in Spark 2.0, DataFrames are just Dataset of `Row`s in Scala and Java API. These operations are also referred as "untyped transformations" in contrast to "typed transformations" come with strongly typed Scala/Java Datasets.
 
@@ -180,7 +180,7 @@ In addition to simple column references and expressions, DataFrames also have a 
 
 <div data-lang="r"  markdown="1">
 
-{% include_example dataframe_operations r/RSparkSQLExample.R %}
+{% include_example untyped_ops r/RSparkSQLExample.R %}
 
 For a complete list of the types of operations that can be performed on a DataFrame refer to the [API Documentation](api/R/index.html).
 
@@ -214,7 +214,7 @@ The `sql` function on a `SparkSession` enables applications to run SQL queries p
 <div data-lang="r"  markdown="1">
 The `sql` function enables applications to run SQL queries programmatically and returns the result as a `SparkDataFrame`.
 
-{% include_example sql_query r/RSparkSQLExample.R %}
+{% include_example run_sql r/RSparkSQLExample.R %}
 
 </div>
 </div>
@@ -377,7 +377,7 @@ In the simplest form, the default data source (`parquet` unless otherwise config
 
 <div data-lang="r"  markdown="1">
 
-{% include_example source_parquet r/RSparkSQLExample.R %}
+{% include_example generic_load_save_functions r/RSparkSQLExample.R %}
 
 </div>
 </div>
@@ -387,8 +387,8 @@ In the simplest form, the default data source (`parquet` unless otherwise config
 You can also manually specify the data source that will be used along with any extra options
 that you would like to pass to the data source. Data sources are specified by their fully qualified
 name (i.e., `org.apache.spark.sql.parquet`), but for built-in sources you can also use their short
-names (`json`, `parquet`, `jdbc`). DataFrames loaded from any data source type can be converted into other types
-using this syntax.
+names (`json`, `parquet`, `jdbc`, `orc`, `libsvm`, `csv`, `text`). DataFrames loaded from any data
+source type can be converted into other types using this syntax.
 
 <div class="codetabs">
 <div data-lang="scala"  markdown="1">
@@ -400,13 +400,11 @@ using this syntax.
 </div>
 
 <div data-lang="python"  markdown="1">
-
 {% include_example manual_load_options python/sql/datasource.py %}
 </div>
+
 <div data-lang="r"  markdown="1">
-
-{% include_example source_json r/RSparkSQLExample.R %}
-
+{% include_example manual_load_options r/RSparkSQLExample.R %}
 </div>
 </div>
 
@@ -425,13 +423,11 @@ file directly with SQL.
 </div>
 
 <div data-lang="python"  markdown="1">
-
 {% include_example direct_sql python/sql/datasource.py %}
 </div>
 
 <div data-lang="r"  markdown="1">
-
-{% include_example direct_query r/RSparkSQLExample.R %}
+{% include_example direct_sql r/RSparkSQLExample.R %}
 
 </div>
 </div>
@@ -523,7 +519,7 @@ Using the data from the above example:
 
 <div data-lang="r"  markdown="1">
 
-{% include_example load_programmatically r/RSparkSQLExample.R %}
+{% include_example basic_parquet_example r/RSparkSQLExample.R %}
 
 </div>
 
@@ -827,7 +823,7 @@ Note that the file that is offered as _a json file_ is not a typical JSON file. 
 line must contain a separate, self-contained valid JSON object. As a consequence,
 a regular multi-line JSON file will most often fail.
 
-{% include_example load_json_file r/RSparkSQLExample.R %}
+{% include_example json_dataset r/RSparkSQLExample.R %}
 
 </div>
 
@@ -861,50 +857,27 @@ access data stored in Hive.
 Configuration of Hive is done by placing your `hive-site.xml`, `core-site.xml` (for security configuration),
 and `hdfs-site.xml` (for HDFS configuration) file in `conf/`.
 
-<div class="codetabs">
-
-<div data-lang="scala"  markdown="1">
-
 When working with Hive, one must instantiate `SparkSession` with Hive support, including
 connectivity to a persistent Hive metastore, support for Hive serdes, and Hive user-defined functions.
 Users who do not have an existing Hive deployment can still enable Hive support. When not configured
 by the `hive-site.xml`, the context automatically creates `metastore_db` in the current directory and
 creates a directory configured by `spark.sql.warehouse.dir`, which defaults to the directory
-`spark-warehouse` in the current directory that the spark application is started. Note that
+`spark-warehouse` in the current directory that the Spark application is started. Note that
 the `hive.metastore.warehouse.dir` property in `hive-site.xml` is deprecated since Spark 2.0.0.
 Instead, use `spark.sql.warehouse.dir` to specify the default location of database in warehouse.
-You may need to grant write privilege to the user who starts the spark application.
+You may need to grant write privilege to the user who starts the Spark application.
 
+<div class="codetabs">
+
+<div data-lang="scala"  markdown="1">
 {% include_example spark_hive scala/org/apache/spark/examples/sql/hive/SparkHiveExample.scala %}
 </div>
 
 <div data-lang="java"  markdown="1">
-
-When working with Hive, one must instantiate `SparkSession` with Hive support, including
-connectivity to a persistent Hive metastore, support for Hive serdes, and Hive user-defined functions.
-Users who do not have an existing Hive deployment can still enable Hive support. When not configured
-by the `hive-site.xml`, the context automatically creates `metastore_db` in the current directory and
-creates a directory configured by `spark.sql.warehouse.dir`, which defaults to the directory
-`spark-warehouse` in the current directory that the spark application is started. Note that
-the `hive.metastore.warehouse.dir` property in `hive-site.xml` is deprecated since Spark 2.0.0.
-Instead, use `spark.sql.warehouse.dir` to specify the default location of database in warehouse.
-You may need to grant write privilege to the user who starts the spark application.
-
 {% include_example spark_hive java/org/apache/spark/examples/sql/hive/JavaSparkHiveExample.java %}
 </div>
 
 <div data-lang="python"  markdown="1">
-
-When working with Hive, one must instantiate `SparkSession` with Hive support, including
-connectivity to a persistent Hive metastore, support for Hive serdes, and Hive user-defined functions.
-Users who do not have an existing Hive deployment can still enable Hive support. When not configured
-by the `hive-site.xml`, the context automatically creates `metastore_db` in the current directory and
-creates a directory configured by `spark.sql.warehouse.dir`, which defaults to the directory
-`spark-warehouse` in the current directory that the spark application is started. Note that
-the `hive.metastore.warehouse.dir` property in `hive-site.xml` is deprecated since Spark 2.0.0.
-Instead, use `spark.sql.warehouse.dir` to specify the default location of database in warehouse.
-You may need to grant write privilege to the user who starts the spark application.
-
 {% include_example spark_hive python/sql/hive.py %}
 </div>
 
@@ -913,7 +886,7 @@ You may need to grant write privilege to the user who starts the spark applicati
 When working with Hive one must instantiate `SparkSession` with Hive support. This
 adds support for finding tables in the MetaStore and writing queries using HiveQL.
 
-{% include_example hive_table r/RSparkSQLExample.R %}
+{% include_example spark_hive r/RSparkSQLExample.R %}
 
 </div>
 </div>
@@ -1045,7 +1018,7 @@ the Data Sources API. The following options are supported:
   </tr>
 
   <tr>
-    <td><code>fetchSize</code></td>
+    <td><code>fetchsize</code></td>
     <td>
       The JDBC fetch size, which determines how many rows to fetch per round trip. This can help performance on JDBC drivers which default to low fetch size (eg. Oracle with 10 rows).
     </td>
@@ -1055,43 +1028,19 @@ the Data Sources API. The following options are supported:
 <div class="codetabs">
 
 <div data-lang="scala"  markdown="1">
-
-{% highlight scala %}
-val jdbcDF = spark.read.format("jdbc").options(
-  Map("url" -> "jdbc:postgresql:dbserver",
-  "dbtable" -> "schema.tablename")).load()
-{% endhighlight %}
-
+{% include_example jdbc_dataset scala/org/apache/spark/examples/sql/SQLDataSourceExample.scala %}
 </div>
 
 <div data-lang="java"  markdown="1">
-
-{% highlight java %}
-
-Map<String, String> options = new HashMap<>();
-options.put("url", "jdbc:postgresql:dbserver");
-options.put("dbtable", "schema.tablename");
-
-Dataset<Row> jdbcDF = spark.read().format("jdbc"). options(options).load();
-{% endhighlight %}
-
-
+{% include_example jdbc_dataset java/org/apache/spark/examples/sql/JavaSQLDataSourceExample.java %}
 </div>
 
 <div data-lang="python"  markdown="1">
-
-{% highlight python %}
-
-df = spark.read.format('jdbc').options(url='jdbc:postgresql:dbserver', dbtable='schema.tablename').load()
-
-{% endhighlight %}
-
+{% include_example jdbc_dataset python/sql/datasource.py %}
 </div>
 
 <div data-lang="r"  markdown="1">
-
-{% include_example jdbc r/RSparkSQLExample.R %}
-
+{% include_example jdbc_dataset r/RSparkSQLExample.R %}
 </div>
 
 <div data-lang="sql"  markdown="1">
@@ -1173,6 +1122,15 @@ that these options will be deprecated in future release as more optimizations ar
       time. This is used when putting multiple files into a partition. It is better to over estimated,
       then the partitions with small files will be faster than partitions with bigger files (which is
       scheduled first).
+    </td>
+  </tr>
+  <tr>
+    <td><code>spark.sql.broadcastTimeout</code></td>
+    <td>300</td>
+    <td>
+    <p>
+      Timeout in seconds for the broadcast wait time in broadcast joins
+    </p>
     </td>
   </tr>
   <tr>

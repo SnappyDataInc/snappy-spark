@@ -280,7 +280,7 @@ private[spark] object HiveUtils extends Logging {
         throw new IllegalArgumentException(
           "Builtin jars can only be used when hive execution version == hive metastore version. " +
             s"Execution: $hiveExecutionVersion != Metastore: $hiveMetastoreVersion. " +
-            "Specify a vaild path to the correct hive jars using $HIVE_METASTORE_JARS " +
+            s"Specify a vaild path to the correct hive jars using $HIVE_METASTORE_JARS " +
             s"or change ${HIVE_METASTORE_VERSION.key} to $hiveExecutionVersion.")
       }
 
@@ -393,6 +393,13 @@ private[spark] object HiveUtils extends Logging {
     // Then, you will find that the local metastore mode is only set to true when
     // hive.metastore.uris is not set.
     propMap.put(ConfVars.METASTOREURIS.varname, "")
+
+    // The execution client will generate garbage events, therefore the listeners that are generated
+    // for the execution clients are useless. In order to not output garbage, we don't generate
+    // these listeners.
+    propMap.put(ConfVars.METASTORE_PRE_EVENT_LISTENERS.varname, "")
+    propMap.put(ConfVars.METASTORE_EVENT_LISTENERS.varname, "")
+    propMap.put(ConfVars.METASTORE_END_FUNCTION_LISTENERS.varname, "")
 
     propMap.toMap
   }

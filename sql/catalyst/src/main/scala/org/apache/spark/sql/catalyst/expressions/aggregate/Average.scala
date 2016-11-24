@@ -53,7 +53,7 @@ case class Average(child: Expression) extends DeclarativeAggregate {
   }
 
   private lazy val sum = AttributeReference("sum", sumDataType)()
-  private lazy val count = AttributeReference("count", LongType)()
+  private lazy val count = AttributeReference("count", LongType, nullable = false)()
 
   override lazy val aggBufferAttributes = sum :: count :: Nil
 

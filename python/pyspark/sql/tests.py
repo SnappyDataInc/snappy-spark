@@ -323,6 +323,14 @@ class SQLTests(ReusedPySparkTestCase):
         [row] = self.spark.sql("SELECT double(add(1, 2)), add(double(2), 1)").collect()
         self.assertEqual(tuple(row), (6, 5))
 
+    def test_udf_in_filter_on_top_of_outer_join(self):
+        from pyspark.sql.functions import udf
+        left = self.spark.createDataFrame([Row(a=1)])
+        right = self.spark.createDataFrame([Row(a=1)])
+        df = left.join(right, on='a', how='left_outer')
+        df = df.withColumn('b', udf(lambda x: 'x')(df.a))
+        self.assertEqual(df.filter('b = "x"').collect(), [Row(a=1, b='x')])
+
     def test_udf_without_arguments(self):
         self.spark.catalog.registerFunction("foo", lambda: "bar")
         [row] = self.spark.sql("SELECT foo()").collect()
@@ -371,6 +379,14 @@ class SQLTests(ReusedPySparkTestCase):
         row = df.select(explode(f(*df))).groupBy().sum().first()
         self.assertEqual(row[0], 10)
 
+    def test_udf_with_order_by_and_limit(self):
+        from pyspark.sql.functions import udf
+        my_copy = udf(lambda x: x, IntegerType())
+        df = self.spark.range(10).orderBy("id")
+        res = df.select(df.id, my_copy(df.id).alias("copy")).limit(1)
+        res.explain(True)
+        self.assertEqual(res.collect(), [Row(id=0, copy=0)])
+
     def test_basic_functions(self):
         rdd = self.sc.parallelize(['{"foo":"bar"}', '{"foo":"baz"}'])
         df = self.spark.read.json(rdd)
@@ -410,6 +426,22 @@ class SQLTests(ReusedPySparkTestCase):
         rdd = self.sc.parallelize(range(10)).map(lambda x: Row(a=x, b=None))
         df3 = self.spark.createDataFrame(rdd, df.schema)
         self.assertEqual(10, df3.count())
+
+    def test_apply_schema_to_dict_and_rows(self):
+        schema = StructType().add("b", StringType()).add("a", IntegerType())
+        input = [{"a": 1}, {"b": "coffee"}]
+        rdd = self.sc.parallelize(input)
+        for verify in [False, True]:
+            df = self.spark.createDataFrame(input, schema, verifySchema=verify)
+            df2 = self.spark.createDataFrame(rdd, schema, verifySchema=verify)
+            self.assertEqual(df.schema, df2.schema)
+
+            rdd = self.sc.parallelize(range(10)).map(lambda x: Row(a=x, b=None))
+            df3 = self.spark.createDataFrame(rdd, schema, verifySchema=verify)
+            self.assertEqual(10, df3.count())
+            input = [Row(a=x, b=str(x)) for x in range(10)]
+            df4 = self.spark.createDataFrame(input, schema, verifySchema=verify)
+            self.assertEqual(10, df4.count())
 
     def test_create_dataframe_schema_mismatch(self):
         input = [Row(a=1)]
@@ -574,6 +606,41 @@ class SQLTests(ReusedPySparkTestCase):
         self.assertEqual(_infer_type(p), PythonOnlyUDT())
         _verify_type(PythonOnlyPoint(1.0, 2.0), PythonOnlyUDT())
         self.assertRaises(ValueError, lambda: _verify_type([1.0, 2.0], PythonOnlyUDT()))
+
+    def test_simple_udt_in_df(self):
+        schema = StructType().add("key", LongType()).add("val", PythonOnlyUDT())
+        df = self.spark.createDataFrame(
+            [(i % 3, PythonOnlyPoint(float(i), float(i))) for i in range(10)],
+            schema=schema)
+        df.show()
+
+    def test_nested_udt_in_df(self):
+        schema = StructType().add("key", LongType()).add("val", ArrayType(PythonOnlyUDT()))
+        df = self.spark.createDataFrame(
+            [(i % 3, [PythonOnlyPoint(float(i), float(i))]) for i in range(10)],
+            schema=schema)
+        df.collect()
+
+        schema = StructType().add("key", LongType()).add("val",
+                                                         MapType(LongType(), PythonOnlyUDT()))
+        df = self.spark.createDataFrame(
+            [(i % 3, {i % 3: PythonOnlyPoint(float(i + 1), float(i + 1))}) for i in range(10)],
+            schema=schema)
+        df.collect()
+
+    def test_complex_nested_udt_in_df(self):
+        from pyspark.sql.functions import udf
+
+        schema = StructType().add("key", LongType()).add("val", PythonOnlyUDT())
+        df = self.spark.createDataFrame(
+            [(i % 3, PythonOnlyPoint(float(i), float(i))) for i in range(10)],
+            schema=schema)
+        df.collect()
+
+        gd = df.groupby("key").agg({"val": "collect_list"})
+        gd.collect()
+        udf = udf(lambda k, v: [(k, v[0])], ArrayType(df.schema))
+        gd.select(udf(*gd)).collect()
 
     def test_udt_with_none(self):
         df = self.spark.range(0, 10, 1, 1)
@@ -1630,6 +1697,20 @@ class SQLTests(ReusedPySparkTestCase):
             "does_not_exist",
             lambda: spark.catalog.uncacheTable("does_not_exist"))
 
+    def test_read_text_file_list(self):
+        df = self.spark.read.text(['python/test_support/sql/text-test.txt',
+                                   'python/test_support/sql/text-test.txt'])
+        count = df.count()
+        self.assertEquals(count, 4)
+
+    def test_BinaryType_serialization(self):
+        # Pyrolite version <= 4.9 could not serialize BinaryType with Python3 SPARK-17808
+        schema = StructType([StructField('mybytes', BinaryType())])
+        data = [[bytearray(b'here is my data')],
+                [bytearray(b'and here is some more')]]
+        df = self.spark.createDataFrame(data, schema=schema)
+        df.collect()
+
 
 class HiveSparkSubmitTests(SparkSubmitTests):
 
@@ -1797,6 +1878,24 @@ class HiveContextSQLTests(ReusedPySparkTestCase):
         self.assertEqual(
             sorted(df.select(functions.collect_list(df.value).alias('r')).collect()[0].r),
             ["1", "2", "2", "2"])
+
+    def test_limit_and_take(self):
+        df = self.spark.range(1, 1000, numPartitions=10)
+
+        def assert_runs_only_one_job_stage_and_task(job_group_name, f):
+            tracker = self.sc.statusTracker()
+            self.sc.setJobGroup(job_group_name, description="")
+            f()
+            jobs = tracker.getJobIdsForGroup(job_group_name)
+            self.assertEqual(1, len(jobs))
+            stages = tracker.getJobInfo(jobs[0]).stageIds
+            self.assertEqual(1, len(stages))
+            self.assertEqual(1, tracker.getStageInfo(stages[0]).numTasks)
+
+        # Regression test for SPARK-10731: take should delegate to Scala implementation
+        assert_runs_only_one_job_stage_and_task("take", lambda: df.take(1))
+        # Regression test for SPARK-17514: limit(n).collect() should the perform same as take(n)
+        assert_runs_only_one_job_stage_and_task("collect_limit", lambda: df.limit(1).collect())
 
 
 if __name__ == "__main__":

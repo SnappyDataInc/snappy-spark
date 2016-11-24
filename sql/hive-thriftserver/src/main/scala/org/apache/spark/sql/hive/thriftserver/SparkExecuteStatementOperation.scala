@@ -51,18 +51,16 @@ private[hive] class SparkExecuteStatementOperation(
 
   private var result: DataFrame = _
   private var iter: Iterator[SparkRow] = _
+  private var iterHeader: Iterator[SparkRow] = _
   private var dataTypes: Array[DataType] = _
   private var statementId: String = _
 
   private lazy val resultSchema: TableSchema = {
-    if (result == null || result.queryExecution.analyzed.output.size == 0) {
+    if (result == null || result.schema.isEmpty) {
       new TableSchema(Arrays.asList(new FieldSchema("Result", "string", "")))
     } else {
-      logInfo(s"Result Schema: ${result.queryExecution.analyzed.output}")
-      val schema = result.queryExecution.analyzed.output.map { attr =>
-        new FieldSchema(attr.name, attr.dataType.catalogString, "")
-      }
-      new TableSchema(schema.asJava)
+      logInfo(s"Result Schema: ${result.schema}")
+      SparkExecuteStatementOperation.getTableSchema(result.schema)
     }
   }
 
@@ -110,6 +108,14 @@ private[hive] class SparkExecuteStatementOperation(
     assertState(OperationState.FINISHED)
     setHasResultSet(true)
     val resultRowSet: RowSet = RowSetFactory.create(getResultSetSchema, getProtocolVersion)
+
+    // Reset iter to header when fetching start from first row
+    if (order.equals(FetchOrientation.FETCH_FIRST)) {
+      val (ita, itb) = iterHeader.duplicate
+      iter = ita
+      iterHeader = itb
+    }
+
     if (!iter.hasNext) {
       resultRowSet
     } else {
@@ -228,6 +234,9 @@ private[hive] class SparkExecuteStatementOperation(
           result.collect().iterator
         }
       }
+      val (itra, itrb) = iter.duplicate
+      iterHeader = itra
+      iter = itrb
       dataTypes = result.queryExecution.analyzed.output.map(_.dataType).toArray
     } catch {
       case e: HiveSQLException =>
@@ -267,5 +276,15 @@ private[hive] class SparkExecuteStatementOperation(
         backgroundHandle.cancel(true)
       }
     }
+  }
+}
+
+object SparkExecuteStatementOperation {
+  def getTableSchema(structType: StructType): TableSchema = {
+    val schema = structType.map { field =>
+      val attrTypeString = if (field.dataType == NullType) "void" else field.dataType.catalogString
+      new FieldSchema(field.name, attrTypeString, "")
+    }
+    new TableSchema(schema.asJava)
   }
 }

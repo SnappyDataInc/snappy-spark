@@ -159,6 +159,13 @@ abstract class TreeNode[BaseType <: TreeNode[BaseType]] extends Product {
   }
 
   /**
+   * Returns a Seq containing the leaves in this tree.
+   */
+  def collectLeaves(): Seq[BaseType] = {
+    this.collect { case p if p.children.isEmpty => p }
+  }
+
+  /**
    * Finds and returns the first [[TreeNode]] of the tree for which the given partial function
    * is defined (pre-order), and applies the partial function to it.
    */
@@ -613,7 +620,9 @@ abstract class TreeNode[BaseType <: TreeNode[BaseType]] extends Product {
     case s: String => JString(s)
     case u: UUID => JString(u.toString)
     case dt: DataType => dt.jsonValue
-    case m: Metadata => m.jsonValue
+    // SPARK-17356: In usage of mllib, Metadata may store a huge vector of data, transforming
+    // it to JSON may trigger OutOfMemoryError.
+    case m: Metadata => Metadata.empty.jsonValue
     case s: StorageLevel =>
       ("useDisk" -> s.useDisk) ~ ("useMemory" -> s.useMemory) ~ ("useOffHeap" -> s.useOffHeap) ~
         ("deserialized" -> s.deserialized) ~ ("replication" -> s.replication)

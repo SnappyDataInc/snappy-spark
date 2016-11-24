@@ -14,6 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for SnappyData data platform.
+ *
+ * Portions Copyright (c) 2016 SnappyData, Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark.sql.types
 
@@ -31,7 +49,7 @@ import org.apache.spark.sql.catalyst.expressions.Expression
  * A Decimal that must have fixed precision (the maximum number of digits) and scale (the number
  * of digits on right side of dot).
  *
- * The precision can be up to 38, scale can also be up to 38 (less or equal to precision).
+ * The precision can be up to 127, scale can also be up to 127 (less or equal to precision).
  *
  * The default precision and scale is (10, 0).
  *
@@ -46,7 +64,8 @@ case class DecimalType(precision: Int, scale: Int) extends FractionalType {
   }
 
   if (precision > DecimalType.MAX_PRECISION) {
-    throw new AnalysisException(s"DecimalType can only support precision up to 38")
+    throw new AnalysisException(
+      s"DecimalType can only support precision up to ${DecimalType.MAX_PRECISION}")
   }
 
   // default constructor for Java
@@ -105,10 +124,10 @@ case class DecimalType(precision: Int, scale: Int) extends FractionalType {
 object DecimalType extends AbstractDataType {
   import scala.math.min
 
-  val MAX_PRECISION = 38
-  val MAX_SCALE = 38
-  val SYSTEM_DEFAULT: DecimalType = DecimalType(MAX_PRECISION, 18)
-  val USER_DEFAULT: DecimalType = DecimalType(10, 0)
+  val MAX_PRECISION = 127
+  val MAX_SCALE = 63
+  val SYSTEM_DEFAULT: DecimalType = DecimalType(38, 18)
+  val USER_DEFAULT: DecimalType = DecimalType(38, 18)
 
   // The decimal types compatible with other numeric types
   private[sql] val ByteDecimal = DecimalType(3, 0)

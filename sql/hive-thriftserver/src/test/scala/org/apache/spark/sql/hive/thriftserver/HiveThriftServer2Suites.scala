@@ -14,6 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for SnappyData data platform.
+ *
+ * Portions Copyright (c) 2016 SnappyData, Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark.sql.hive.thriftserver
 
@@ -36,6 +54,8 @@ import org.apache.hive.service.auth.PlainSaslHelper
 import org.apache.hive.service.cli.GetInfoType
 import org.apache.hive.service.cli.thrift.TCLIService.Client
 import org.apache.hive.service.cli.thrift.ThriftCLIServiceClient
+import org.apache.hive.service.cli.FetchOrientation
+import org.apache.hive.service.cli.FetchType
 import org.apache.thrift.protocol.TBinaryProtocol
 import org.apache.thrift.transport.TSocket
 import org.scalatest.BeforeAndAfterAll
@@ -87,6 +107,52 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
         val version = client.getInfo(sessionHandle, GetInfoType.CLI_DBMS_VER).getStringValue
         logInfo(s"Spark version: $version")
         version != "Unknown"
+      }
+    }
+  }
+
+  test("SPARK-16563 ThriftCLIService FetchResults repeat fetching result") {
+    withCLIServiceClient { client =>
+      val user = System.getProperty("user.name")
+      val sessionHandle = client.openSession(user, "")
+
+      withJdbcStatement { statement =>
+        val queries = Seq(
+          "DROP TABLE IF EXISTS test_16563",
+          "CREATE TABLE test_16563(key INT, val STRING)",
+          s"LOAD DATA LOCAL INPATH '${TestData.smallKv}' OVERWRITE INTO TABLE test_16563")
+
+        queries.foreach(statement.execute)
+        val confOverlay = new java.util.HashMap[java.lang.String, java.lang.String]
+        val operationHandle = client.executeStatement(
+          sessionHandle,
+          "SELECT * FROM test_16563",
+          confOverlay)
+
+        // Fetch result first time
+        assertResult(5, "Fetching result first time from next row") {
+
+          val rows_next = client.fetchResults(
+            operationHandle,
+            FetchOrientation.FETCH_NEXT,
+            1000,
+            FetchType.QUERY_OUTPUT)
+
+          rows_next.numRows()
+        }
+
+        // Fetch result second time from first row
+        assertResult(5, "Repeat fetching result from first row") {
+
+          val rows_first = client.fetchResults(
+            operationHandle,
+            FetchOrientation.FETCH_FIRST,
+            1000,
+            FetchType.QUERY_OUTPUT)
+
+          rows_first.numRows()
+        }
+        statement.executeQuery("DROP TABLE IF EXISTS test_16563")
       }
     }
   }
@@ -433,8 +499,9 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
     withMultipleConnectionJdbcStatement(
       {
         statement =>
-          val jarFile =
-            "../hive/src/test/resources/hive-hcatalog-core-0.13.1.jar"
+          val jar = "hive/src/test/resources/hive-hcatalog-core-0.13.1.jar"
+          val jarFile = sys.props.get("spark.project.home").map(
+            _ + "/sql/" + jar).getOrElse("../" + jar)
               .split("/")
               .mkString(File.separator)
 
@@ -689,8 +756,11 @@ abstract class HiveThriftServer2Test extends SparkFunSuite with BeforeAndAfterAl
   private val CLASS_NAME = HiveThriftServer2.getClass.getCanonicalName.stripSuffix("$")
   private val LOG_FILE_MARK = s"starting $CLASS_NAME, logging to "
 
-  protected val startScript = "../../sbin/start-thriftserver.sh".split("/").mkString(File.separator)
-  protected val stopScript = "../../sbin/stop-thriftserver.sh".split("/").mkString(File.separator)
+  protected val startScript = "./sbin/start-thriftserver.sh".split("/").mkString(File.separator)
+  protected val stopScript = "./sbin/stop-thriftserver.sh".split("/").mkString(File.separator)
+
+  protected val sparkHome = sys.props.getOrElse("spark.test.home",
+    fail("spark.test.home is not set!"))
 
   private var listeningPort: Int = _
   protected def serverPort: Int = listeningPort
@@ -788,6 +858,7 @@ abstract class HiveThriftServer2Test extends SparkFunSuite with BeforeAndAfterAl
     logPath = {
       val lines = Utils.executeAndGetOutput(
         command = command,
+        workingDir = new File(sparkHome),
         extraEnvironment = Map(
           // Disables SPARK_TESTING to exclude log4j.properties in test directories.
           "SPARK_TESTING" -> "0",
@@ -841,6 +912,7 @@ abstract class HiveThriftServer2Test extends SparkFunSuite with BeforeAndAfterAl
     // The `spark-daemon.sh' script uses kill, which is not synchronous, have to wait for a while.
     Utils.executeAndGetOutput(
       command = Seq(stopScript),
+      workingDir = new File(sparkHome),
       extraEnvironment = Map("SPARK_PID_DIR" -> pidDir.getCanonicalPath))
     Thread.sleep(3.seconds.toMillis)
 

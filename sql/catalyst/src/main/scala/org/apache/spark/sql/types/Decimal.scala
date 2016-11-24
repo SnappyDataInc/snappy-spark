@@ -176,10 +176,10 @@ final class Decimal extends Ordered[Decimal] with Serializable {
   def toJavaBigInteger: java.math.BigInteger = java.math.BigInteger.valueOf(toLong)
 
   def toUnscaledLong: Long = {
-    if (decimalVal.ne(null)) {
-      decimalVal.underlying().unscaledValue().longValue()
-    } else {
+    if (decimalVal eq null) {
       longVal
+    } else {
+      decimalVal.underlying().unscaledValue().longValue()
     }
   }
 
@@ -242,10 +242,30 @@ final class Decimal extends Ordered[Decimal] with Serializable {
       if (scale < _scale) {
         // Easier case: we just need to divide our scale down
         val diff = _scale - scale
-        val droppedDigits = longVal % POW_10(diff)
-        longVal /= POW_10(diff)
-        if (math.abs(droppedDigits) * 2 >= POW_10(diff)) {
-          longVal += (if (longVal < 0) -1L else 1L)
+        val pow10diff = POW_10(diff)
+        // % and / always round to 0
+        val droppedDigits = longVal % pow10diff
+        longVal /= pow10diff
+        roundMode match {
+          case ROUND_FLOOR =>
+            if (droppedDigits < 0) {
+              longVal += -1L
+            }
+          case ROUND_CEILING =>
+            if (droppedDigits > 0) {
+              longVal += 1L
+            }
+          case ROUND_HALF_UP =>
+            if (math.abs(droppedDigits) * 2 >= pow10diff) {
+              longVal += (if (droppedDigits < 0) -1L else 1L)
+            }
+          case ROUND_HALF_EVEN =>
+            val doubled = math.abs(droppedDigits) * 2
+            if (doubled > pow10diff || doubled == pow10diff && longVal % 2 != 0) {
+              longVal += (if (droppedDigits < 0) -1L else 1L)
+            }
+          case _ =>
+            sys.error(s"Not supported rounding mode: $roundMode")
         }
       } else if (scale > _scale) {
         // We might be able to multiply longVal by a power of 10 and not overflow, but if not,
@@ -296,13 +316,40 @@ final class Decimal extends Ordered[Decimal] with Serializable {
   }
 
   override def equals(other: Any): Boolean = other match {
-    case d: Decimal =>
-      compare(d) == 0
-    case _ =>
-      false
+    case d: Decimal => equals(d)
+    case _ => false
   }
 
   override def hashCode(): Int = toBigDecimal.hashCode()
+
+  def equals(other: Decimal): Boolean = {
+    if (other != null) {
+      val decimalVal = this.decimalVal
+      val otherDecimalVal = other.decimalVal
+      if (decimalVal eq null) {
+        if (otherDecimalVal eq null) {
+          if (_scale == other._scale) longVal == other.longVal
+          else toJavaBigDecimal.equals(other.toJavaBigDecimal)
+        } else {
+          toJavaBigDecimal.equals(otherDecimalVal.bigDecimal)
+        }
+      } else if (otherDecimalVal ne null) {
+        decimalVal.bigDecimal.equals(otherDecimalVal.bigDecimal)
+      } else {
+        decimalVal.bigDecimal.equals(other.toJavaBigDecimal)
+      }
+    } else false
+  }
+
+  def fastHashCode(): Int = {
+    val decimalVal = this.decimalVal
+    if (decimalVal != null) {
+      decimalVal.bigDecimal.hashCode()
+    } else {
+      val longVal = this.longVal
+      (longVal ^ (longVal >>> 32)).toInt
+    }
+  }
 
   def isZero: Boolean = if (decimalVal.ne(null)) decimalVal == BIG_DEC_ZERO else longVal == 0
 

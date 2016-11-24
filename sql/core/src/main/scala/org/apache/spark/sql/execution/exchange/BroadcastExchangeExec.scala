@@ -38,7 +38,7 @@ case class BroadcastExchangeExec(
     mode: BroadcastMode,
     child: SparkPlan) extends Exchange {
 
-  override private[sql] lazy val metrics = Map(
+  override lazy val metrics = Map(
     "dataSize" -> SQLMetrics.createMetric(sparkContext, "data size (bytes)"),
     "collectTime" -> SQLMetrics.createMetric(sparkContext, "time to collect (ms)"),
     "buildTime" -> SQLMetrics.createMetric(sparkContext, "time to build (ms)"),
@@ -117,7 +117,8 @@ case class BroadcastExchangeExec(
   }
 
   override protected[sql] def doExecuteBroadcast[T](): broadcast.Broadcast[T] = {
-    ThreadUtils.awaitResult(relationFuture, timeout).asInstanceOf[broadcast.Broadcast[T]]
+    ThreadUtils.awaitResultInForkJoinSafely(relationFuture, timeout)
+      .asInstanceOf[broadcast.Broadcast[T]]
   }
 }
 

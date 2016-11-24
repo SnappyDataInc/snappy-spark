@@ -64,7 +64,7 @@ import org.apache.spark.util.Utils
  *   SparkSession.builder()
  *     .master("local")
  *     .appName("Word Count")
- *     .config("spark.some.config.option", "some-value").
+ *     .config("spark.some.config.option", "some-value")
  *     .getOrCreate()
  * }}}
  */
@@ -802,7 +802,7 @@ object SparkSession {
       if ((session ne null) && !session.sparkContext.isStopped) {
         options.foreach { case (k, v) => session.conf.set(k, v) }
         if (options.nonEmpty) {
-          logWarning("Use an existing SparkSession, some configuration may not take effect.")
+          logWarning("Using an existing SparkSession; some configuration may not take effect.")
         }
         return session
       }
@@ -814,7 +814,7 @@ object SparkSession {
         if ((session ne null) && !session.sparkContext.isStopped) {
           options.foreach { case (k, v) => session.conf.set(k, v) }
           if (options.nonEmpty) {
-            logWarning("Use an existing SparkSession, some configuration may not take effect.")
+            logWarning("Using an existing SparkSession; some configuration may not take effect.")
           }
           return session
         }
@@ -822,16 +822,19 @@ object SparkSession {
         // No active nor global default session. Create a new one.
         val sparkContext = userSuppliedContext.getOrElse {
           // set app name if not given
-          if (!options.contains("spark.app.name")) {
-            options += "spark.app.name" -> java.util.UUID.randomUUID().toString
-          }
-
+          val randomAppName = java.util.UUID.randomUUID().toString
           val sparkConf = new SparkConf()
           options.foreach { case (k, v) => sparkConf.set(k, v) }
+          if (!sparkConf.contains("spark.app.name")) {
+            sparkConf.setAppName(randomAppName)
+          }
           val sc = SparkContext.getOrCreate(sparkConf)
           // maybe this is an existing SparkContext, update its SparkConf which maybe used
           // by SparkSession
           options.foreach { case (k, v) => sc.conf.set(k, v) }
+          if (!sc.conf.contains("spark.app.name")) {
+            sc.conf.setAppName(randomAppName)
+          }
           sc
         }
         session = new SparkSession(sparkContext)

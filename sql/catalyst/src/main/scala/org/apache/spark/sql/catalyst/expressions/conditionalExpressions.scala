@@ -126,7 +126,8 @@ abstract class CaseWhenBase(
 
   override def eval(input: InternalRow): Any = {
     var i = 0
-    while (i < branches.size) {
+    val size = branches.size
+    while (i < size) {
       if (java.lang.Boolean.TRUE.equals(branches(i)._1.eval(input))) {
         return branches(i)._2.eval(input)
       }
@@ -299,7 +300,7 @@ case class Least(children: Seq[Expression]) extends Expression {
     } else if (children.map(_.dataType).distinct.count(_ != NullType) > 1) {
       TypeCheckResult.TypeCheckFailure(
         s"The expressions should all have the same type," +
-          s" got LEAST (${children.map(_.dataType)}).")
+          s" got LEAST(${children.map(_.dataType.simpleString).mkString(", ")}).")
     } else {
       TypeUtils.checkForOrderingExpr(dataType, "function " + prettyName)
     }
@@ -359,7 +360,7 @@ case class Greatest(children: Seq[Expression]) extends Expression {
     } else if (children.map(_.dataType).distinct.count(_ != NullType) > 1) {
       TypeCheckResult.TypeCheckFailure(
         s"The expressions should all have the same type," +
-          s" got GREATEST (${children.map(_.dataType)}).")
+          s" got GREATEST(${children.map(_.dataType.simpleString).mkString(", ")}).")
     } else {
       TypeUtils.checkForOrderingExpr(dataType, "function " + prettyName)
     }

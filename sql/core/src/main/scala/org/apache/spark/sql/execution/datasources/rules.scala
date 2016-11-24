@@ -26,13 +26,14 @@ import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, Cast, RowOrd
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules.Rule
+import org.apache.spark.sql.execution.command.CreateHiveTableAsSelectLogicalPlan
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.{BaseRelation, InsertableRelation}
 
 /**
  * Try to replaces [[UnresolvedRelation]]s with [[ResolveDataSource]].
  */
-private[sql] class ResolveDataSource(sparkSession: SparkSession) extends Rule[LogicalPlan] {
+class ResolveDataSource(sparkSession: SparkSession) extends Rule[LogicalPlan] {
   def apply(plan: LogicalPlan): LogicalPlan = plan resolveOperators {
     case u: UnresolvedRelation if u.tableIdentifier.database.isDefined =>
       try {
@@ -62,12 +63,31 @@ private[sql] class ResolveDataSource(sparkSession: SparkSession) extends Rule[Lo
 }
 
 /**
+ * Analyze the query in CREATE TABLE AS SELECT (CTAS). After analysis, [[PreWriteCheck]] also
+ * can detect the cases that are not allowed.
+ */
+case class AnalyzeCreateTableAsSelect(sparkSession: SparkSession) extends Rule[LogicalPlan] {
+  def apply(plan: LogicalPlan): LogicalPlan = plan transform {
+    case c: CreateTableUsingAsSelect if !c.query.resolved =>
+      c.copy(query = analyzeQuery(c.query))
+    case c: CreateHiveTableAsSelectLogicalPlan if !c.query.resolved =>
+      c.copy(query = analyzeQuery(c.query))
+  }
+
+  private def analyzeQuery(query: LogicalPlan): LogicalPlan = {
+    val qe = sparkSession.sessionState.executePlan(query)
+    qe.assertAnalyzed()
+    qe.analyzed
+  }
+}
+
+/**
  * Preprocess the [[InsertIntoTable]] plan. Throws exception if the number of columns mismatch, or
  * specified partition columns are different from the existing partition columns in the target
  * table. It also does data type casting and field renaming, to make sure that the columns to be
  * inserted have the correct data type and fields have the correct names.
  */
-private[sql] case class PreprocessTableInsertion(conf: SQLConf) extends Rule[LogicalPlan] {
+case class PreprocessTableInsertion(conf: SQLConf) extends Rule[LogicalPlan] {
   private def preprocess(
       insert: InsertIntoTable,
       tblName: String,
@@ -107,16 +127,21 @@ private[sql] case class PreprocessTableInsertion(conf: SQLConf) extends Rule[Log
     }
   }
 
-  // TODO: do we really need to rename?
   def castAndRenameChildOutput(
       insert: InsertIntoTable,
       expectedOutput: Seq[Attribute]): InsertIntoTable = {
     val newChildOutput = expectedOutput.zip(insert.child.output).map {
       case (expected, actual) =>
-        if (expected.dataType.sameType(actual.dataType) && expected.name == actual.name) {
+        if (expected.dataType.sameType(actual.dataType) &&
+          expected.name == actual.name &&
+          expected.metadata == actual.metadata) {
           actual
         } else {
-          Alias(Cast(actual, expected.dataType), expected.name)()
+          // Renaming is needed for handling the following cases like
+          // 1) Column names/types do not match, e.g., INSERT INTO TABLE tab1 SELECT 1, 2
+          // 2) Target tables have column metadata
+          Alias(Cast(actual, expected.dataType), expected.name)(
+            explicitMetadata = Option(expected.metadata))
         }
     }
 
@@ -147,7 +172,7 @@ private[sql] case class PreprocessTableInsertion(conf: SQLConf) extends Rule[Log
 /**
  * A rule to do various checks before inserting into or writing to a data source table.
  */
-private[sql] case class PreWriteCheck(conf: SQLConf, catalog: SessionCatalog)
+case class PreWriteCheck(conf: SQLConf, catalog: SessionCatalog)
   extends (LogicalPlan => Unit) {
 
   def failAnalysis(msg: String): Unit = { throw new AnalysisException(msg) }
@@ -216,7 +241,7 @@ private[sql] case class PreWriteCheck(conf: SQLConf, catalog: SessionCatalog)
             // (the relation is a BaseRelation).
             case l @ LogicalRelation(dest: BaseRelation, _, _) =>
               // Get all input data source relations of the query.
-              val srcRelations = c.child.collect {
+              val srcRelations = c.query.collect {
                 case LogicalRelation(src: BaseRelation, _, _) => src
               }
               if (srcRelations.contains(dest)) {
@@ -233,12 +258,12 @@ private[sql] case class PreWriteCheck(conf: SQLConf, catalog: SessionCatalog)
         }
 
         PartitioningUtils.validatePartitionColumn(
-          c.child.schema, c.partitionColumns, conf.caseSensitiveAnalysis)
+          c.query.schema, c.partitionColumns, conf.caseSensitiveAnalysis)
 
         for {
           spec <- c.bucketSpec
           sortColumnName <- spec.sortColumnNames
-          sortColumn <- c.child.schema.find(_.name == sortColumnName)
+          sortColumn <- c.query.schema.find(_.name == sortColumnName)
         } {
           if (!RowOrdering.isOrderable(sortColumn.dataType)) {
             failAnalysis(s"Cannot use ${sortColumn.dataType.simpleString} for sorting column.")
