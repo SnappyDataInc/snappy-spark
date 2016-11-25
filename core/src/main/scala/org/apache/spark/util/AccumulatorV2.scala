@@ -351,7 +351,7 @@ class LongAccumulator extends AccumulatorV2Kryo[jl.Long, jl.Long]
    * Adds v to the accumulator, i.e. increment sum by v and count by 1.
    * @since 2.0.0
    */
-  override def isZero: Boolean = _sum == 0 && _count == 0
+  override def isZero: Boolean = _sum == 0L && _count == 0
 
   override def copy(): LongAccumulator = {
     val newAcc = new LongAccumulator
