@@ -20,8 +20,8 @@ package org.apache.spark.executor
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{ArrayBuffer, LinkedHashMap}
 
-import com.esotericsoftware.kryo.io.{Input, Output}
 import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
+import com.esotericsoftware.kryo.io.{Input, Output}
 
 import org.apache.spark._
 import org.apache.spark.annotation.DeveloperApi

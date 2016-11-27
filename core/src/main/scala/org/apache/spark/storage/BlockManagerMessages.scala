@@ -19,8 +19,8 @@ package org.apache.spark.storage
 
 import java.io.{Externalizable, ObjectInput, ObjectOutput}
 
-import com.esotericsoftware.kryo.io.{Input, Output}
 import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
+import com.esotericsoftware.kryo.io.{Input, Output}
 
 import org.apache.spark.rpc.RpcEndpointRef
 import org.apache.spark.util.Utils

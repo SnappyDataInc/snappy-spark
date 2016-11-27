@@ -17,8 +17,8 @@
 
 package org.apache.spark.util.collection
 
-import com.esotericsoftware.kryo.io.{Input, Output}
 import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
+import com.esotericsoftware.kryo.io.{Input, Output}
 
 /**
  * A simple, fixed-size bit set implementation. This implementation is fast because it avoids

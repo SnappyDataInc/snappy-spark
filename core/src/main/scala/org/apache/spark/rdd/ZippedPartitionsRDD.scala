@@ -21,8 +21,8 @@ import java.io.{IOException, ObjectOutputStream}
 
 import scala.reflect.ClassTag
 
-import com.esotericsoftware.kryo.io.{Input, Output}
 import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
+import com.esotericsoftware.kryo.io.{Input, Output}
 
 import org.apache.spark.{OneToOneDependency, Partition, SparkContext, TaskContext}
 import org.apache.spark.util.Utils
