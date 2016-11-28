@@ -52,7 +52,6 @@ allprojects {
 
   group = 'io.snappydata'
   version = snappySparkVersion
-  productName = productName
 
   ext {
     vendorName = 'TIBCO Software Inc.'

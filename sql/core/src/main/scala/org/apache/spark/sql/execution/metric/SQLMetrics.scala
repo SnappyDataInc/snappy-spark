@@ -20,10 +20,13 @@ package org.apache.spark.sql.execution.metric
 import java.text.NumberFormat
 import java.util.Locale
 
+import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
+import com.esotericsoftware.kryo.io.{Input, Output}
+
 import org.apache.spark.SparkContext
 import org.apache.spark.scheduler.AccumulableInfo
 import org.apache.spark.sql.execution.ui.SparkListenerDriverAccumUpdates
-import org.apache.spark.util.{AccumulatorContext, AccumulatorV2, Utils}
+import org.apache.spark.util.{AccumulatorContext, AccumulatorV2, AccumulatorV2Kryo, Utils}
 
 
 /**
@@ -31,12 +34,13 @@ import org.apache.spark.util.{AccumulatorContext, AccumulatorV2, Utils}
  * the executor side are automatically propagated and shown in the SQL UI through metrics. Updates
  * on the driver side must be explicitly posted using [[SQLMetrics.postDriverMetricUpdates()]].
  */
-class SQLMetric(val metricType: String, initValue: Long = 0L) extends AccumulatorV2[Long, Long] {
+final class SQLMetric(var metricType: String, initValue: Long = 0L)
+    extends AccumulatorV2Kryo[Long, Long] with KryoSerializable {
   // This is a workaround for SPARK-11013.
   // We may use -1 as initial value of the accumulator, if the accumulator is valid, we will
   // update it at the end of task and the value will be at least 0. Then we can filter out the -1
   // values before calculate max, min, etc.
-  private[this] var _value = initValue
+  private var _value = initValue
   private var _zeroValue = initValue
 
   override def copy(): SQLMetric = {
@@ -76,6 +80,18 @@ class SQLMetric(val metricType: String, initValue: Long = 0L) extends Accumulato
   override def toInfo(update: Option[Any], value: Option[Any]): AccumulableInfo = {
     new AccumulableInfo(
       id, name, update, value, true, true, Some(AccumulatorContext.SQL_ACCUM_IDENTIFIER))
+  }
+
+  override def writeKryo(kryo: Kryo, output: Output): Unit = {
+    output.writeString(metricType)
+    output.writeLong(_value)
+    output.writeLong(_zeroValue)
+  }
+
+  override def readKryo(kryo: Kryo, input: Input): Unit = {
+    metricType = input.readString()
+    _value = input.readLong()
+    _zeroValue = input.readLong()
   }
 }
 

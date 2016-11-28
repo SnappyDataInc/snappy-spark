@@ -30,9 +30,9 @@ import org.apache.spark.util.RpcUtils
 private[spark] abstract class RpcEndpointRef(conf: SparkConf)
   extends Serializable with Logging {
 
-  private[this] val maxRetries = RpcUtils.numRetries(conf)
-  private[this] val retryWaitMs = RpcUtils.retryWaitMs(conf)
-  private[this] val defaultAskTimeout = RpcUtils.askRpcTimeout(conf)
+  protected var maxRetries: Int = RpcUtils.numRetries(conf)
+  protected var retryWaitMs: Long = RpcUtils.retryWaitMs(conf)
+  protected var defaultAskTimeout: RpcTimeout = RpcUtils.askRpcTimeout(conf)
 
   /**
    * return the address for the [[RpcEndpointRef]]

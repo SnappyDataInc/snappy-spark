@@ -23,6 +23,9 @@ import java.util.Properties
 
 import scala.language.existentials
 
+import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
+import com.esotericsoftware.kryo.io.{Input, Output}
+
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.internal.Logging
@@ -55,8 +58,8 @@ import org.apache.spark.shuffle.ShuffleWriter
 private[spark] class ShuffleMapTask(
     stageId: Int,
     stageAttemptId: Int,
-    taskBinary: Broadcast[Array[Byte]],
-    partition: Partition,
+    private var taskBinary: Broadcast[Array[Byte]],
+    private var partition: Partition,
     @transient private var locs: Seq[TaskLocation],
     localProperties: Properties,
     serializedTaskMetrics: Array[Byte],
@@ -66,7 +69,7 @@ private[spark] class ShuffleMapTask(
     isBarrier: Boolean = false)
   extends Task[MapStatus](stageId, stageAttemptId, partition.index, localProperties,
     serializedTaskMetrics, jobId, appId, appAttemptId, isBarrier)
-  with Logging {
+  with KryoSerializable with Logging {
 
   /** A constructor used only in test suites. This does not require passing in an RDD. */
   def this(partitionId: Int) {
@@ -115,4 +118,16 @@ private[spark] class ShuffleMapTask(
   override def preferredLocations: Seq[TaskLocation] = preferredLocs
 
   override def toString: String = "ShuffleMapTask(%d, %d)".format(stageId, partitionId)
+
+  override def write(kryo: Kryo, output: Output): Unit = {
+    super.writeKryo(kryo, output)
+    kryo.writeClassAndObject(output, taskBinary)
+    kryo.writeClassAndObject(output, partition)
+  }
+
+  override def read(kryo: Kryo, input: Input): Unit = {
+    super.readKryo(kryo, input)
+    taskBinary = kryo.readClassAndObject(input).asInstanceOf[Broadcast[Array[Byte]]]
+    partition = kryo.readClassAndObject(input).asInstanceOf[Partition]
+  }
 }

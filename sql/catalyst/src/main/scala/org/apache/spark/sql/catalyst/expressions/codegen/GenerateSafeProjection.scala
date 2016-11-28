@@ -53,26 +53,17 @@ object GenerateSafeProjection extends CodeGenerator[Seq[Expression], Projection]
     val values = ctx.freshName("values")
 
     val rowClass = classOf[GenericInternalRow].getName
-
-    val isHomogenousStruct = {
-      var i = 1
-      val ref =  CodeGenerator.javaType(schema.fields(0).dataType)
-      var broken = !CodeGenerator.isPrimitiveType(ref) || schema.length <= 1
-      while (!broken && i < schema.length) {
-        if (CodeGenerator.javaType(schema.fields(i).dataType) != ref) {
-          broken = true
-        }
-        i += 1
-      }
-      !broken
-    }
-    val allFields =  if (isHomogenousStruct) {
+    var ref: DataType = null
+    val isHomogeneousStruct = if (schema.length > 0) {
+      ref = schema.fields(0).dataType
+      !schema.tail.exists(_.dataType != ref)
+    } else false
+    val allFields = if (isHomogeneousStruct) {
       val counter = ctx.freshName("counter")
-      val dt = schema.fields(0).dataType
       val converter = convertToSafe(
         ctx,
-        JavaCode.expression(CodeGenerator.getValue(tmpInput, dt, i.toString), dt),
-        dt)
+        JavaCode.expression(CodeGenerator.getValue(tmpInput, ref, counter), ref),
+        ref)
       s"""
         for (int $counter = 0; $counter < ${schema.length}; ++$counter) {
          if (!$tmpInput.isNullAt($counter)) {

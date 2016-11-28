@@ -29,7 +29,10 @@ import scala.reflect.ClassTag
 import scala.util.{DynamicVariable, Failure, Success, Try}
 import scala.util.control.NonFatal
 
-import org.apache.spark.{SecurityManager, SparkConf}
+import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
+import com.esotericsoftware.kryo.io.{Input, Output}
+
+import org.apache.spark.{SecurityManager, SparkConf, SparkEnv}
 import org.apache.spark.internal.Logging
 import org.apache.spark.network.TransportContext
 import org.apache.spark.network.client._
@@ -37,12 +40,12 @@ import org.apache.spark.network.crypto.{AuthClientBootstrap, AuthServerBootstrap
 import org.apache.spark.network.netty.SparkTransportConf
 import org.apache.spark.network.server._
 import org.apache.spark.rpc._
-import org.apache.spark.serializer.{JavaSerializer, JavaSerializerInstance, SerializationStream}
-import org.apache.spark.util.{ByteBufferInputStream, ByteBufferOutputStream, ThreadUtils, Utils}
+import org.apache.spark.serializer.{SerializationStream, Serializer, SerializerInstance}
+import org.apache.spark.util.{ByteBufferInputStream, ByteBufferOutputStream, RpcUtils, ThreadUtils, Utils}
 
 private[netty] class NettyRpcEnv(
     val conf: SparkConf,
-    javaSerializerInstance: JavaSerializerInstance,
+    serializer: Serializer,
     host: String,
     securityManager: SecurityManager,
     numUsableCores: Int) extends RpcEnv(conf) with Logging {
@@ -51,6 +54,10 @@ private[netty] class NettyRpcEnv(
     conf.clone.set("spark.rpc.io.numConnectionsPerPeer", "1"),
     "rpc",
     conf.getInt("spark.rpc.io.threads", numUsableCores))
+
+  private val serializerInstance = new ThreadLocal[SerializerInstance] {
+    override def initialValue(): SerializerInstance = serializer.newInstance()
+  }
 
   private val dispatcher: Dispatcher = new Dispatcher(this, numUsableCores)
 
@@ -255,20 +262,20 @@ private[netty] class NettyRpcEnv(
   }
 
   private[netty] def serialize(content: Any): ByteBuffer = {
-    javaSerializerInstance.serialize(content)
+    serializerInstance.get().serialize(content)
   }
 
   /**
    * Returns [[SerializationStream]] that forwards the serialized bytes to `out`.
    */
   private[netty] def serializeStream(out: OutputStream): SerializationStream = {
-    javaSerializerInstance.serializeStream(out)
+    serializerInstance.get().serializeStream(out)
   }
 
   private[netty] def deserialize[T: ClassTag](client: TransportClient, bytes: ByteBuffer): T = {
     NettyRpcEnv.currentClient.withValue(client) {
       deserialize { () =>
-        javaSerializerInstance.deserialize[T](bytes)
+        serializerInstance.get().deserialize[T](bytes)
       }
     }
   }
@@ -453,12 +460,9 @@ private[rpc] class NettyRpcEnvFactory extends RpcEnvFactory with Logging {
 
   def create(config: RpcEnvConfig): RpcEnv = {
     val sparkConf = config.conf
-    // Use JavaSerializerInstance in multiple threads is safe. However, if we plan to support
-    // KryoSerializer in future, we have to use ThreadLocal to store SerializerInstance
-    val javaSerializerInstance =
-      new JavaSerializer(sparkConf).newInstance().asInstanceOf[JavaSerializerInstance]
+    val serializer = SparkEnv.getClosureSerializer(sparkConf)
     val nettyEnv =
-      new NettyRpcEnv(sparkConf, javaSerializerInstance, config.advertiseAddress,
+      new NettyRpcEnv(sparkConf, serializer, config.advertiseAddress,
         config.securityManager, config.numUsableCores)
     if (!config.clientMode) {
       val startNettyRpcEnv: Int => (NettyRpcEnv, Int) = { actualPort =>
@@ -499,8 +503,9 @@ private[rpc] class NettyRpcEnvFactory extends RpcEnvFactory with Logging {
  */
 private[netty] class NettyRpcEndpointRef(
     @transient private val conf: SparkConf,
-    private val endpointAddress: RpcEndpointAddress,
-    @transient @volatile private var nettyEnv: NettyRpcEnv) extends RpcEndpointRef(conf) {
+    private var endpointAddress: RpcEndpointAddress,
+    @transient @volatile private var nettyEnv: NettyRpcEnv)
+    extends RpcEndpointRef(conf) with KryoSerializable {
 
   @transient @volatile var client: TransportClient = _
 
@@ -515,6 +520,20 @@ private[netty] class NettyRpcEndpointRef(
 
   private def writeObject(out: ObjectOutputStream): Unit = {
     out.defaultWriteObject()
+  }
+
+  override def read(kryo: Kryo, input: Input): Unit = {
+    endpointAddress = kryo.readObject(input, classOf[RpcEndpointAddress])
+    nettyEnv = NettyRpcEnv.currentEnv.value
+    client = NettyRpcEnv.currentClient.value
+
+    maxRetries = RpcUtils.numRetries(nettyEnv.conf)
+    retryWaitMs = RpcUtils.retryWaitMs(nettyEnv.conf)
+    defaultAskTimeout = RpcUtils.askRpcTimeout(nettyEnv.conf)
+  }
+
+  override def write(kryo: Kryo, output: Output): Unit = {
+    kryo.writeObject(output, endpointAddress)
   }
 
   override def name: String = endpointAddress.name

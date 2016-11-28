@@ -23,7 +23,6 @@ import java.util.{Date, Locale, TimeZone}
 import javax.servlet.http.HttpServletRequest
 import javax.ws.rs.core.{MediaType, Response}
 
-import scala.collection.mutable.HashMap
 import scala.util.control.NonFatal
 import scala.xml._
 import scala.xml.transform.{RewriteRule, RuleTransformer}
@@ -192,7 +191,8 @@ private[spark] object UIUtils extends Logging {
 
   def commonHeaderNodesSnappy(request: HttpServletRequest): Seq[Node] = {
       <link rel="stylesheet"
-          href={prependBaseUri(request, "/static/snappydata/snappy-dashboard.css")} type="text/css"/>
+            href={prependBaseUri(request, "/static/snappydata/snappy-dashboard.css")}
+            type="text/css"/>
       <script src={prependBaseUri(request, "/static/snappydata/d3.js")}></script>
       <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
       <script src={prependBaseUri(request, "/static/snappydata/jquery.sparkline.min.js")}></script>

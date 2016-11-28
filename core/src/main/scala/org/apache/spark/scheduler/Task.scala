@@ -20,6 +20,9 @@ package org.apache.spark.scheduler
 import java.nio.ByteBuffer
 import java.util.Properties
 
+import com.esotericsoftware.kryo.Kryo
+import com.esotericsoftware.kryo.io.{Input, Output}
+
 import org.apache.spark._
 import org.apache.spark.executor.TaskMetrics
 import org.apache.spark.internal.config.APP_CALLER_CONTEXT
@@ -39,35 +42,49 @@ import org.apache.spark.util._
  * and sends the task output back to the driver application. A ShuffleMapTask executes the task
  * and divides the task output to multiple buckets (based on the task's partitioner).
  *
- * @param stageId id of the stage this task belongs to
- * @param stageAttemptId attempt id of the stage this task belongs to
- * @param partitionId index of the number in the RDD
+ * @param _stageId id of the stage this task belongs to
+ * @param _stageAttemptId attempt id of the stage this task belongs to
+ * @param _partitionId index of the number in the RDD
  * @param localProperties copy of thread-local properties set by the user on the driver side.
  * @param serializedTaskMetrics a `TaskMetrics` that is created and serialized on the driver side
  *                              and sent to executor side.
  *
  * The parameters below are optional:
- * @param jobId id of the job this task belongs to
- * @param appId id of the app this task belongs to
- * @param appAttemptId attempt id of the app this task belongs to
- * @param isBarrier whether this task belongs to a barrier stage. Spark must launch all the tasks
- *                  at the same time for a barrier stage.
+ * @param _jobId id of the job this task belongs to
+ * @param _appId id of the app this task belongs to
+ * @param _appAttemptId attempt id of the app this task belongs to
+ * @param _isBarrier whether this task belongs to a barrier stage. Spark must launch all the tasks
+ *                   at the same time for a barrier stage.
  */
 private[spark] abstract class Task[T](
-    val stageId: Int,
-    val stageAttemptId: Int,
-    val partitionId: Int,
+    private var _stageId: Int,
+    private var _stageAttemptId: Int,
+    private var _partitionId: Int,
     @transient var localProperties: Properties = new Properties,
     // The default value is only used in tests.
-    serializedTaskMetrics: Array[Byte] =
+    private var serializedTaskMetrics: Array[Byte] =
       SparkEnv.get.closureSerializer.newInstance().serialize(TaskMetrics.registered).array(),
-    val jobId: Option[Int] = None,
-    val appId: Option[String] = None,
-    val appAttemptId: Option[String] = None,
-    val isBarrier: Boolean = false) extends Serializable {
+    private var _jobId: Option[Int] = None,
+    private var _appId: Option[String] = None,
+    private var _appAttemptId: Option[String] = None,
+    private var _isBarrier: Boolean = false) extends Serializable {
 
   @transient lazy val metrics: TaskMetrics =
     SparkEnv.get.closureSerializer.newInstance().deserialize(ByteBuffer.wrap(serializedTaskMetrics))
+
+  final def stageId: Int = _stageId
+
+  final def stageAttemptId: Int = _stageAttemptId
+
+  final def partitionId: Int = _partitionId
+
+  final def jobId: Option[Int] = _jobId
+
+  final def appId: Option[String] = _appId
+
+  final def appAttemptId: Option[String] = _appAttemptId
+
+  final def isBarrier: Boolean = _isBarrier
 
   /**
    * Called by [[org.apache.spark.executor.Executor]] to run this task.
@@ -162,7 +179,7 @@ private[spark] abstract class Task[T](
     }
   }
 
-  private var taskMemoryManager: TaskMemoryManager = _
+  @transient private var taskMemoryManager: TaskMemoryManager = _
 
   def setTaskMemoryManager(taskMemoryManager: TaskMemoryManager): Unit = {
     this.taskMemoryManager = taskMemoryManager
@@ -230,5 +247,38 @@ private[spark] abstract class Task[T](
     if (interruptThread && taskThread != null) {
       taskThread.interrupt()
     }
+  }
+
+  protected final def writeKryo(kryo: Kryo, output: Output): Unit = {
+    output.writeInt(_stageId)
+    output.writeVarInt(_stageAttemptId, true)
+    output.writeVarInt(_partitionId, true)
+    output.writeVarInt(serializedTaskMetrics.length, true)
+    output.write(serializedTaskMetrics)
+    output.writeVarInt(if (_jobId.isDefined) _jobId.get else -1, true)
+    output.writeString(if (_appId.isDefined) _appId.get else null)
+    output.writeString(if (_appAttemptId.isDefined) _appAttemptId.get else null)
+    output.writeBoolean(_isBarrier)
+    output.writeLong(epoch)
+    output.writeLong(_executorDeserializeTime)
+    output.writeLong(_executorDeserializeCpuTime)
+  }
+
+  protected final def readKryo(kryo: Kryo, input: Input): Unit = {
+    _stageId = input.readInt()
+    _stageAttemptId = input.readVarInt(true)
+    _partitionId = input.readVarInt(true)
+    val len = input.readVarInt(true)
+    serializedTaskMetrics = input.readBytes(len)
+    _jobId = input.readVarInt(true) match {
+      case -1 => None
+      case v => Some(v)
+    }
+    _appId = Option(input.readString())
+    _appAttemptId = Option(input.readString())
+    _isBarrier = input.readBoolean()
+    epoch = input.readLong()
+    _executorDeserializeTime = input.readLong()
+    _executorDeserializeCpuTime = input.readLong()
   }
 }

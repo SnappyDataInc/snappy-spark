@@ -30,7 +30,7 @@ class FakeTask(
       SparkEnv.get.closureSerializer.newInstance().serialize(TaskMetrics.registered).array(),
     isBarrier: Boolean = false)
   extends Task[Int](stageId, 0, partitionId, new Properties, serializedTaskMetrics,
-    isBarrier = isBarrier) {
+    _isBarrier = isBarrier) {
 
   override def runTask(context: TaskContext): Int = 0
   override def preferredLocations: Seq[TaskLocation] = prefLocs

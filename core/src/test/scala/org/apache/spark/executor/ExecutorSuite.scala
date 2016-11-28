@@ -149,7 +149,7 @@ class ExecutorSuite extends SparkFunSuite with LocalSparkContext with MockitoSug
       taskBinary = taskBinary,
       partition = secondRDD.partitions(0),
       locs = Seq(),
-      outputId = 0,
+      _outputId = 0,
       localProperties = new Properties(),
       serializedTaskMetrics = serializedTaskMetrics
     )
@@ -224,7 +224,7 @@ class ExecutorSuite extends SparkFunSuite with LocalSparkContext with MockitoSug
       taskBinary = taskBinary,
       partition = secondRDD.partitions(0),
       locs = Seq(),
-      outputId = 0,
+      _outputId = 0,
       localProperties = new Properties(),
       serializedTaskMetrics = serializedTaskMetrics
     )
