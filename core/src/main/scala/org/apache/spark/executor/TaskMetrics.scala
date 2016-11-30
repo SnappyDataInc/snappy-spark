@@ -314,9 +314,10 @@ private[spark] object TaskMetrics extends Logging {
       if (name == UPDATED_BLOCK_STATUSES) {
         tm.setUpdatedBlockStatuses(value.asInstanceOf[java.util.List[(BlockId, BlockStatus)]])
       } else {
-        tm.nameToAccums.get(name).foreach(
-          _.asInstanceOf[LongAccumulator].setValue(value.asInstanceOf[Long])
-        )
+        tm.nameToAccums.get(name).foreach {
+          case l: LongAccumulator => l.setValue(value.asInstanceOf[Long])
+          case d => d.asInstanceOf[DoubleAccumulator].setValue(value.asInstanceOf[Double])
+        }
       }
     }
     tm
