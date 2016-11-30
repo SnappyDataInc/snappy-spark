@@ -18,7 +18,7 @@
 package org.apache.spark.executor
 
 import org.apache.spark.annotation.DeveloperApi
-import org.apache.spark.util.LongAccumulator
+import org.apache.spark.util.{DoubleAccumulator, LongAccumulator}
 
 
 /**
@@ -33,7 +33,7 @@ class ShuffleReadMetrics private[spark] () extends Serializable {
   private[executor] val _remoteBytesRead = new LongAccumulator
   private[executor] val _remoteBytesReadToDisk = new LongAccumulator
   private[executor] val _localBytesRead = new LongAccumulator
-  private[executor] val _fetchWaitTime = new LongAccumulator
+  private[executor] val _fetchWaitTime = new DoubleAccumulator
   private[executor] val _recordsRead = new LongAccumulator
 
   /**
@@ -66,7 +66,7 @@ class ShuffleReadMetrics private[spark] () extends Serializable {
    * blocking on shuffle input data. For instance if block B is being fetched while the task is
    * still not finished processing block A, it is not considered to be blocking on block B.
    */
-  def fetchWaitTime: Long = _fetchWaitTime.sum
+  def fetchWaitTime: Long = _fetchWaitTime.sum.toLong
 
   /**
    * Total number of records read from the shuffle by this task.
@@ -88,7 +88,7 @@ class ShuffleReadMetrics private[spark] () extends Serializable {
   private[spark] def incRemoteBytesRead(v: Long): Unit = _remoteBytesRead.add(v)
   private[spark] def incRemoteBytesReadToDisk(v: Long): Unit = _remoteBytesReadToDisk.add(v)
   private[spark] def incLocalBytesRead(v: Long): Unit = _localBytesRead.add(v)
-  private[spark] def incFetchWaitTime(v: Long): Unit = _fetchWaitTime.add(v)
+  private[spark] def incFetchWaitTime(v: Double): Unit = _fetchWaitTime.add(v)
   private[spark] def incRecordsRead(v: Long): Unit = _recordsRead.add(v)
 
   private[spark] def setRemoteBlocksFetched(v: Int): Unit = _remoteBlocksFetched.setValue(v)
@@ -96,7 +96,7 @@ class ShuffleReadMetrics private[spark] () extends Serializable {
   private[spark] def setRemoteBytesRead(v: Long): Unit = _remoteBytesRead.setValue(v)
   private[spark] def setRemoteBytesReadToDisk(v: Long): Unit = _remoteBytesReadToDisk.setValue(v)
   private[spark] def setLocalBytesRead(v: Long): Unit = _localBytesRead.setValue(v)
-  private[spark] def setFetchWaitTime(v: Long): Unit = _fetchWaitTime.setValue(v)
+  private[spark] def setFetchWaitTime(v: Double): Unit = _fetchWaitTime.setValue(v)
   private[spark] def setRecordsRead(v: Long): Unit = _recordsRead.setValue(v)
 
   /**
@@ -134,7 +134,7 @@ private[spark] class TempShuffleReadMetrics {
   private[this] var _remoteBytesRead = 0L
   private[this] var _remoteBytesReadToDisk = 0L
   private[this] var _localBytesRead = 0L
-  private[this] var _fetchWaitTime = 0L
+  private[this] var _fetchWaitTime = 0.0
   private[this] var _recordsRead = 0L
 
   def incRemoteBlocksFetched(v: Long): Unit = _remoteBlocksFetched += v
@@ -142,7 +142,7 @@ private[spark] class TempShuffleReadMetrics {
   def incRemoteBytesRead(v: Long): Unit = _remoteBytesRead += v
   def incRemoteBytesReadToDisk(v: Long): Unit = _remoteBytesReadToDisk += v
   def incLocalBytesRead(v: Long): Unit = _localBytesRead += v
-  def incFetchWaitTime(v: Long): Unit = _fetchWaitTime += v
+  def incFetchWaitTime(v: Double): Unit = _fetchWaitTime += v
   def incRecordsRead(v: Long): Unit = _recordsRead += v
 
   def remoteBlocksFetched: Long = _remoteBlocksFetched
@@ -150,6 +150,6 @@ private[spark] class TempShuffleReadMetrics {
   def remoteBytesRead: Long = _remoteBytesRead
   def remoteBytesReadToDisk: Long = _remoteBytesReadToDisk
   def localBytesRead: Long = _localBytesRead
-  def fetchWaitTime: Long = _fetchWaitTime
+  def fetchWaitTime: Double = _fetchWaitTime
   def recordsRead: Long = _recordsRead
 }

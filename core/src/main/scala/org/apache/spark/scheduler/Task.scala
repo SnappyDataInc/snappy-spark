@@ -194,7 +194,7 @@ private[spark] abstract class Task[T](
   def reasonIfKilled: Option[String] = Option(_reasonIfKilled)
 
   /**
-   * Returns the amount of time spent deserializing the RDD and function to be run.
+   * Returns the amount of time spent deserializing the RDD and function to be run in nanos.
    */
   def executorDeserializeTime: Long = _executorDeserializeTime
   def executorDeserializeCpuTime: Long = _executorDeserializeCpuTime

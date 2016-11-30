@@ -912,7 +912,8 @@ private[spark] class DAGScheduler(
   // That should take care of at least part of the priority inversion problem with
   // cross-job dependencies.
   private def activeJobForStage(stage: Stage): Option[Int] = {
-    val jobsThatUseStage: Array[Int] = stage.jobIds.toArray.sorted
+    val jobsThatUseStage: Array[Int] = stage.jobIds.toArray
+    java.util.Arrays.sort(jobsThatUseStage)
     jobsThatUseStage.find(jobIdToActiveJob.contains)
   }
 

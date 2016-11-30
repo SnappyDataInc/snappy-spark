@@ -318,7 +318,7 @@ public class TransportClient implements Closeable {
     final Object requestId;
 
     StdChannelListener(Object requestId) {
-      this.startTime = System.currentTimeMillis();
+      this.startTime = logger.isTraceEnabled() ? System.currentTimeMillis() : 0L;
       this.requestId = requestId;
     }
 

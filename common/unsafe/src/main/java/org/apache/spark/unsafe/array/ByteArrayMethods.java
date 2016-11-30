@@ -59,6 +59,14 @@ public class ByteArrayMethods {
   public static boolean arrayEquals(
       final Object leftBase, long leftOffset, final Object rightBase,
       long rightOffset, final long length) {
+    // for the case that equals will fail in first few bytes itself, the overhead
+    // of JNI call is too high
+    /*
+    if (leftBase == null && rightBase == null &&
+        length >= Native.MIN_JNI_SIZE && Native.isLoaded()) {
+      return Native.arrayEquals(leftOffset, rightOffset, length);
+    }
+    */
     long endOffset = leftOffset + length;
     // for architectures that support unaligned accesses, chew it up 8 then 4 bytes at a time
     if (unaligned || ((leftOffset & 0x7) == 0 && (rightOffset & 0x7) == 0)) {

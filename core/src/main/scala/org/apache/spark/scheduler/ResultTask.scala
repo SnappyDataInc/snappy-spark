@@ -75,16 +75,16 @@ private[spark] class ResultTask[T, U](
   override def runTask(context: TaskContext): U = {
     // Deserialize the RDD and the func using the broadcast variables.
     val threadMXBean = ManagementFactory.getThreadMXBean
-    val deserializeStartTime = System.currentTimeMillis()
+    val deserializeStartTime = System.nanoTime()
     val deserializeStartCpuTime = if (threadMXBean.isCurrentThreadCpuTimeSupported) {
       threadMXBean.getCurrentThreadCpuTime
     } else 0L
     val ser = SparkEnv.get.closureSerializer.newInstance()
     val (rdd, func) = ser.deserialize[(RDD[T], (TaskContext, Iterator[T]) => U)](
       ByteBuffer.wrap(taskBinary.value), Thread.currentThread.getContextClassLoader)
-    _executorDeserializeTime = System.currentTimeMillis() - deserializeStartTime
+    _executorDeserializeTime = math.max(System.nanoTime() - deserializeStartTime, 0L)
     _executorDeserializeCpuTime = if (threadMXBean.isCurrentThreadCpuTimeSupported) {
-      threadMXBean.getCurrentThreadCpuTime - deserializeStartCpuTime
+      math.max(threadMXBean.getCurrentThreadCpuTime - deserializeStartCpuTime, 0L)
     } else 0L
 
     func(context, rdd.iterator(partition, context))

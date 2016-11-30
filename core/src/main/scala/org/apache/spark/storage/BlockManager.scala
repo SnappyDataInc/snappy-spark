@@ -540,7 +540,7 @@ private[spark] class BlockManager(
           val inMem = level.useMemory && memoryStore.contains(blockId)
           val onDisk = level.useDisk && diskStore.contains(blockId)
           val deserialized = if (inMem) level.deserialized else false
-          val replication = if (inMem  || onDisk) level.replication else 1
+          val replication = if (inMem || onDisk) level.replication else 1
           val storageLevel = StorageLevel(
             useDisk = onDisk,
             useMemory = inMem,
@@ -558,7 +558,7 @@ private[spark] class BlockManager(
    * Get locations of an array of blocks.
    */
   private def getLocationBlockIds(blockIds: Array[BlockId]): Array[Seq[BlockManagerId]] = {
-    val startTimeMs = System.currentTimeMillis
+    val startTimeMs = if (log.isDebugEnabled) System.currentTimeMillis else 0L
     val locations = master.getLocations(blockIds).toArray
     logDebug("Got multiple block location in %s".format(Utils.getUsedTimeMs(startTimeMs)))
     locations
@@ -977,7 +977,7 @@ private[spark] class BlockManager(
       tellMaster: Boolean = true,
       keepReadLock: Boolean = false): Boolean = {
     doPut(blockId, level, classTag, tellMaster = tellMaster, keepReadLock = keepReadLock) { info =>
-      val startTimeMs = System.currentTimeMillis
+      val startTimeMs = if (log.isDebugEnabled) System.currentTimeMillis else 0L
       // Since we're storing bytes, initiate the replication before storing them locally.
       // This is faster as data is already serialized and ready to send.
       val replicationFuture = if (level.replication > 1) {
@@ -1085,7 +1085,7 @@ private[spark] class BlockManager(
       }
     }
 
-    val startTimeMs = System.currentTimeMillis
+    val startTimeMs = if (log.isDebugEnabled) System.currentTimeMillis else 0L
     var exceptionWasThrown: Boolean = true
     val result: Option[T] = try {
       val res = putBody(putBlockInfo)
@@ -1153,8 +1153,9 @@ private[spark] class BlockManager(
       classTag: ClassTag[T],
       tellMaster: Boolean = true,
       keepReadLock: Boolean = false): Option[PartiallyUnrolledIterator[T]] = {
+    val isDebugEnabled = log.isDebugEnabled
     doPut(blockId, level, classTag, tellMaster = tellMaster, keepReadLock = keepReadLock) { info =>
-      val startTimeMs = System.currentTimeMillis
+      val startTimeMs = if (isDebugEnabled) System.currentTimeMillis else 0L
       var iteratorFromFailedMemoryStorePut: Option[PartiallyUnrolledIterator[T]] = None
       // Size of the block in bytes
       var size = 0L
@@ -1216,7 +1217,7 @@ private[spark] class BlockManager(
         addUpdatedBlockStatusToTaskMetrics(blockId, putBlockStatus)
         logDebug("Put block %s locally took %s".format(blockId, Utils.getUsedTimeMs(startTimeMs)))
         if (level.replication > 1) {
-          val remoteStartTime = System.currentTimeMillis
+          val remoteStartTime = if (isDebugEnabled) System.currentTimeMillis else 0L
           val bytesToReplicate = doGetLocalBytes(blockId, info)
           // [SPARK-16550] Erase the typed classTag when using default serialization, since
           // NettyBlockRpcServer crashes when deserializing repl-defined classes.
@@ -1392,7 +1393,8 @@ private[spark] class BlockManager(
       replication = 1)
 
     val numPeersToReplicateTo = level.replication - 1
-    val startTime = System.nanoTime
+    val isDebugEnabled = log.isDebugEnabled
+    val startTime = if (isDebugEnabled) System.nanoTime else 0L
 
     val peersReplicatedTo = mutable.HashSet.empty ++ existingReplicas
     val peersFailedToReplicateTo = mutable.HashSet.empty[BlockManagerId]
@@ -1412,7 +1414,7 @@ private[spark] class BlockManager(
       peersReplicatedTo.size < numPeersToReplicateTo) {
       val peer = peersForReplication.head
       try {
-        val onePeerStartTime = System.nanoTime
+        val onePeerStartTime = if (isTraceEnabled) System.nanoTime else 0L
         logTrace(s"Trying to replicate $blockId of ${data.size} bytes to $peer")
         // This thread keeps a lock on the block, so we do not want the netty thread to unlock
         // block when it finishes sending the message.
