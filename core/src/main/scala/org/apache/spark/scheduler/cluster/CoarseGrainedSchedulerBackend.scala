@@ -48,8 +48,8 @@ import org.apache.spark.rpc._
 import org.apache.spark.scheduler._
 import org.apache.spark.scheduler.cluster.CoarseGrainedClusterMessages._
 import org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend.ENDPOINT_NAME
-import org.apache.spark.util.collection.OpenHashMap
 import org.apache.spark.util.{RpcUtils, ThreadUtils, Utils}
+import org.apache.spark.util.collection.OpenHashMap
 
 /**
  * A scheduler backend that waits for coarse-grained executors to connect.
