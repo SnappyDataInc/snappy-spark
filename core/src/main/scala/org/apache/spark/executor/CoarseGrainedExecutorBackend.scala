@@ -98,6 +98,7 @@ private[spark] class CoarseGrainedExecutorBackend(
       if (executor ne null) {
         logDebug("Got assigned tasks " + tasks.map(_.taskId).mkString(","))
         for (task <- tasks) {
+          logInfo("Got assigned task " + task.taskId)
           val ref = task.taskData.reference
           val taskData = if (ref >= 0) taskDataList(ref) else task.taskData
           executor.launchTask(this, taskId = task.taskId,
