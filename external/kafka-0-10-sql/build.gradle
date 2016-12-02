@@ -23,7 +23,7 @@ dependencies {
   provided project(subprojectBase + 'snappy-spark-catalyst_' + scalaBinaryVersion)
   provided project(subprojectBase + 'snappy-spark-sql_' + scalaBinaryVersion)
 
-  compile group: 'org.apache.kafka', name: 'kafka-clients_' + scalaBinaryVersion, version: '0.10.0.1'
+  compile group: 'org.apache.kafka', name: 'kafka-clients', version: '0.10.0.1'
 
   testCompile project(path: subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile project(path: subprojectBase + 'snappy-spark-catalyst_' + scalaBinaryVersion, configuration: 'testOutput')
