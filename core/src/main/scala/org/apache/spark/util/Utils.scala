@@ -168,7 +168,7 @@ private[spark] object Utils extends Logging {
       // list the string properties if there are any that are only in defaults
       val stringKeys = properties.stringPropertyNames()
       // check if any extra keys in defaults exist (only String keys are useful
-      //   since those are the only ones that can be queried)
+      //   since those are the only ones that can be queried from defaults)
       if (stringKeys.size() > numStringKeys) {
         val iterator = stringKeys.iterator()
         while (iterator.hasNext) {
