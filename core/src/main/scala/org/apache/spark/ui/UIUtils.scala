@@ -223,7 +223,7 @@ private[spark] object UIUtils extends Logging {
           <div class="navbar-inner">
             <div class="brand">
               <a href={prependBaseUri("/")} class="brand">
-                <img src={prependBaseUri("/static/spark-logo-77x50px-hd.png")} />
+                <img src={prependBaseUri("/static/snappydata/SnappyData-Logo-230X50.png")} />
                 <span class="version">{org.apache.spark.SPARK_VERSION}</span>
               </a>
             </div>
