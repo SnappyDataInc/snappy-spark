@@ -550,7 +550,7 @@ public final class UnsafeRow extends MutableRow implements Externalizable, KryoS
    */
   public void writeToStream(OutputStream out, byte[] writeBuffer) throws IOException {
     if (baseObject instanceof byte[]) {
-      int offsetInByteArray = (int) (Platform.BYTE_ARRAY_OFFSET - baseOffset);
+      int offsetInByteArray = (int) (baseOffset - Platform.BYTE_ARRAY_OFFSET);
       out.write((byte[]) baseObject, offsetInByteArray, sizeInBytes);
     } else {
       int dataRemaining = sizeInBytes;
@@ -690,5 +690,21 @@ public final class UnsafeRow extends MutableRow implements Externalizable, KryoS
     this.bitSetWidthInBytes = calculateBitSetWidthInBytes(numFields);
     this.baseObject = new byte[sizeInBytes];
     in.read((byte[]) baseObject);
+  }
+
+  public void todata(DataOutput out) throws IOException {
+    byte[] bytes = getBytes();
+    out.writeInt(bytes.length);
+    out.writeInt(this.numFields);
+    out.write(bytes);
+  }
+
+  public void fromData(DataInput in) throws IOException, ClassNotFoundException {
+    this.baseOffset = BYTE_ARRAY_OFFSET;
+    this.sizeInBytes = in.readInt();
+    this.numFields = in.readInt();
+    this.bitSetWidthInBytes = calculateBitSetWidthInBytes(numFields);
+    this.baseObject = new byte[sizeInBytes];
+    in.readFully((byte[])baseObject);
   }
 }

@@ -21,6 +21,9 @@ import java.io._
 import java.nio.ByteBuffer
 import java.util.Properties
 
+import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
+import com.esotericsoftware.kryo.io.{Input, Output}
+
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.executor.TaskMetrics
@@ -33,12 +36,14 @@ import org.apache.spark.rdd.RDD
  *
  * @param stageId id of the stage this task belongs to
  * @param stageAttemptId attempt id of the stage this task belongs to
- * @param taskBinary broadcasted version of the serialized RDD and the function to apply on each
+ * @param _taskData if serialized RDD and function are small, then it is compressed
+ *                  and sent with its original decompressed size
+ * @param _taskBinary broadcasted version of the serialized RDD and the function to apply on each
  *                   partition of the given RDD. Once deserialized, the type should be
  *                   (RDD[T], (TaskContext, Iterator[T]) => U).
  * @param partition partition of the RDD this task is associated with
  * @param locs preferred task execution locations for locality scheduling
- * @param outputId index of the task in this job (a job can launch tasks on only a subset of the
+ * @param _outputId index of the task in this job (a job can launch tasks on only a subset of the
  *                 input RDD's partitions).
  * @param localProperties copy of thread-local properties set by the user on the driver side.
  * @param metrics a [[TaskMetrics]] that is created at driver side and sent to executor side.
@@ -46,14 +51,18 @@ import org.apache.spark.rdd.RDD
 private[spark] class ResultTask[T, U](
     stageId: Int,
     stageAttemptId: Int,
-    taskBinary: Broadcast[Array[Byte]],
-    partition: Partition,
+    _taskData: TaskData,
+    _taskBinary: Option[Broadcast[Array[Byte]]],
+    private var partition: Partition,
     locs: Seq[TaskLocation],
-    val outputId: Int,
+    private var _outputId: Int,
     localProperties: Properties,
     metrics: TaskMetrics)
-  extends Task[U](stageId, stageAttemptId, partition.index, metrics, localProperties)
-  with Serializable {
+  extends Task[U](stageId, stageAttemptId, partition.index,
+    _taskData, _taskBinary, metrics, localProperties)
+  with Serializable with KryoSerializable {
+
+  final def outputId: Int = _outputId
 
   @transient private[this] val preferredLocs: Seq[TaskLocation] = {
     if (locs == null) Nil else locs.toSet.toSeq
@@ -61,11 +70,11 @@ private[spark] class ResultTask[T, U](
 
   override def runTask(context: TaskContext): U = {
     // Deserialize the RDD and the func using the broadcast variables.
-    val deserializeStartTime = System.currentTimeMillis()
+    val deserializeStartTime = System.nanoTime()
     val ser = SparkEnv.get.closureSerializer.newInstance()
     val (rdd, func) = ser.deserialize[(RDD[T], (TaskContext, Iterator[T]) => U)](
-      ByteBuffer.wrap(taskBinary.value), Thread.currentThread.getContextClassLoader)
-    _executorDeserializeTime = System.currentTimeMillis() - deserializeStartTime
+      ByteBuffer.wrap(getTaskBytes), Thread.currentThread.getContextClassLoader)
+    _executorDeserializeTime = math.max(System.nanoTime() - deserializeStartTime, 0L)
 
     func(context, rdd.iterator(partition, context))
   }
@@ -74,4 +83,16 @@ private[spark] class ResultTask[T, U](
   override def preferredLocations: Seq[TaskLocation] = preferredLocs
 
   override def toString: String = "ResultTask(" + stageId + ", " + partitionId + ")"
+
+  override def write(kryo: Kryo, output: Output): Unit = {
+    super.writeKryo(kryo, output)
+    kryo.writeClassAndObject(output, partition)
+    output.writeInt(_outputId)
+  }
+
+  override def read(kryo: Kryo, input: Input): Unit = {
+    super.readKryo(kryo, input)
+    partition = kryo.readClassAndObject(input).asInstanceOf[Partition]
+    _outputId = input.readInt()
+  }
 }

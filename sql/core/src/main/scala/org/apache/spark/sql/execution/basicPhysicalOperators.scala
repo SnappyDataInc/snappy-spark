@@ -81,7 +81,13 @@ case class FilterExec(condition: Expression, child: SparkPlan)
 
   // Split out all the IsNotNulls from condition.
   private val (notNullPreds, otherPreds) = splitConjunctivePredicates(condition).partition {
-    case IsNotNull(a: NullIntolerant) if a.references.subsetOf(child.outputSet) => true
+    case IsNotNull(a) => isNullIntolerant(a) && a.references.subsetOf(child.outputSet)
+    case _ => false
+  }
+
+  // If one expression and its children are null intolerant, it is null intolerant.
+  private def isNullIntolerant(expr: Expression): Boolean = expr match {
+    case e: NullIntolerant => e.children.forall(isNullIntolerant)
     case _ => false
   }
 
@@ -190,7 +196,7 @@ case class FilterExec(condition: Expression, child: SparkPlan)
     s"""
        |$generated
        |$nullChecks
-       |$numOutput.add(1);
+       |$numOutput.addLong(1);
        |${consume(ctx, resultVars)}
      """.stripMargin
   }
@@ -283,7 +289,7 @@ case class SampleExec(
       s"""
          | int $samplingCount = $sampler.sample();
          | while ($samplingCount-- > 0) {
-         |   $numOutput.add(1);
+         |   $numOutput.addLong(1);
          |   ${consume(ctx, input)}
          | }
        """.stripMargin.trim
@@ -297,7 +303,7 @@ case class SampleExec(
 
       s"""
          | if ($sampler.sample() == 0) continue;
-         | $numOutput.add(1);
+         | $numOutput.addLong(1);
          | ${consume(ctx, input)}
        """.stripMargin.trim
     }
@@ -378,7 +384,7 @@ case class RangeExec(range: org.apache.spark.sql.catalyst.plans.logical.Range)
         |     $partitionEnd = end.longValue();
         |   }
         |
-        |   $numOutput.add(($partitionEnd - $number) / ${step}L);
+        |   $numOutput.addLong(($partitionEnd - $number) / ${step}L);
         | }
        """.stripMargin)
 

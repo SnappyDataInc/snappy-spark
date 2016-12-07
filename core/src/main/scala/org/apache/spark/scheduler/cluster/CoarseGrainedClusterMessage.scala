@@ -19,10 +19,15 @@ package org.apache.spark.scheduler.cluster
 
 import java.nio.ByteBuffer
 
+import scala.collection.mutable
+
+import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
+import com.esotericsoftware.kryo.io.{Input, Output}
+
 import org.apache.spark.TaskState.TaskState
 import org.apache.spark.rpc.RpcEndpointRef
-import org.apache.spark.scheduler.ExecutorLossReason
-import org.apache.spark.util.SerializableBuffer
+import org.apache.spark.scheduler.{ExecutorLossReason, TaskData, TaskDescription}
+import org.apache.spark.util.{SerializableBuffer, Utils}
 
 private[spark] sealed trait CoarseGrainedClusterMessage extends Serializable
 
@@ -33,7 +38,61 @@ private[spark] object CoarseGrainedClusterMessages {
   case object RetrieveLastAllocatedExecutorId extends CoarseGrainedClusterMessage
 
   // Driver to executors
-  case class LaunchTask(data: SerializableBuffer) extends CoarseGrainedClusterMessage
+  case class LaunchTask(private var task: TaskDescription)
+      extends CoarseGrainedClusterMessage with KryoSerializable {
+
+    override def write(kryo: Kryo, output: Output): Unit = {
+      task.write(kryo, output)
+    }
+
+    override def read(kryo: Kryo, input: Input): Unit = {
+      task = new TaskDescription(0L, 0, null, null, 0, null)
+      task.read(kryo, input)
+    }
+  }
+
+  case class LaunchTasks(private var tasks: mutable.ArrayBuffer[TaskDescription],
+      private var taskDataList: mutable.ArrayBuffer[TaskData])
+      extends CoarseGrainedClusterMessage with KryoSerializable {
+
+    override def write(kryo: Kryo, output: Output): Unit = Utils.tryOrIOException {
+      val tasks = this.tasks
+      val numTasks = tasks.length
+      output.writeVarInt(numTasks, true)
+      var i = 0
+      while (i < numTasks) {
+        tasks(i).write(kryo, output)
+        i += 1
+      }
+      val taskDataList = this.taskDataList
+      val numData = taskDataList.length
+      output.writeVarInt(numData, true)
+      i = 0
+      while (i < numData) {
+        TaskData.write(taskDataList(i), output)
+        i += 1
+      }
+    }
+
+    override def read(kryo: Kryo, input: Input): Unit = Utils.tryOrIOException {
+      var numTasks = input.readVarInt(true)
+      val tasks = new mutable.ArrayBuffer[TaskDescription](numTasks)
+      while (numTasks > 0) {
+        val task = new TaskDescription(0, 0, null, null, 0, null)
+        task.read(kryo, input)
+        tasks += task
+        numTasks -= 1
+      }
+      var numData = input.readVarInt(true)
+      val taskDataList = new mutable.ArrayBuffer[TaskData](numData)
+      while (numData > 0) {
+        taskDataList += TaskData.read(input)
+        numData -= 1
+      }
+      this.tasks = tasks
+      this.taskDataList = taskDataList
+    }
+  }
 
   case class KillTask(taskId: Long, executor: String, interruptThread: Boolean)
     extends CoarseGrainedClusterMessage
@@ -54,8 +113,27 @@ private[spark] object CoarseGrainedClusterMessages {
       logUrls: Map[String, String])
     extends CoarseGrainedClusterMessage
 
-  case class StatusUpdate(executorId: String, taskId: Long, state: TaskState,
-    data: SerializableBuffer) extends CoarseGrainedClusterMessage
+  case class StatusUpdate(var executorId: String, var taskId: Long,
+      var state: TaskState, var data: SerializableBuffer)
+      extends CoarseGrainedClusterMessage with KryoSerializable {
+
+    override def write(kryo: Kryo, output: Output): Unit = {
+      output.writeString(executorId)
+      output.writeLong(taskId)
+      output.writeVarInt(state.id, true)
+      val buffer = data.buffer
+      output.writeInt(buffer.remaining())
+      Utils.writeByteBuffer(buffer, output)
+    }
+
+    override def read(kryo: Kryo, input: Input): Unit = {
+      executorId = input.readString()
+      taskId = input.readLong()
+      state = org.apache.spark.TaskState(input.readVarInt(true))
+      val len = input.readInt()
+      data = new SerializableBuffer(ByteBuffer.wrap(input.readBytes(len)))
+    }
+  }
 
   object StatusUpdate {
     /** Alternate factory method that takes a ByteBuffer directly for the data field */
