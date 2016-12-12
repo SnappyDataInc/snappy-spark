@@ -22,6 +22,7 @@ import scala.collection.mutable.ArrayBuffer
 import org.apache.spark.sql.catalyst.analysis.MultiInstanceRelation
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.types._
 
@@ -106,6 +107,30 @@ case class Filter(condition: Expression, child: LogicalPlan)
   override def output: Seq[Attribute] = child.output
 
   override def maxRows: Option[Long] = child.maxRows
+
+  override lazy val statistics: Statistics = {
+    // Expected filtering by expressions based on some constants for now.
+    def expectedFilterDivisor(cond: Expression): Int = cond match {
+      case EqualTo(_, _) => 20
+      case LessThan(_, _) | LessThanOrEqual(_, _) |
+           GreaterThan(_, _) | GreaterThanOrEqual(_, _) => 2
+      case In(_, _) => 2
+      case StartsWith(_, _) | EndsWith(_, _) => 10
+      case Contains(_, _) | Like(_, _) => 5
+      case And(left, right) =>
+        math.min(20, expectedFilterDivisor(left) * expectedFilterDivisor(right))
+      case Or(left, right) =>
+        val leftDivisor = expectedFilterDivisor(left)
+        val rightDivisor = expectedFilterDivisor(right)
+        math.max(2, (leftDivisor * rightDivisor) / (leftDivisor + rightDivisor))
+      case Not(e) => math.max(2, expectedFilterDivisor(e) / 3)
+      case IsNull(_) => 3
+      case _ => 1
+    }
+
+    child.statistics.copy(sizeInBytes = child.statistics.sizeInBytes /
+        expectedFilterDivisor(condition))
+  }
 
   override protected def validConstraints: Set[Expression] = {
     val predicates = splitConjunctivePredicates(condition)
@@ -328,6 +353,8 @@ case class Join(
     case LeftAnti | LeftSemi =>
       // LeftSemi and LeftAnti won't ever be bigger than left
       left.statistics.copy()
+    case _ if ExtractEquiJoinKeys.unapply(this).isDefined =>
+      Statistics(sizeInBytes = children.map(_.statistics.sizeInBytes).sum)
     case _ =>
       // make sure we don't propagate isBroadcastable in other joins, because
       // they could explode the size.
