@@ -33,7 +33,7 @@ private[ui] class StoragePage(parent: SparkUITab, store: AppStatusStore) extends
   def render(request: HttpServletRequest): Seq[Node] = {
     val content = rddTable(request, store.rddList()) ++
       receiverBlockTables(store.streamBlocksList())
-    UIUtils.headerSparkPage(request, "Storage", content, parent)
+    UIUtils.headerSparkPage(request, "Spark Cache", content, parent)
   }
 
   private[storage] def rddTable(

@@ -22,7 +22,7 @@ import org.apache.spark.ui._
 
 /** Web UI showing storage status of all RDD's in the given SparkContext. */
 private[ui] class StorageTab(parent: SparkUI, store: AppStatusStore)
-  extends SparkUITab(parent, "storage") {
+  extends SparkUITab(parent, "Spark Cache") {
 
   attachPage(new StoragePage(this, store))
   attachPage(new RDDPage(this, store))

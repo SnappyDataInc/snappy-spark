@@ -20,6 +20,8 @@ package org.apache.spark.ui
 import java.util.{Date, List => JList, ServiceLoader}
 
 import scala.collection.JavaConverters._
+import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.HashMap
 
 import org.apache.spark.{JobExecutionStatus, SecurityManager, SparkConf, SparkContext}
 import org.apache.spark.internal.Logging
@@ -36,7 +38,7 @@ import org.apache.spark.util.Utils
 /**
  * Top level user interface for a Spark application.
  */
-private[spark] class SparkUI private (
+class SparkUI private (
     val store: AppStatusStore,
     val sc: Option[SparkContext],
     val conf: SparkConf,
@@ -93,6 +95,10 @@ private[spark] class SparkUI private (
 
   def setAppId(id: String): Unit = {
     appId = id
+  }
+
+  def setTabs(newTabs: ArrayBuffer[WebUITab]): Unit = {
+    tabs = newTabs
   }
 
   /** Stop the server behind this web interface. Only valid after bind(). */
@@ -157,6 +163,16 @@ private[spark] object SparkUI {
   val DEFAULT_PORT = 4040
   val STATIC_RESOURCE_DIR = "org/apache/spark/ui/static"
   val DEFAULT_POOL_NAME = "default"
+
+  var productVersion: HashMap[String, String] = HashMap.empty[String, String]
+
+  def getProductVersion: HashMap[String, String] = {
+    productVersion
+  }
+
+  def setProductVersion(versionDetails: HashMap[String, String]): Unit = {
+    productVersion = versionDetails
+  }
 
   def getUIPort(conf: SparkConf): Int = {
     conf.getInt("spark.ui.port", SparkUI.DEFAULT_PORT)

@@ -89,3 +89,11 @@ $(function() {
   collapseTablePageLoad('collapse-aggregated-activeBatches','aggregated-activeBatches');
   collapseTablePageLoad('collapse-aggregated-completedBatches','aggregated-completedBatches');
 });
+
+/* SnappyData */
+
+// When the user clicks on div, open the popup
+function displayVersionDetails() {
+    var popup = document.getElementById("sdVersionDetails");
+    popup.classList.toggle("show");
+}

@@ -189,6 +189,15 @@ private[spark] object UIUtils extends Logging {
     <script>setUIRoot('{UIUtils.uiRoot(request)}')</script>
   }
 
+  def commonHeaderNodesSnappy(request: HttpServletRequest): Seq[Node] = {
+      <link rel="stylesheet"
+          href={prependBaseUri(request, "/static/snappydata/snappy-dashboard.css")} type="text/css"/>
+      <script src={prependBaseUri(request, "/static/snappydata/d3.js")}></script>
+      <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+      <script src={prependBaseUri(request, "/static/snappydata/liquidFillGauge.js")}></script>
+      <script src={prependBaseUri(request, "/static/snappydata/snappy-commons.js")}></script>
+  }
+
   def vizHeaderNodes(request: HttpServletRequest): Seq[Node] = {
     <link rel="stylesheet"
           href={prependBaseUri(request, "/static/spark-dag-viz.css")} type="text/css" />
@@ -224,10 +233,11 @@ private[spark] object UIUtils extends Logging {
       refreshInterval: Option[Int] = None,
       helpText: Option[String] = None,
       showVisualization: Boolean = false,
-      useDataTables: Boolean = false): Seq[Node] = {
+      useDataTables: Boolean = false,
+      isSnappyPage: Boolean = false): Seq[Node] = {
 
     val appName = activeTab.appName
-    val shortAppName = if (appName.length < 36) appName else appName.take(32) + "..."
+    // val shortAppName = if (appName.length < 36) appName else appName.take(32) + "..."
     val header = activeTab.headerTabs.map { tab =>
       <li class={if (tab == activeTab) "active" else ""}>
         <a href={prependBaseUri(request, activeTab.basePath, "/" + tab.prefix + "/")}>{tab.name}</a>
@@ -235,10 +245,22 @@ private[spark] object UIUtils extends Logging {
     }
     val helpButton: Seq[Node] = helpText.map(tooltip(_, "bottom")).getOrElse(Seq.empty)
 
+    val pageTitleNodes: Seq[Node] = {
+      <div class="row-fluid">
+        <div class="span12">
+          <h3 style="vertical-align: bottom; display: inline-block;">
+            {title}
+            {helpButton}
+          </h3>
+        </div>
+      </div>
+    }
+
     <html>
       <head>
         {commonHeaderNodes(request)}
         <script>setAppBasePath('{activeTab.basePath}')</script>
+        {if (isSnappyPage) commonHeaderNodesSnappy(request) else Seq.empty}
         {if (showVisualization) vizHeaderNodes(request) else Seq.empty}
         {if (useDataTables) dataTablesHeaderNodes(request) else Seq.empty}
         <link rel="shortcut icon"
@@ -248,15 +270,18 @@ private[spark] object UIUtils extends Logging {
       <body>
         <div class="navbar navbar-static-top">
           <div class="navbar-inner">
-            <div class="brand">
+            <div class="product-brand">
               <a href={prependBaseUri(request, "/")} class="brand">
-                <img src={prependBaseUri(request, "/static/spark-logo-77x50px-hd.png")} />
-                <span class="version">{activeTab.appSparkVersion}</span>
+                <img src={prependBaseUri(request, "/static/snappydata/pulse-snappydata-152X50.png")} />
               </a>
             </div>
-            <p class="navbar-text pull-right">
-              <strong title={appName}>{shortAppName}</strong> application UI
-            </p>
+            <div class="brand" style="line-height: 2.5;">
+              <a href={prependBaseUri(request, "/")} class="brand" style="float: left;">
+                <img src={prependBaseUri(request, "/static/snappydata/snappydata-175X28.png")} />
+              </a>
+              {getProductVersionNode}
+            </div>
+            {getProductDocLinkNode()}
             <ul class="nav">{header}</ul>
           </div>
         </div>
@@ -269,6 +294,7 @@ private[spark] object UIUtils extends Logging {
               </h3>
             </div>
           </div>
+          {if (!isSnappyPage) pageTitleNodes else Seq.empty }
           {content}
         </div>
       </body>
@@ -574,5 +600,37 @@ private[spark] object UIUtils extends Logging {
 
   def buildErrorResponse(status: Response.Status, msg: String): Response = {
     Response.status(status).entity(msg).`type`(MediaType.TEXT_PLAIN).build()
+  }
+
+  def getProductVersionNode(): Node = {
+    val versionDetails = SparkUI.getProductVersion
+    val versionTooltipText =
+      "SnappyData Ver. " + versionDetails.getOrElse("productVersion", "") +
+          " ( Underlying Spark Ver. " + org.apache.spark.SPARK_VERSION + " )"
+
+    <div class="popup">
+      <span class="version" style="font-size: 14px; color: #202020;"
+            data-toggle="tooltip" data-placement="bottom" data-original-title={versionTooltipText}
+            onclick="displayVersionDetails()" >{
+          versionDetails.getOrElse("productVersion", "")
+        }
+      </span>
+      <div class="popuptext" id="sdVersionDetails">
+        Product Name : {versionDetails.getOrElse("productName", "")} <br/>
+        Product Version : {versionDetails.getOrElse("productVersion", "")} <br/>
+        Build : {
+          versionDetails.getOrElse("buildId", "") + " " +
+          versionDetails.getOrElse("buildDate", "")
+        } <br/>
+        Source Revision : {versionDetails.getOrElse("sourceRevision", "")} <br/>
+        Spark Version : {org.apache.spark.SPARK_VERSION}
+      </div>
+    </div>
+  }
+
+  def getProductDocLinkNode(): Node = {
+    <p class="navbar-text pull-right " style="padding-right:20px;">
+      <a href="http://snappydatainc.github.io/snappydata/" target="_blank">Docs</a>
+    </p>
   }
 }
