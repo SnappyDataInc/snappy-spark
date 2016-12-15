@@ -157,6 +157,8 @@ case class EnsureRequirements(conf: SQLConf) extends Rule[SparkPlan] {
     assert(requiredChildOrderings.length == children.length)
 
     // Ensure that the operator's children satisfy their output distribution requirements:
+    // The second boolean parameter in the result is true when a ShuffleExchange
+    // was introduced to satisfy the output distribution.
     val newChildren = children.zip(requiredChildDistributions).map {
       case (child, distribution) if child.outputPartitioning.satisfies(distribution) =>
         (child, false)
