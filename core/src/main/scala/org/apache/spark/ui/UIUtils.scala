@@ -568,7 +568,7 @@ private[spark] object UIUtils extends Logging {
 
   def getProductDocLinkNode(): Node = {
     <p class="navbar-text pull-right " style="padding-right:20px;">
-      <a href="http://snappydatainc.github.io/snappydata/" target="_blank"> SnappyData Guide</a>
+      <a href="http://snappydatainc.github.io/snappydata/" target="_blank">Docs</a>
     </p>
   }
 
