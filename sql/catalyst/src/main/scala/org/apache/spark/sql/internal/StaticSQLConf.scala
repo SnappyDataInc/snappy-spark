@@ -72,7 +72,7 @@ object StaticSQLConf {
         "All jobs share the cache that can use up to the specified number for generated classes.")
       .intConf
       .checkValue(maxEntries => maxEntries >= 0, "The maximum must not be negative")
-      .createWithDefault(100)
+      .createWithDefault(2000)
 
   val CODEGEN_COMMENTS = buildStaticConf("spark.sql.codegen.comments")
     .internal()
