@@ -95,7 +95,7 @@ private[spark] class Executor(
 
   // Create our ClassLoader
   // do this after SparkEnv creation so can access the SecurityManager
-  protected val urlClassLoader = createClassLoader()
+  protected var urlClassLoader = createClassLoader()
   protected var replClassLoader = addReplClassLoaderIfNeeded(urlClassLoader)
 
   // Set the classloader for serializer
