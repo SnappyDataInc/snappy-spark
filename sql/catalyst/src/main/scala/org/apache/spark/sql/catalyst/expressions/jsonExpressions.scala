@@ -491,13 +491,18 @@ case class JsonToStruct(schema: StructType, options: Map[String, String], child:
   lazy val parser =
     new JacksonParser(
       schema,
-      "invalid", // Not used since we force fail fast.  Invalid rows will be set to `null`.
-      new JSONOptions(options ++ Map("mode" -> ParseModes.FAIL_FAST_MODE)))
+
+      new JSONOptions(options + ("mode" -> ParseModes.FAIL_FAST_MODE)))
 
   override def dataType: DataType = schema
 
   override def nullSafeEval(json: Any): Any = {
-    try parser.parse(json.toString).headOption.orNull catch {
+    try {
+      parser.parse(
+        json.asInstanceOf[UTF8String],
+        CreateJacksonParser.utf8String,
+        identity[UTF8String]).headOption.orNull
+    } catch {
       case _: SparkSQLJsonProcessingException => null
     }
   }
