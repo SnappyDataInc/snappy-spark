@@ -688,7 +688,7 @@ public final class UnsafeRow extends InternalRow implements Externalizable, Kryo
     in.read((byte[]) baseObject);
   }
 
-  public void todata(DataOutput out) throws IOException {
+  public void toData(DataOutput out) throws IOException {
     byte[] bytes = getBytes();
     out.writeInt(bytes.length);
     out.writeInt(this.numFields);
