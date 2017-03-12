@@ -692,7 +692,7 @@ public final class UnsafeRow extends MutableRow implements Externalizable, KryoS
     in.read((byte[]) baseObject);
   }
 
-  public void todata(DataOutput out) throws IOException {
+  public void toData(DataOutput out) throws IOException {
     byte[] bytes = getBytes();
     out.writeInt(bytes.length);
     out.writeInt(this.numFields);
