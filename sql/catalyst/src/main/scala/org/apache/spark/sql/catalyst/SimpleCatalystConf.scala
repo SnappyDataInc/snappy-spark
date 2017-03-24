@@ -34,5 +34,6 @@ case class SimpleCatalystConf(
     override val maxCaseBranchesForCodegen: Int = 20,
     override val runSQLonFile: Boolean = true,
     override val crossJoinEnabled: Boolean = false,
-    override val warehousePath: String = "/user/hive/warehouse")
+    override val warehousePath: String = "/user/hive/warehouse",
+    override val constraintPropagationEnabled: Boolean = true)
   extends SQLConf
