@@ -1412,7 +1412,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
       "Can not directly broadcast RDDs; instead, call collect() and broadcast the result.")
     val bc = env.broadcastManager.newBroadcast[T](value, isLocal)
     val callSite = getCallSite
-    logInfo("Created broadcast " + bc.id + " from " + callSite.shortForm)
+    logDebug("Created broadcast " + bc.id + " from " + callSite.shortForm)
     cleaner.foreach(_.registerBroadcastForCleanup(bc))
     bc
   }
@@ -1892,7 +1892,7 @@ class SparkContext(config: SparkConf) extends Logging with ExecutorAllocationCli
     }
     val callSite = getCallSite
     val cleanedFunc = clean(func)
-    logInfo("Starting job: " + callSite.shortForm)
+    logDebug("Starting job: " + callSite.shortForm)
     if (conf.getBoolean("spark.logLineage", false)) {
       logInfo("RDD's recursive dependencies:\n" + rdd.toDebugString)
     }

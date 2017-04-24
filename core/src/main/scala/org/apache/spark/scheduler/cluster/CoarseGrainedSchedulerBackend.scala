@@ -303,7 +303,7 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
                 // send this task separately
                 val executorData = executorTaskGroup.executorData
                 executorData.freeCores -= scheduler.CPUS_PER_TASK
-                logInfo(s"Launching task ${task.taskId} on executor id: " +
+                logDebug(s"Launching task ${task.taskId} on executor id: " +
                     s"${task.executorId} hostname: ${executorData.executorHost}.")
 
                 executorData.executorEndpoint.send(LaunchTask(task))
