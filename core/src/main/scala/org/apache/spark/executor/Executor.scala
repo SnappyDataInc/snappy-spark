@@ -364,7 +364,7 @@ private[spark] class Executor(
       } else 0L
       Thread.currentThread.setContextClassLoader(replClassLoader)
       val ser = env.closureSerializer.newInstance()
-      logInfo(s"Running $taskName (TID $taskId)")
+      env.taskLogger.info(s"Running $taskName (TID $taskId)")
       execBackend.statusUpdate(taskId, TaskState.RUNNING, EMPTY_BYTE_BUFFER)
       var taskStartTime: Long = 0
       var taskStartCpu: Long = 0
@@ -536,11 +536,12 @@ private[spark] class Executor(
               blockId,
               new ChunkedByteBuffer(serializedDirectResult.duplicate()),
               StorageLevel.MEMORY_AND_DISK_SER)
-            logInfo(
+            env.taskLogger.info(
               s"Finished $taskName (TID $taskId). $resultSize bytes result sent via BlockManager)")
             ser.serialize(new IndirectTaskResult[Any](blockId, resultSize))
           } else {
-            logInfo(s"Finished $taskName (TID $taskId). $resultSize bytes result sent to driver")
+            env.taskLogger.info(s"Finished $taskName (TID $taskId). $resultSize " +
+              s"bytes result sent to driver")
             serializedDirectResult
           }
         }

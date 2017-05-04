@@ -43,6 +43,7 @@ import scala.collection.mutable
 import scala.util.Properties
 
 import com.google.common.collect.MapMaker
+import org.slf4j.{Logger, LoggerFactory}
 
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.api.python.PythonWorkerFactory
@@ -90,6 +91,9 @@ class SparkEnv (
 
   @volatile private[spark] var isStopped = false
   private val pythonWorkers = mutable.HashMap[(String, Map[String, String]), PythonWorkerFactory]()
+
+  // This logger is used to do task related logging across multiple classes
+  @transient val taskLogger: Logger = LoggerFactory.getLogger("org.apache.spark.Task")
 
   // A general, soft-reference map for metadata needed during HadoopRDD split computation
   // (e.g., HadoopFileRDD uses this to cache JobConfs and InputFormats).
