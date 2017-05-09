@@ -69,7 +69,7 @@ final class ShuffleExternalSorter extends MemoryConsumer {
   private static final Logger logger = LoggerFactory.getLogger(ShuffleExternalSorter.class);
 
   @VisibleForTesting
-  static final int DISK_WRITE_BUFFER_SIZE = 1024 * 1024;
+  static final int DISK_WRITE_BUFFER_SIZE = 64 * 1024;
 
   private final int numPartitions;
   private final TaskMemoryManager taskMemoryManager;

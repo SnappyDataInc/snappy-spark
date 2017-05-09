@@ -66,7 +66,7 @@ public class UnsafeShuffleWriter<K, V> extends ShuffleWriter<K, V> {
 
   @VisibleForTesting
   static final int DEFAULT_INITIAL_SORT_BUFFER_SIZE = 4096;
-  static final int DEFAULT_INITIAL_SER_BUFFER_SIZE = 1024 * 1024;
+  static final int DEFAULT_INITIAL_SER_BUFFER_SIZE = 64 * 1024;
 
   private final BlockManager blockManager;
   private final IndexShuffleBlockResolver shuffleBlockResolver;

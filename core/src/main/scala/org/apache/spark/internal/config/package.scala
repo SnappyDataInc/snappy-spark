@@ -487,7 +487,7 @@ package object config {
       .bytesConf(ByteUnit.BYTE)
       .checkValue(v => v > 0 && v <= Int.MaxValue,
         s"The buffer size must be greater than 0 and less than ${Int.MaxValue}.")
-      .createWithDefault(1024 * 1024)
+      .createWithDefault(64 * 1024)
 
   private[spark] val UNROLL_MEMORY_CHECK_PERIOD =
     ConfigBuilder("spark.storage.unrollMemoryCheckPeriod")
