@@ -411,7 +411,7 @@ abstract class QueryPlan[PlanType <: QueryPlan[PlanType]] extends TreeNode[PlanT
   }
 
   /** Args that have cleaned such that differences in expression id should not affect equality */
-  protected lazy val cleanArgs: Seq[Any] = {
+  @transient protected lazy val cleanArgs: Seq[Any] = {
     def cleanArg(arg: Any): Any = arg match {
       // Children are checked using sameResult above.
       case tn: TreeNode[_] if containsChild(tn) => null
