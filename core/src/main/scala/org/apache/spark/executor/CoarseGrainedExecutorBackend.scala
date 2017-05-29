@@ -90,7 +90,7 @@ private[spark] class CoarseGrainedExecutorBackend(
       if (executor == null) {
         exitExecutor(1, "Received LaunchTask command but executor was null")
       } else {
-        logDebug("Got assigned task " + taskDesc.taskId)
+        env.taskLogger.info("Got assigned task " + taskDesc.taskId)
         executor.launchTask(this, taskId = taskDesc.taskId, attemptNumber = taskDesc.attemptNumber,
           taskDesc.name, taskDesc.serializedTask, taskDesc.taskData.decompress(env))
       }
@@ -99,7 +99,7 @@ private[spark] class CoarseGrainedExecutorBackend(
       if (executor ne null) {
         logDebug("Got assigned tasks " + tasks.map(_.taskId).mkString(","))
         for (task <- tasks) {
-          logDebug("Got assigned task " + task.taskId)
+          env.taskLogger.info("Got assigned task " + task.taskId)
           val ref = task.taskData.reference
           val taskData = if (ref >= 0) taskDataList(ref) else task.taskData
           executor.launchTask(this, taskId = task.taskId,
