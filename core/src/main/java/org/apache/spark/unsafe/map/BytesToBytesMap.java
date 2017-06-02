@@ -691,7 +691,7 @@ public final class BytesToBytesMap extends MemoryConsumer {
       if (numKeys == MAX_CAPACITY
         // The map could be reused from last spill (because of no enough memory to grow),
         // then we don't try to grow again if hit the `growthThreshold`.
-        || !canGrowArray && numKeys > growthThreshold) {
+        || !canGrowArray && numKeys >= growthThreshold) {
         return false;
       }
 
@@ -734,7 +734,7 @@ public final class BytesToBytesMap extends MemoryConsumer {
         longArray.set(pos * 2 + 1, keyHashcode);
         isDefined = true;
 
-        if (numKeys > growthThreshold && longArray.size() < MAX_CAPACITY) {
+        if (numKeys >= growthThreshold && longArray.size() < MAX_CAPACITY) {
           try {
             growAndRehash();
           } catch (OutOfMemoryError oom) {
@@ -903,6 +903,7 @@ public final class BytesToBytesMap extends MemoryConsumer {
       MemoryBlock dataPage = dataPages.removeLast();
       freePage(dataPage);
     }
+    canGrowArray = true;
     currentPage = null;
     pageCursor = 0;
   }
