@@ -161,7 +161,8 @@ private[spark] object UIUtils extends Logging {
     <link rel="stylesheet" href={prependBaseUri("/static/vis.min.css")} type="text/css"/>
     <link rel="stylesheet" href={prependBaseUri("/static/webui.css")} type="text/css"/>
     <link rel="stylesheet" href={prependBaseUri("/static/timeline-view.css")} type="text/css"/>
-    <link rel="stylesheet" href={prependBaseUri("/static/snappydata/snappy-dashboard.css")} type="text/css"/>
+    <link rel="stylesheet" href={prependBaseUri("/static/snappydata/snappy-dashboard.css")}
+          type="text/css"/>
     <script src={prependBaseUri("/static/sorttable.js")} ></script>
     <script src={prependBaseUri("/static/jquery-1.11.1.min.js")}></script>
     <script src={prependBaseUri("/static/vis.min.js")}></script>
@@ -181,7 +182,8 @@ private[spark] object UIUtils extends Logging {
       <link rel="stylesheet" href={prependBaseUri("/static/vis.min.css")} type="text/css"/>
       <link rel="stylesheet" href={prependBaseUri("/static/webui.css")} type="text/css"/>
       <link rel="stylesheet" href={prependBaseUri("/static/timeline-view.css")} type="text/css"/>
-      <link rel="stylesheet" href={prependBaseUri("/static/snappydata/snappy-dashboard.css")} type="text/css"/>
+      <link rel="stylesheet" href={prependBaseUri("/static/snappydata/snappy-dashboard.css")}
+            type="text/css"/>
       <script src={prependBaseUri("/static/sorttable.js")} ></script>
       <script src={prependBaseUri("/static/jquery-1.11.1.min.js")}></script>
       <script src={prependBaseUri("/static/vis.min.js")}></script>

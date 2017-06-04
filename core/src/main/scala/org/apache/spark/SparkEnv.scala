@@ -40,7 +40,10 @@ import java.net.Socket
 
 import scala.collection.mutable
 import scala.util.Properties
+
 import com.google.common.collect.MapMaker
+import org.slf4j.LoggerFactory
+
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.api.python.PythonWorkerFactory
 import org.apache.spark.broadcast.BroadcastManager
@@ -58,7 +61,6 @@ import org.apache.spark.serializer.{JavaSerializer, Serializer, SerializerManage
 import org.apache.spark.shuffle.ShuffleManager
 import org.apache.spark.storage._
 import org.apache.spark.util.{RpcUtils, Utils}
-import org.slf4j.LoggerFactory
 
 /**
  * :: DeveloperApi ::
