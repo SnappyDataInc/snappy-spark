@@ -130,7 +130,7 @@ abstract class DStream[T: ClassTag] (
   // Reference to whole DStream graph
   private[streaming] var graph: DStreamGraph = null
 
-  private[streaming] def isInitialized = zeroTime != null
+  private[streaming] def isInitialized: Boolean = zeroTime != null
 
   // Duration for which the DStream requires its parent DStream to remember each RDD created
   private[streaming] def parentRememberDuration = rememberDuration
@@ -676,7 +676,12 @@ abstract class DStream[T: ClassTag] (
     // because the DStream is reachable from the outer object here, and because
     // DStreams can't be serialized with closures, we can't proactively check
     // it for serializability and so we pass the optional false to SparkContext.clean
-    foreachRDD(foreachFunc, displayInnerRDDOps = true)
+    val dStream = new ForEachDStream(this,
+      context.sparkContext.clean(foreachFunc, false), displayInnerRDDOps = true)
+    if (ssc.getState() == StreamingContextState.ACTIVE) {
+      dStream.initializeAfterContextStart(ssc.graph.zeroTime)
+    }
+    dStream.register()
   }
 
   /**
@@ -979,6 +984,40 @@ abstract class DStream[T: ClassTag] (
   private[streaming] def register(): DStream[T] = {
     ssc.graph.addOutputStream(this)
     this
+  }
+
+
+  /**
+   * Same as initialize method but not initializing dependencies
+   * @param time
+   */
+  def initializeAfterContextStart(time: Time) {
+    if (!isInitialized) {
+      if (zeroTime != null && zeroTime != time) {
+        throw new SparkException("ZeroTime is already initialized to " + zeroTime
+            + ", cannot initialize it again to " + time)
+      }
+      zeroTime = time
+
+      // Set the checkpoint interval to be slideDuration or 10 seconds, which ever is larger
+      if (mustCheckpoint && checkpointDuration == null) {
+        checkpointDuration = slideDuration * math.ceil(Seconds(10) / slideDuration).toInt
+        logInfo("Checkpoint interval automatically set to " + checkpointDuration)
+      }
+
+      // Set the minimum value of the rememberDuration if not already set
+      var minRememberDuration = slideDuration
+      if (checkpointDuration != null && minRememberDuration <= checkpointDuration) {
+        // times 2 just to be sure that the latest checkpoint is not forgotten (#paranoia)
+        minRememberDuration = checkpointDuration * 2
+      }
+      if (rememberDuration == null || rememberDuration < minRememberDuration) {
+        rememberDuration = minRememberDuration
+      }
+
+      // Initialize the dependencies
+      dependencies.foreach(_.initializeAfterContextStart(zeroTime))
+    }
   }
 }
 
