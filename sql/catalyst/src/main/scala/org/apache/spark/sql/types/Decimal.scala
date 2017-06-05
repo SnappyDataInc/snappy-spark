@@ -456,6 +456,9 @@ object Decimal {
 
   def apply(value: String): Decimal = new Decimal().set(BigDecimal(value))
 
+  def apply(value: java.lang.Double): Decimal =
+    new Decimal().set(BigDecimal(value))
+
   // This is used for RowEncoder to handle Decimal inside external row.
   def fromDecimal(value: Any): Decimal = {
     value match {
@@ -463,6 +466,7 @@ object Decimal {
       case d: BigDecimal => apply(d)
       case k: scala.math.BigInt => apply(k)
       case l: java.math.BigInteger => apply(l)
+      case dob: java.lang.Double => apply(dob)
       case d: Decimal => d
     }
   }

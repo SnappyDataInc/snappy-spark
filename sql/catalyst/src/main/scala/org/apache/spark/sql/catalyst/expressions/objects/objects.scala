@@ -810,7 +810,8 @@ case class ValidateExternalType(child: Expression, expected: DataType)
 
     val typeCheck = expected match {
       case _: DecimalType =>
-        Seq(classOf[java.math.BigDecimal], classOf[scala.math.BigDecimal], classOf[Decimal])
+        Seq(classOf[java.math.BigDecimal], classOf[scala.math.BigDecimal], classOf[Decimal],
+          classOf[java.lang.Double])
           .map(cls => s"$obj instanceof ${cls.getName}").mkString(" || ")
       case _: ArrayType =>
         s"$obj instanceof ${classOf[Seq[_]].getName} || $obj.getClass().isArray()"
