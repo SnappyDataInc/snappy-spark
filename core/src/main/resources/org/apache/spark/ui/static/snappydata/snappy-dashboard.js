@@ -1,4 +1,17 @@
 
+function toggleCellDetails(detailsId) {
+
+  $("#"+detailsId).toggle();
+
+  var spanId = $("#"+detailsId+"-btn");
+  if(spanId.hasClass("caret-downward")) {
+    spanId.addClass("caret-upward");
+    spanId.removeClass("caret-downward");
+  } else {
+    spanId.addClass("caret-downward");
+    spanId.removeClass("caret-upward");
+  }
+}
 
 function createStatusBlock() {
 
