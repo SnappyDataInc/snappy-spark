@@ -178,10 +178,11 @@ class CodegenContext {
   def initMutableStates(): String = {
     // It's possible that we add same mutable state twice, e.g. the `mergeExpressions` in
     // `TypedAggregateExpression`, we should call `distinct` here to remove the duplicated ones.
-    val initCodes = mutableStates.distinct.map(_._3 + "\n")
+    // val initCodes = mutableStates.distinct.map(_._3 + "\n")
+    mutableStates.distinct.map(_._3).mkString("\n")
     // The generated initialization code may exceed 64kb function size limit in JVM if there are too
     // many mutable states, so split it into multiple functions.
-    splitExpressions(initCodes, "init", Nil)
+    // splitExpressions(initCodes, "init", Nil)
   }
 
   /**
