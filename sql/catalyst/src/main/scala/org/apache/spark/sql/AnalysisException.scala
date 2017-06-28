@@ -43,8 +43,11 @@ class AnalysisException protected[sql] (
   }
 
   override def getMessage: String = {
-    val planAnnotation = plan.map(p => s";\n$p").getOrElse("")
-    getSimpleMessage + planAnnotation
+//    val planAnnotation = plan.map(p => s";\n$p").getOrElse("")
+//    getSimpleMessage + planAnnotation
+    val lineAnnotation = line.map(l => s" line $l").getOrElse("")
+    val positionAnnotation = startPosition.map(p => s" pos $p").getOrElse("")
+    s"$message;$lineAnnotation$positionAnnotation"
   }
 
   // Outputs an exception without the logical plan.
