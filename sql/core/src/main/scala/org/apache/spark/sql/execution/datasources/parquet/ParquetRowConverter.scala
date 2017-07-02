@@ -365,7 +365,7 @@ private[parquet] class ParquetRowConverter(
 
     override def setDictionary(dictionary: Dictionary): Unit = {
       this.expandedDictionary = Array.tabulate(dictionary.getMaxId + 1) { i =>
-        UTF8String.fromBytes(dictionary.decodeToBinary(i).getBytes)
+        org.apache.spark.util.Utils.stringFromBuffer(dictionary.decodeToBinary(i).toByteBuffer)
       }
     }
 
@@ -378,9 +378,7 @@ private[parquet] class ParquetRowConverter(
       // are using `Binary.toByteBuffer.array()` to steal the underlying byte array without copying
       // it.
       val buffer = value.toByteBuffer
-      val offset = buffer.arrayOffset() + buffer.position()
-      val numBytes = buffer.remaining()
-      updater.set(UTF8String.fromBytes(buffer.array(), offset, numBytes))
+      updater.set(org.apache.spark.util.Utils.stringFromBuffer(buffer))
     }
   }
 

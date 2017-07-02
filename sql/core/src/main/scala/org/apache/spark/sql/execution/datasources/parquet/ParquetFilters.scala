@@ -35,7 +35,7 @@ import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName._
 import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, DateTimeUtils}
 import org.apache.spark.sql.catalyst.util.DateTimeUtils.SQLDate
 import org.apache.spark.sql.sources
-import org.apache.spark.unsafe.types.UTF8String
+import org.apache.spark.util.Utils
 
 /**
  * Some utility function to convert Spark data source filters to Parquet filters.
@@ -523,6 +523,7 @@ private[parquet] class ParquetFilters(
             new UserDefinedPredicate[Binary] with Serializable {
               private val strToBinary = Binary.fromReusedByteArray(v.getBytes)
               private val size = strToBinary.length
+              private lazy val strUFF8 = Utils.stringFromBuffer(strToBinary.toByteBuffer)
 
               override def canDrop(statistics: Statistics[Binary]): Boolean = {
                 val comparator = PrimitiveComparator.UNSIGNED_LEXICOGRAPHICAL_BINARY_COMPARATOR
@@ -541,8 +542,7 @@ private[parquet] class ParquetFilters(
               }
 
               override def keep(value: Binary): Boolean = {
-                value != null && UTF8String.fromBytes(value.getBytes).startsWith(
-                  UTF8String.fromBytes(strToBinary.getBytes))
+                value != null && Utils.stringFromBuffer(value.toByteBuffer).startsWith(strUFF8)
               }
             }
           )

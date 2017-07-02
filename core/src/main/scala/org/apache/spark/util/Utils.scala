@@ -66,6 +66,7 @@ import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, SerializerInstance}
 import org.apache.spark.status.api.v1.{StackTrace, ThreadStackTrace}
 import org.apache.spark.storage.StorageUtils
+import org.apache.spark.unsafe.types.UTF8String;
 
 /** CallSite represents a place in user code. It can have a short and a long form. */
 private[spark] case class CallSite(shortForm: String, longForm: String)
@@ -2951,6 +2952,20 @@ private[spark] object Utils extends Logging {
     val resultProps = new Properties()
     props.asScala.foreach(entry => resultProps.put(entry._1, entry._2))
     resultProps
+  }
+
+  /**
+   * Creates a UTF8String from given ByteBuffer using its position and length.
+   */
+  def stringFromBuffer(buffer: ByteBuffer): UTF8String = {
+    if (buffer.isDirect) {
+      val directBuffer = buffer.asInstanceOf[sun.nio.ch.DirectBuffer]
+      UTF8String.fromAddress(null, directBuffer.address + buffer.position,
+          buffer.remaining())
+    } else {
+      UTF8String.fromBytes(buffer.array, buffer.arrayOffset + buffer.position,
+          buffer.remaining())
+    }
   }
 }
 

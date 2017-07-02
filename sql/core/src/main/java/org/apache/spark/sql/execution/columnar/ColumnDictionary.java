@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution.columnar;
 
+import java.nio.ByteBuffer;
+
 import org.apache.spark.sql.execution.vectorized.Dictionary;
 
 public final class ColumnDictionary implements Dictionary {
@@ -53,6 +55,11 @@ public final class ColumnDictionary implements Dictionary {
 
   @Override
   public byte[] decodeToBinary(int id) {
+    throw new UnsupportedOperationException("Dictionary encoding does not support String");
+  }
+
+  @Override
+  public ByteBuffer decodeToBuffer(int id) {
     throw new UnsupportedOperationException("Dictionary encoding does not support String");
   }
 }

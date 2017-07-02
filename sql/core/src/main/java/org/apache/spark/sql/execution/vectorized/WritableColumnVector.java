@@ -18,6 +18,7 @@ package org.apache.spark.sql.execution.vectorized;
 
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
 
 import com.google.common.annotations.VisibleForTesting;
 
@@ -389,8 +390,8 @@ public abstract class WritableColumnVector extends ColumnVector {
     if (dictionary == null) {
       return arrayData().getBytesAsUTF8String(getArrayOffset(rowId), getArrayLength(rowId));
     } else {
-      byte[] bytes = dictionary.decodeToBinary(dictionaryIds.getDictId(rowId));
-      return UTF8String.fromBytes(bytes);
+      ByteBuffer buffer = dictionary.decodeToBuffer(dictionaryIds.getDictId(rowId));
+      return org.apache.spark.util.Utils.stringFromBuffer(buffer);
     }
   }
 

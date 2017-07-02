@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution.datasources.parquet;
 
+import java.nio.ByteBuffer;
+
 import org.apache.spark.sql.execution.vectorized.Dictionary;
 
 public final class ParquetDictionary implements Dictionary {
@@ -49,5 +51,10 @@ public final class ParquetDictionary implements Dictionary {
   @Override
   public byte[] decodeToBinary(int id) {
     return dictionary.decodeToBinary(id).getBytes();
+  }
+
+  @Override
+  public ByteBuffer decodeToBuffer(int id) {
+    return dictionary.decodeToBinary(id).toByteBuffer();
   }
 }

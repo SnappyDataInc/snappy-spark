@@ -17,6 +17,8 @@
 
 package org.apache.spark.sql.execution.vectorized;
 
+import java.nio.ByteBuffer;
+
 /**
  * The interface for dictionary in ColumnVector to decode dictionary encoded values.
  */
@@ -31,4 +33,6 @@ public interface Dictionary {
   double decodeToDouble(int id);
 
   byte[] decodeToBinary(int id);
+
+  ByteBuffer decodeToBuffer(int id);
 }
