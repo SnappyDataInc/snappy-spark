@@ -105,6 +105,17 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
     return new UTF8String(base, offset, numBytes);
   }
 
+  public static UTF8String fromBuffer(ByteBuffer buffer) {
+    if (buffer.isDirect()) {
+      sun.nio.ch.DirectBuffer directBuffer = (sun.nio.ch.DirectBuffer)buffer;
+      return fromAddress(null, directBuffer.address() + buffer.position(),
+          buffer.remaining());
+    } else {
+      return fromBytes(buffer.array(), buffer.arrayOffset() + buffer.position(),
+          buffer.remaining());
+    }
+  }
+
   /**
    * Creates an UTF8String from String.
    */
