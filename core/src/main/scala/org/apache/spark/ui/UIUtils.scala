@@ -247,13 +247,10 @@ private[spark] object UIUtils extends Logging {
             <div class="brand">
               <a href={prependBaseUri("/")} class="brand">
                 <img src={prependBaseUri("/static/snappydata/SnappyData-Logo-230X50.png")} />
-                <!-- <span class="version">{org.apache.spark.SPARK_VERSION}</span> -->
+                {getProductUINameNode}
                 {getProductVersionNode}
               </a>
             </div>
-            <p class="navbar-text pull-right">
-              <strong title={appName}>{shortAppName}</strong> application UI
-            </p>
             {getProductDocLinkNode()}
             <ul class="nav">{header}</ul>
           </div>
@@ -303,13 +300,10 @@ private[spark] object UIUtils extends Logging {
             <div class="brand">
               <a href={prependBaseUri("/")} class="brand">
                 <img src={prependBaseUri("/static/snappydata/SnappyData-Logo-230X50.png")} />
-                <!-- <span class="version">{org.apache.spark.SPARK_VERSION}</span> -->
+                {getProductUINameNode}
                 {getProductVersionNode}
               </a>
             </div>
-            <p class="navbar-text pull-right">
-              <strong title={appName}>{shortAppName}</strong> application UI
-            </p>
             {getProductDocLinkNode()}
             <ul class="nav">{header}</ul>
           </div>
@@ -351,13 +345,10 @@ private[spark] object UIUtils extends Logging {
             <div class="brand">
               <a href={prependBaseUri("/")} class="brand">
                 <img src={prependBaseUri("/static/snappydata/SnappyData-Logo-230X50.png")} />
-                <!-- <span class="version">{org.apache.spark.SPARK_VERSION}</span> -->
+                {getProductUINameNode}
                 {getProductVersionNode}
               </a>
             </div>
-            <p class="navbar-text pull-right">
-              <strong title={appName}>{shortAppName}</strong> application UI
-            </p>
             {getProductDocLinkNode()}
             <ul class="nav">{header}</ul>
           </div>
@@ -635,6 +626,11 @@ private[spark] object UIUtils extends Logging {
 
     <span class="version" style="font-size: 14px;" data-toggle="tooltip" data-placement="bottom"
           data-original-title={versionTooltipText} > {SparkUI.getProductVersion} </span>
+  }
+
+  def getProductUINameNode(): Node = {
+    <span class="UIName" data-toggle="tooltip" data-placement="bottom"
+          data-original-title="SnappyData Monitoring Application"> Pulse </span>
   }
 
   def getProductDocLinkNode(): Node = {
