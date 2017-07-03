@@ -110,6 +110,25 @@ case class AggregateExpression(
   extends Expression
   with Unevaluable {
 
+  private lazy val _hashCode: Int = scala.util.hashing.MurmurHash3.productHash(
+    (aggregateFunction, mode, isDistinct))
+
+  override def hashCode(): Int = _hashCode
+
+  def equalsTo(agg: AggregateExpression): Boolean = {
+      agg.eq(this) || (aggregateFunction.equals(agg.aggregateFunction) &&
+        mode.equals(agg.mode) && isDistinct == agg.isDistinct)
+  }
+
+  override def equals(obj: Any): Boolean = {
+    obj match {
+      case agg: AggregateExpression => this.equalsTo(agg)
+      case _ => false
+    }
+  }
+
+
+
   lazy val resultAttribute: Attribute = if (aggregateFunction.resolved) {
     AttributeReference(
       aggregateFunction.toString,
