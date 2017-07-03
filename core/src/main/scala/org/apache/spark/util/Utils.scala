@@ -17,7 +17,7 @@
 /*
  * Changes for SnappyData data platform.
  *
- * Portions Copyright (c) 2016 SnappyData, Inc. All rights reserved.
+ * Portions Copyright (c) 2017 SnappyData, Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License. You
@@ -78,6 +78,7 @@ import org.apache.spark.network.util.JavaUtils
 import org.apache.spark.serializer.{DeserializationStream, SerializationStream, SerializerInstance}
 import org.apache.spark.util.logging.RollingFileAppender
 import org.apache.spark.storage.StorageUtils
+import org.apache.spark.unsafe.types.UTF8String;
 
 /** CallSite represents a place in user code. It can have a short and a long form. */
 private[spark] case class CallSite(shortForm: String, longForm: String)
@@ -2615,6 +2616,20 @@ private[spark] object Utils extends Logging {
       unionFileLists(sparkJars, yarnJars).toSeq
     } else {
       sparkJars.map(_.split(",")).map(_.filter(_.nonEmpty)).toSeq.flatten
+    }
+  }
+
+  /**
+   * Creates a UTF8String from given ByteBuffer using its position and length.
+   */
+  def stringFromBuffer(buffer: ByteBuffer): UTF8String = {
+    if (buffer.isDirect) {
+      val directBuffer = buffer.asInstanceOf[sun.nio.ch.DirectBuffer]
+      UTF8String.fromAddress(null, directBuffer.address + buffer.position,
+          buffer.remaining())
+    } else {
+      UTF8String.fromBytes(buffer.array, buffer.arrayOffset + buffer.position,
+          buffer.remaining())
     }
   }
 }
