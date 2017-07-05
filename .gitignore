@@ -68,6 +68,7 @@ spark-tests.log
 src_managed/
 streaming-tests.log
 target/
+build-artifacts/
 unit-tests.log
 work/
 
@@ -87,3 +88,6 @@ spark-warehouse/
 *.Rproj.*
 
 .Rproj.user
+
+# gradle specific
+.gradle/
