@@ -17,12 +17,12 @@
 
 package org.apache.spark.sql.streaming
 
+import scala.collection.JavaConverters._
+
 import org.apache.spark.annotation.Experimental
+import org.apache.spark.sql.{AnalysisException, Dataset, ForeachWriter}
 import org.apache.spark.sql.execution.datasources.DataSource
 import org.apache.spark.sql.execution.streaming._
-import org.apache.spark.sql.{AnalysisException, Dataset, ForeachWriter}
-
-import scala.collection.JavaConverters._
 
 /**
  * :: Experimental ::

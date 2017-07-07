@@ -367,11 +367,11 @@ private[spark] class TaskSetManager(
   }
 
   /**
-    * Dequeue a pending task for a given node and return its index and locality level.
-    * Only search for tasks matching the given locality constraint.
-    *
-    * @return An option containing (task index within the task set, locality, is speculative?)
-    */
+   * Dequeue a pending task for a given node and return its index and locality level.
+   * Only search for tasks matching the given locality constraint.
+   *
+   * @return An option containing (task index within the task set, locality, is speculative?)
+   */
   private def dequeueTask(execId: String, host: String, maxLocality: TaskLocality.Value)
   : Option[(Int, TaskLocality.Value, Boolean)] =
   {

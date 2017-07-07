@@ -134,14 +134,15 @@ object GenerateUnsafeProjection extends CodeGenerator[Seq[Expression], UnsafePro
                  if (${input.value} instanceof UnsafeRow) {
                    ${writeUnsafeData(ctx, s"((UnsafeRow) ${input.value})", bufferHolder)};
                  } else {
-                      $rowWriterClass $rowWriterChild = new $rowWriterClass($bufferHolder, ${t.length});
+                      $rowWriterClass $rowWriterChild =
+                       new $rowWriterClass($bufferHolder, ${t.length});
                       $rowWriterChild.reset();
                       for(int $counter = 0; $counter < ${t.length}; ++$counter) {
                            if (${input.value}.isNullAt($index)) {
                              $rowWriterChild.setNullAt($index);
                            }else {
-                             $rowWriterChild.write($counter, ${ctx.getValue(input.value, t.fields(0).dataType,
-                               counter)});
+                             $rowWriterChild.write($counter,
+                              ${ctx.getValue(input.value, t.fields(0).dataType, counter)});
                            }
                        }
                  }

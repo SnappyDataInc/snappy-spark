@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution.datasources
 
 import scala.util.control.NonFatal
 
+import org.apache.spark.sql.{AnalysisException, SaveMode, SparkSession}
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis._
 import org.apache.spark.sql.catalyst.catalog.{BucketSpec, CatalogRelation, CatalogTable, SessionCatalog}
@@ -30,7 +31,7 @@ import org.apache.spark.sql.execution.command.DDLUtils
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.{BaseRelation, InsertableRelation}
 import org.apache.spark.sql.types.{AtomicType, StructType}
-import org.apache.spark.sql.{AnalysisException, SaveMode, SparkSession}
+
 
 /**
  * Try to replaces [[UnresolvedRelation]]s with [[ResolveDataSource]].

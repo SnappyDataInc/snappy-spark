@@ -18,6 +18,7 @@
 package org.apache.spark.sql.catalyst.expressions.codegen
 
 import scala.annotation.tailrec
+
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.NoOp
@@ -65,7 +66,7 @@ object GenerateSafeProjection extends CodeGenerator[Seq[Expression], Projection]
       !broken
     }
 
-    val allFields =  if (isHomogenousStruct) {
+    val allFields = if (isHomogenousStruct) {
       val counter = ctx.freshName("counter")
       val converter = convertToSafe(ctx, ctx.getValue(tmp,
         schema.fields(0).dataType, counter), schema.fields(0).dataType)

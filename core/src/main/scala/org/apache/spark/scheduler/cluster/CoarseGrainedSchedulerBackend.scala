@@ -42,7 +42,7 @@ import javax.annotation.concurrent.GuardedBy
 import scala.collection.mutable.{ArrayBuffer, HashMap, HashSet}
 import scala.concurrent.Future
 
-import org.apache.spark.{SparkEnv, ExecutorAllocationClient, SparkException, TaskState}
+import org.apache.spark.{ExecutorAllocationClient, SparkEnv, SparkException, TaskState}
 import org.apache.spark.internal.Logging
 import org.apache.spark.rpc._
 import org.apache.spark.scheduler._
@@ -581,7 +581,7 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
   protected def doRequestTotalExecutors(requestedTotal: Int): Future[Boolean] =
     Future.successful(false)
 
-  /**W
+  /**
    * Request that the cluster manager kill the specified executors.
    * @return whether the kill request is acknowledged. If list to kill is empty, it will return
    *         false.
