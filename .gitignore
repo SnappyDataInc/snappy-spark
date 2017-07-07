@@ -67,6 +67,7 @@ spark-*-bin-*.tgz
 spark-tests.log
 src_managed/
 streaming-tests.log
+target/
 build-artifacts/
 unit-tests.log
 work/
