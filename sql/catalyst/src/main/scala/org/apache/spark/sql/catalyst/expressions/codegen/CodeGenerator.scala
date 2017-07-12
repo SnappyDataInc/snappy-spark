@@ -670,7 +670,7 @@ class CodegenContext {
       blockBuilder.append(code)
     }
     blocks += blockBuilder.toString()
-    
+
     if (blocks.length == 1) {
       // inline execution if only one block
       blocks.head
