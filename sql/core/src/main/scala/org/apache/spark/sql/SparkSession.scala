@@ -711,6 +711,8 @@ class SparkSession private(
     }
   }
 
+  def confCallback(key: String, value: String) = {}
+
 }
 
 
