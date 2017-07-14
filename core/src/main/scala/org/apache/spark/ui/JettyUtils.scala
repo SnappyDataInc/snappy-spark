@@ -27,11 +27,14 @@ import scala.xml.Node
 
 import org.eclipse.jetty.client.api.Response
 import org.eclipse.jetty.proxy.ProxyServlet
+import org.eclipse.jetty.security.authentication.BasicAuthenticator
+import org.eclipse.jetty.security.{ConstraintMapping, ConstraintSecurityHandler, HashLoginService, SecurityHandler}
 import org.eclipse.jetty.server.{HttpConnectionFactory, Request, Server, ServerConnector}
 import org.eclipse.jetty.server.handler._
 import org.eclipse.jetty.servlet._
 import org.eclipse.jetty.servlets.gzip.GzipHandler
 import org.eclipse.jetty.util.component.LifeCycle
+import org.eclipse.jetty.util.security.{Constraint, Credential}
 import org.eclipse.jetty.util.thread.{QueuedThreadPool, ScheduledExecutorScheduler}
 import org.json4s.JValue
 import org.json4s.jackson.JsonMethods.{pretty, render}
@@ -281,7 +284,8 @@ private[spark] object JettyUtils extends Logging {
 
     val gzipHandlers = handlers.map { h =>
       h.setVirtualHosts(Array("@" + SPARK_CONNECTOR_NAME))
-
+      // set Security Handler
+      h.setSecurityHandler(basicAuthetication("snappy", "snappy123", "Private!"))
       val gzipHandler = new GzipHandler
       gzipHandler.setHandler(h)
       gzipHandler
@@ -376,6 +380,32 @@ private[spark] object JettyUtils extends Logging {
       serverName)
     ServerInfo(server, boundPort, securePort,
       server.getHandler().asInstanceOf[ContextHandlerCollection])
+  }
+  /* Basic Authentication Handler */
+  private def basicAuthetication(userName:String, password:String, realm:String): SecurityHandler = {
+
+    val args = Array("user")
+
+    val l = new HashLoginService()
+    l.putUser(userName, Credential.getCredential(password), args)
+    l.setName(realm)
+
+    val constraint = new Constraint()
+    constraint.setName(Constraint.__BASIC_AUTH);
+    constraint.setRoles(args);
+    constraint.setAuthenticate(true);
+
+    val cm = new ConstraintMapping();
+    cm.setConstraint(constraint);
+    cm.setPathSpec("/*")
+
+    val csh = new ConstraintSecurityHandler();
+    csh.setAuthenticator(new BasicAuthenticator());
+    csh.setRealmName("snappyrealm");
+    csh.addConstraintMapping(cm);
+    csh.setLoginService(l);
+
+    csh
   }
 
   private def createRedirectHttpsHandler(
