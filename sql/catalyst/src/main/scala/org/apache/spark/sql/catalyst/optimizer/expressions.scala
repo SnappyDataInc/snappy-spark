@@ -451,7 +451,7 @@ object FoldablePropagation extends Rule[LogicalPlan] {
         // join is not always picked from its children, but can also be null.
         // TODO(cloud-fan): It seems more reasonable to use new attributes as the output attributes
         // of outer join.
-        case j @ Join(_, _, Inner, _) =>
+        case j @ Join(_, _, Inner, _) if !stop =>
           j.transformExpressions(replaceFoldable)
 
         // We can fold the projections an expand holds. However expand changes the output columns
@@ -489,7 +489,7 @@ object FoldablePropagation extends Rule[LogicalPlan] {
     case _: AppendColumns => true
     case _: AppendColumnsWithObject => true
     case _: BroadcastHint => true
-    case _: RedistributeData => true
+    case _: RepartitionByExpression => true
     case _: Repartition => true
     case _: Sort => true
     case _: TypedFilter => true

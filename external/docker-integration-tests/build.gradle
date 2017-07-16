@@ -22,7 +22,6 @@ dependencies {
 
   testCompile project(subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion)
   testCompile project(subprojectBase + 'snappy-spark-sql_' + scalaBinaryVersion)
-  testCompile project(subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion)
 
   testCompile(group: 'com.spotify', name: 'docker-client', version: '3.6.6', classifier: 'shaded') {
     exclude(group: 'com.google.guava', module: 'guava')
@@ -47,6 +46,7 @@ dependencies {
   }
   testCompile group: 'com.google.guava', name: 'guava', version: '18.0'
 
-  testCompile project(subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion, configuration: 'testOutput')
-  testCompile project(subprojectBase + 'snappy-spark-sql_' + scalaBinaryVersion, configuration: 'testOutput')
+  testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')
+  testCompile project(path: subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion, configuration: 'testOutput')
+  testCompile project(path: subprojectBase + 'snappy-spark-sql_' + scalaBinaryVersion, configuration: 'testOutput')
 }

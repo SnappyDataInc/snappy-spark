@@ -42,10 +42,10 @@ class AnalysisException protected[sql] (
     newException
   }
 
-  override def getMessage: String = if (plan ne null) {
-    val planAnnotation = plan.map(p => s";\n$p").getOrElse("")
+  override def getMessage: String = {
+    val planAnnotation = Option(plan).flatten.map(p => s";\n$p").getOrElse("")
     getSimpleMessage + planAnnotation
-  } else getSimpleMessage
+  }
 
   // Outputs an exception without the logical plan.
   // For testing only

@@ -29,6 +29,7 @@ dependencies {
   compile group: 'org.eclipse.jetty', name: 'jetty-servlet', version: jettyVersion
   compile group: 'org.eclipse.jetty', name: 'jetty-servlets', version: jettyVersion
 
+  testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile project(path: subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile(group: 'org.seleniumhq.selenium', name: 'selenium-java', version: seleniumVersion) {
     exclude(group: 'com.google.guava', module: 'guava')

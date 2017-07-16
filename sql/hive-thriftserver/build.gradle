@@ -70,6 +70,7 @@ dependencies {
     exclude(group: 'javax.servlet', module: 'servlet-api')
   }
 
+  testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile project(path: subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile project(path: subprojectBase + 'snappy-spark-sql_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile(group: 'org.seleniumhq.selenium', name: 'selenium-java', version: seleniumVersion) {

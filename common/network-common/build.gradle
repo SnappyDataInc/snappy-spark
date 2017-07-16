@@ -27,4 +27,6 @@ dependencies {
   compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: fasterXmlVersion
   compile group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: fasterXmlVersion
   compile group: 'org.apache.commons', name: 'commons-lang3', version: commonsLang3Version
+
+  testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')
 }

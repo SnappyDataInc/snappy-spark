@@ -25,9 +25,15 @@ import com.esotericsoftware.kryo.io.{Input, Output}
 
 import org.apache.spark.SparkContext
 import org.apache.spark.scheduler.AccumulableInfo
+import org.apache.spark.sql.execution.ui.SparkListenerDriverAccumUpdates
 import org.apache.spark.util.{AccumulatorContext, AccumulatorV2, AccumulatorV2Kryo, Utils}
 
 
+/**
+ * A metric used in a SQL query plan. This is implemented as an [[AccumulatorV2]]. Updates on
+ * the executor side are automatically propagated and shown in the SQL UI through metrics. Updates
+ * on the driver side must be explicitly posted using [[SQLMetrics.postDriverMetricUpdates()]].
+ */
 final class SQLMetric(var metricType: String, initValue: Long = 0L)
     extends AccumulatorV2Kryo[Long, Long] with KryoSerializable {
   // This is a workaround for SPARK-11013.
@@ -145,6 +151,20 @@ object SQLMetrics {
         metric.map(strFormat)
       }
       s"\n$sum ($min, $med, $max)"
+    }
+  }
+
+  /**
+   * Updates metrics based on the driver side value. This is useful for certain metrics that
+   * are only updated on the driver, e.g. subquery execution time, or number of files.
+   */
+  def postDriverMetricUpdates(
+      sc: SparkContext, executionId: String, metrics: Seq[SQLMetric]): Unit = {
+    // There are some cases we don't care about the metrics and call `SparkPlan.doExecute`
+    // directly without setting an execution id. We should be tolerant to it.
+    if (executionId != null) {
+      sc.listenerBus.post(
+        SparkListenerDriverAccumUpdates(executionId.toLong, metrics.map(m => m.id -> m.value)))
     }
   }
 }

@@ -382,6 +382,52 @@ For example:
 
 </div>
 
+## Aggregations
+
+The [built-in DataFrames functions](api/scala/index.html#org.apache.spark.sql.functions$) provide common
+aggregations such as `count()`, `countDistinct()`, `avg()`, `max()`, `min()`, etc.
+While those functions are designed for DataFrames, Spark SQL also has type-safe versions for some of them in 
+[Scala](api/scala/index.html#org.apache.spark.sql.expressions.scalalang.typed$) and 
+[Java](api/java/org/apache/spark/sql/expressions/javalang/typed.html) to work with strongly typed Datasets.
+Moreover, users are not limited to the predefined aggregate functions and can create their own.
+
+### Untyped User-Defined Aggregate Functions
+
+<div class="codetabs">
+
+<div data-lang="scala"  markdown="1">
+
+Users have to extend the [UserDefinedAggregateFunction](api/scala/index.html#org.apache.spark.sql.expressions.UserDefinedAggregateFunction) 
+abstract class to implement a custom untyped aggregate function. For example, a user-defined average
+can look like:
+
+{% include_example untyped_custom_aggregation scala/org/apache/spark/examples/sql/UserDefinedUntypedAggregation.scala%}
+</div>
+
+<div data-lang="java"  markdown="1">
+
+{% include_example untyped_custom_aggregation java/org/apache/spark/examples/sql/JavaUserDefinedUntypedAggregation.java%}
+</div>
+
+</div>
+
+### Type-Safe User-Defined Aggregate Functions
+
+User-defined aggregations for strongly typed Datasets revolve around the [Aggregator](api/scala/index.html#org.apache.spark.sql.expressions.Aggregator) abstract class.
+For example, a type-safe user-defined average can look like:
+<div class="codetabs">
+
+<div data-lang="scala"  markdown="1">
+
+{% include_example typed_custom_aggregation scala/org/apache/spark/examples/sql/UserDefinedTypedAggregation.scala%}
+</div>
+
+<div data-lang="java"  markdown="1">
+
+{% include_example typed_custom_aggregation java/org/apache/spark/examples/sql/JavaUserDefinedTypedAggregation.java%}
+</div>
+
+</div>
 
 # Data Sources
 
@@ -515,7 +561,7 @@ new data.
 ### Saving to Persistent Tables
 
 `DataFrames` can also be saved as persistent tables into Hive metastore using the `saveAsTable`
-command. Notice existing Hive deployment is not necessary to use this feature. Spark will create a
+command. Notice that an existing Hive deployment is not necessary to use this feature. Spark will create a
 default local Hive metastore (using Derby) for you. Unlike the `createOrReplaceTempView` command,
 `saveAsTable` will materialize the contents of the DataFrame and create a pointer to the data in the
 Hive metastore. Persistent tables will still exist even after your Spark program has restarted, as
@@ -525,6 +571,18 @@ be created by calling the `table` method on a `SparkSession` with the name of th
 By default `saveAsTable` will create a "managed table", meaning that the location of the data will
 be controlled by the metastore. Managed tables will also have their data deleted automatically
 when a table is dropped.
+
+Currently, `saveAsTable` does not expose an API supporting the creation of an "external table" from a `DataFrame`.
+However, this functionality can be achieved by providing a `path` option to the `DataFrameWriter` with `path` as the key
+and location of the external table as its value (a string) when saving the table with `saveAsTable`. When an External table
+is dropped only its metadata is removed.
+
+Starting from Spark 2.1, persistent datasource tables have per-partition metadata stored in the Hive metastore. This brings several benefits:
+
+- Since the metastore can return only necessary partitions for a query, discovering all the partitions on the first query to the table is no longer needed.
+- Hive DDLs such as `ALTER TABLE PARTITION ... SET LOCATION` are now available for tables created with the Datasource API.
+
+Note that partition information is not gathered by default when creating external datasource tables (those with a `path` option). To sync the partition information in the metastore, you can invoke `MSCK REPAIR TABLE`.
 
 ## Parquet Files
 
@@ -1033,7 +1091,7 @@ Tables from the remote database can be loaded as a DataFrame or Spark SQL tempor
 the Data Sources API. Users can specify the JDBC connection properties in the data source options.
 <code>user</code> and <code>password</code> are normally provided as connection properties for
 logging into the data sources. In addition to the connection properties, Spark also supports
-the following case-sensitive options:
+the following case-insensitive options:
 
 <table class="table">
   <tr><th>Property Name</th><th>Meaning</th></tr>
@@ -1159,9 +1217,9 @@ turning on some experimental options.
 
 ## Caching Data In Memory
 
-Spark SQL can cache tables using an in-memory columnar format by calling `spark.cacheTable("tableName")` or `dataFrame.cache()`.
+Spark SQL can cache tables using an in-memory columnar format by calling `spark.catalog.cacheTable("tableName")` or `dataFrame.cache()`.
 Then Spark SQL will scan only required columns and will automatically tune compression to minimize
-memory usage and GC pressure. You can call `spark.uncacheTable("tableName")` to remove the table from memory.
+memory usage and GC pressure. You can call `spark.catalog.uncacheTable("tableName")` to remove the table from memory.
 
 Configuration of in-memory caching can be done using the `setConf` method on `SparkSession` or by running
 `SET key=value` commands using SQL.
@@ -1297,7 +1355,7 @@ Thrift JDBC server also supports sending thrift RPC messages over HTTP transport
 Use the following setting to enable HTTP mode as system property or in `hive-site.xml` file in `conf/`:
 
     hive.server2.transport.mode - Set this to value: http
-    hive.server2.thrift.http.port - HTTP port number fo listen on; default is 10001
+    hive.server2.thrift.http.port - HTTP port number to listen on; default is 10001
     hive.server2.http.endpoint - HTTP endpoint; default is cliservice
 
 To test, use beeline to connect to the JDBC/ODBC server in http mode with:
@@ -1345,6 +1403,14 @@ options.
  - Dataset and DataFrame API `unionAll` has been deprecated and replaced by `union`
  - Dataset and DataFrame API `explode` has been deprecated, alternatively, use `functions.explode()` with `select` or `flatMap`
  - Dataset and DataFrame API `registerTempTable` has been deprecated and replaced by `createOrReplaceTempView`
+
+ - Changes to `CREATE TABLE ... LOCATION` behavior for Hive tables.
+    - From Spark 2.0, `CREATE TABLE ... LOCATION` is equivalent to `CREATE EXTERNAL TABLE ... LOCATION`
+      in order to prevent accidental dropping the existing data in the user-provided locations.
+      That means, a Hive table created in Spark SQL with the user-specified location is always a Hive external table.
+      Dropping external tables will not remove the data. Users are not allowed to specify the location for Hive managed tables.
+      Note that this is different from the Hive behavior.
+    - As a result, `DROP TABLE` statements on those tables will not remove the data.
 
 ## Upgrading From Spark SQL 1.5 to 1.6
 

@@ -28,14 +28,15 @@ dependencies {
   compile group: 'org.apache.parquet', name: 'parquet-hadoop', version: parquetVersion
   compile group: 'org.eclipse.jetty', name: 'jetty-servlet', version: jettyVersion
   compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: fasterXmlVersion
+  compile group: 'org.apache.xbean', name: 'xbean-asm5-shaded', version: '4.4'
 
+  testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile project(path: subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile project(path: subprojectBase + 'snappy-spark-catalyst_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile group: 'com.h2database', name: 'h2', version: '1.4.183'
   testCompile group: 'mysql', name: 'mysql-connector-java', version: '5.1.38'
   testCompile group: 'org.postgresql', name: 'postgresql', version: '9.4.1207.jre7'
   testCompile group: 'org.apache.parquet', name: 'parquet-avro', version: parquetVersion
-  testCompile group: 'org.apache.xbean', name: 'xbean-asm5-shaded', version: '4.4'
 }
 
 // fix scala+java test ordering

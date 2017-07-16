@@ -135,12 +135,11 @@ def _load_from_socket(port, serializer):
         break
     if not sock:
         raise Exception("could not open socket")
-    try:
-        rf = sock.makefile("rb", 65536)
-        for item in serializer.load_stream(rf):
-            yield item
-    finally:
-        sock.close()
+    # The RDD materialization time is unpredicable, if we set a timeout for socket reading
+    # operation, it will very possibly fail. See SPARK-18281.
+    sock.settimeout(None)
+    # The socket will be automatically closed when garbage-collected.
+    return serializer.load_stream(sock.makefile("rb", 65536))
 
 
 def ignore_unicode_prefix(f):
@@ -2072,10 +2071,12 @@ class RDD(object):
             batchSize = min(10, self.ctx._batchSize or 1024)
             ser = BatchedSerializer(PickleSerializer(), batchSize)
             selfCopy = self._reserialize(ser)
+            jrdd_deserializer = selfCopy._jrdd_deserializer
             jrdd = selfCopy._jrdd.coalesce(numPartitions, shuffle)
         else:
+            jrdd_deserializer = self._jrdd_deserializer
             jrdd = self._jrdd.coalesce(numPartitions, shuffle)
-        return RDD(jrdd, self.ctx, self._jrdd_deserializer)
+        return RDD(jrdd, self.ctx, jrdd_deserializer)
 
     def zip(self, other):
         """

@@ -23,7 +23,6 @@ class FakeTask(
     stageId: Int,
     partitionId: Int,
     prefLocs: Seq[TaskLocation] = Nil) extends Task[Int](stageId, 0, partitionId) {
-
   override def runTask(context: TaskContext): Int = 0
   override def preferredLocations: Seq[TaskLocation] = prefLocs
 }

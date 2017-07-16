@@ -27,5 +27,6 @@ dependencies {
   compile group: 'com.github.fommil.netlib', name: 'core', version: '1.1.2'
   compile group: 'net.sourceforge.f2j', name: 'arpack_combined_all', version: '0.1'
 
+  testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile project(path: subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion, configuration: 'testOutput')
 }

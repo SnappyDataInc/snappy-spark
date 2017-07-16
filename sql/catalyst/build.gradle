@@ -32,6 +32,7 @@ dependencies {
   compile group: 'commons-codec', name: 'commons-codec', version: commonsCodecVersion
   antlr group: 'org.antlr', name: 'antlr4', version: antlrVersion
 
+  testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile project(path: subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion, configuration: 'testOutput')
 }
 

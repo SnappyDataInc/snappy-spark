@@ -18,5 +18,4 @@
 description = 'Spark Project Tags'
 
 dependencies {
-  compile "org.scalatest:scalatest_${scalaBinaryVersion}:${scalatestVersion}"
 }

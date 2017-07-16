@@ -119,9 +119,6 @@ dependencies {
   compile group: 'org.glassfish.jersey.core', name: 'jersey-server', version: jerseyVersion
   compile group: 'org.glassfish.jersey.containers', name: 'jersey-container-servlet', version: jerseyVersion
   compile group: 'org.glassfish.jersey.containers', name: 'jersey-container-servlet-core', version: jerseyVersion
-  compile(group: 'org.apache.mesos', name: 'mesos', version: '0.21.1', classifier: 'shaded-protobuf') {
-    exclude(group: 'com.google.protobuf', module: 'protobuf-java')
-  }
   compile group: 'io.netty', name: 'netty-all', version: nettyAllVersion
   compile(group: 'com.clearspring.analytics', name: 'stream', version: '2.7.0') {
     exclude(group: 'it.unimi.dsi', module: 'fastutil')
@@ -141,6 +138,7 @@ dependencies {
   }
   compile group: 'net.sf.py4j', name: 'py4j', version: '0.10.4'
 
+  testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile group: 'org.apache.avro', name: 'avro-ipc', version: avroVersion, classifier: 'tests'
   testCompile "org.apache.derby:derby:${derbyVersion}"
   testCompile(group: 'org.seleniumhq.selenium', name: 'selenium-java', version: seleniumVersion) {

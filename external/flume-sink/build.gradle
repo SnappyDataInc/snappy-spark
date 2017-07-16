@@ -39,6 +39,8 @@ dependencies {
   compile(group: 'org.apache.avro', name: 'avro', version: avroVersion)
   compile group: 'com.google.guava', name: 'guava', version: guavaVersion
   compile group: 'io.netty', name: 'netty', version: nettyVersion
+
+  testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')
 }
 
 // for compatibility with maven generated code, though default 'string' seems

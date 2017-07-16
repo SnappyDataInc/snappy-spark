@@ -25,5 +25,6 @@ dependencies {
   }
   compile group: 'org.apache.commons', name: 'commons-math3', version: commonsMath3Version
 
+  testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile group: 'org.mockito', name: 'mockito-core', version: '1.10.19'
 }

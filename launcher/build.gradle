@@ -38,4 +38,6 @@ dependencies {
     exclude(group: 'io.netty', module: 'netty-all')
   }
   testCompile group: 'org.slf4j', name: 'jul-to-slf4j', version: slf4jVersion
+
+ testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')
 }

@@ -19,7 +19,6 @@ description = 'Spark Project YARN'
 
 dependencies {
   compile project(subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion)
-  compile project(subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion)
 
   compile(group: 'org.apache.hadoop', name: 'hadoop-yarn-api', version: hadoopVersion) {
     exclude(group: 'javax.servlet', module: 'servlet-api')
@@ -113,7 +112,8 @@ dependencies {
     exclude(group: 'org.slf4j', module: 'slf4j-api')
   }
 
-  testCompile project(subprojectBase + 'snappy-spark-network-yarn_' + scalaBinaryVersion)
+  testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')
+  testCompile project(path: subprojectBase + 'snappy-spark-network-yarn_' + scalaBinaryVersion)
   testCompile project(path: subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion, configuration: 'testOutput')
 
   testCompile group: 'org.eclipse.jetty.orbit', name: 'javax.servlet.jsp', version: '2.2.0.v201112011158'

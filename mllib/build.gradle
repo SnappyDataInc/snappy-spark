@@ -34,6 +34,7 @@ dependencies {
     exclude(group: 'org.jpmml', module: 'pmml-agent')
   }
 
+  testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile project(path: subprojectBase + 'snappy-spark-mllib-local_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile project(path: subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile project(path: subprojectBase + 'snappy-spark-streaming_' + scalaBinaryVersion, configuration: 'testOutput')

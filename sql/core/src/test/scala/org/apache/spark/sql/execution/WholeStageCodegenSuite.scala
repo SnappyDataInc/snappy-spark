@@ -25,7 +25,7 @@ import org.apache.spark.sql.functions.{avg, broadcast, col, max}
 import org.apache.spark.sql.test.SharedSQLContext
 import org.apache.spark.sql.types.{IntegerType, StringType, StructType}
 
-class WholeWholeStageCodegenSuite extends SparkPlanTest with SharedSQLContext {
+class WholeStageCodegenSuite extends SparkPlanTest with SharedSQLContext {
 
   test("range/filter should be combined") {
     val df = spark.range(10).filter("id = 1").selectExpr("id + 1")
@@ -112,5 +112,17 @@ class WholeWholeStageCodegenSuite extends SparkPlanTest with SharedSQLContext {
       p.isInstanceOf[WholeStageCodegenExec] &&
         p.asInstanceOf[WholeStageCodegenExec].child.isInstanceOf[HashAggregateExec]).isDefined)
     assert(ds.collect() === Array(("a", 10.0), ("b", 3.0), ("c", 1.0)))
+  }
+
+  test("SPARK-19512 codegen for comparing structs is incorrect") {
+    // this would raise CompileException before the fix
+    spark.range(10)
+      .selectExpr("named_struct('a', id) as col1", "named_struct('a', id+2) as col2")
+      .filter("col1 = col2").count()
+    // this would raise java.lang.IndexOutOfBoundsException before the fix
+    spark.range(10)
+      .selectExpr("named_struct('a', id, 'b', id) as col1",
+        "named_struct('a',id+2, 'b',id+2) as col2")
+      .filter("col1 = col2").count()
   }
 }

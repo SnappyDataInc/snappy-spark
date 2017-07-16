@@ -29,16 +29,17 @@ import org.json4s.JsonAST.JValue
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods._
 
-import org.apache.spark.annotation.Experimental
+import org.apache.spark.annotation.{Experimental, InterfaceStability}
 
 /**
  * :: Experimental ::
  * Information about updates made to stateful operators in a [[StreamingQuery]] during a trigger.
  */
 @Experimental
+@InterfaceStability.Evolving
 class StateOperatorProgress private[sql](
     val numRowsTotal: Long,
-    val numRowsUpdated: Long) {
+    val numRowsUpdated: Long) extends Serializable {
 
   /** The compact JSON representation of this progress. */
   def json: String = compact(render(jsonValue))
@@ -80,6 +81,7 @@ class StateOperatorProgress private[sql](
  * @since 2.1.0
  */
 @Experimental
+@InterfaceStability.Evolving
 class StreamingQueryProgress private[sql](
   val id: UUID,
   val runId: UUID,
@@ -90,7 +92,7 @@ class StreamingQueryProgress private[sql](
   val eventTime: ju.Map[String, String],
   val stateOperators: Array[StateOperatorProgress],
   val sources: Array[SourceProgress],
-  val sink: SinkProgress) {
+  val sink: SinkProgress) extends Serializable {
 
   /** The aggregate (across all sources) number of records processed in a trigger. */
   def numInputRows: Long = sources.map(_.numInputRows).sum
@@ -151,13 +153,14 @@ class StreamingQueryProgress private[sql](
  * @since 2.1.0
  */
 @Experimental
+@InterfaceStability.Evolving
 class SourceProgress protected[sql](
   val description: String,
   val startOffset: String,
   val endOffset: String,
   val numInputRows: Long,
   val inputRowsPerSecond: Double,
-  val processedRowsPerSecond: Double) {
+  val processedRowsPerSecond: Double) extends Serializable {
 
   /** The compact JSON representation of this progress. */
   def json: String = compact(render(jsonValue))
@@ -196,8 +199,9 @@ class SourceProgress protected[sql](
  * @since 2.1.0
  */
 @Experimental
+@InterfaceStability.Evolving
 class SinkProgress protected[sql](
-    val description: String) {
+    val description: String) extends Serializable {
 
   /** The compact JSON representation of this progress. */
   def json: String = compact(render(jsonValue))

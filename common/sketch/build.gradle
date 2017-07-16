@@ -19,6 +19,8 @@ description = 'Spark Project Sketch'
 
 dependencies {
   compile project(subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion)
+
+  testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')
 }
 
 tasks.withType(JavaCompile) {

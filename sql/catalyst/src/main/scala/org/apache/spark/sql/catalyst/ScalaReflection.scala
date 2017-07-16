@@ -346,7 +346,7 @@ object ScalaReflection extends ScalaReflection {
 
         StaticInvoke(
           ArrayBasedMapData.getClass,
-          ObjectType(classOf[Map[_, _]]),
+          ObjectType(classOf[scala.collection.immutable.Map[_, _]]),
           "toScalaMap",
           keyData :: valueData :: Nil)
 

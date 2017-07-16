@@ -30,8 +30,9 @@ import org.scalatest.time.Span
 import org.scalatest.time.SpanSugar._
 
 import org.apache.spark.SparkException
-import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.{AnalysisException, Dataset}
 import org.apache.spark.sql.execution.streaming._
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.streaming.util.BlockingSource
 import org.apache.spark.util.Utils
 
@@ -238,13 +239,22 @@ class StreamingQueryManagerSuite extends StreamTest with BeforeAndAfter {
     }
   }
 
+  test("SPARK-19268: Adaptive query execution should be disallowed") {
+    withSQLConf(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key -> "true") {
+      val e = intercept[AnalysisException] {
+        MemoryStream[Int].toDS.writeStream.queryName("test-query").format("memory").start()
+      }
+      assert(e.getMessage.contains(SQLConf.ADAPTIVE_EXECUTION_ENABLED.key) &&
+        e.getMessage.contains("not supported"))
+    }
+  }
 
   /** Run a body of code by defining a query on each dataset */
   private def withQueriesOn(datasets: Dataset[_]*)(body: Seq[StreamingQuery] => Unit): Unit = {
     failAfter(streamingTimeout) {
       val queries = withClue("Error starting queries") {
         datasets.zipWithIndex.map { case (ds, i) =>
-          @volatile var query: StreamExecution = null
+          var query: StreamingQuery = null
           try {
             val df = ds.toDF
             val metadataRoot =
@@ -256,7 +266,6 @@ class StreamingQueryManagerSuite extends StreamTest with BeforeAndAfter {
                 .option("checkpointLocation", metadataRoot)
                 .outputMode("append")
                 .start()
-                .asInstanceOf[StreamExecution]
           } catch {
             case NonFatal(e) =>
               if (query != null) query.stop()
@@ -304,7 +313,7 @@ class StreamingQueryManagerSuite extends StreamTest with BeforeAndAfter {
       Thread.sleep(stopAfter.toMillis)
       if (withError) {
         logDebug(s"Terminating query ${queryToStop.name} with error")
-        queryToStop.asInstanceOf[StreamExecution].logicalPlan.collect {
+        queryToStop.asInstanceOf[StreamingQueryWrapper].streamingQuery.logicalPlan.collect {
           case StreamingExecutionRelation(source, _) =>
             source.asInstanceOf[MemoryStream[Int]].addData(0)
         }

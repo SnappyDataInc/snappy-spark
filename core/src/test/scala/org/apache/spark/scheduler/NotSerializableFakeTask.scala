@@ -39,5 +39,4 @@ private[spark] class NotSerializableFakeTask(myId: Int, stageId: Int)
 
   @throws(classOf[IOException])
   private def readObject(in: ObjectInputStream): Unit = {}
-
 }
