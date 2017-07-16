@@ -1071,7 +1071,7 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
         final long ll = getLongBigEndian(leftBase, leftOffset);
         final long rl = getLongBigEndian(rightBase, rightOffset);
         final long res = ll - rl;
-        // If the sign of both values is same then the "res" is with correct sign.
+        // If the sign of both values is same then "res" is with correct sign.
         // If the sign of values if different then "res" has opposite sign.
         // The XOR operations will revert the sign bit of res if sign of values is different.
         // After that converting to signum is "(1 + ((v >> 63) << 1)).toInt"
