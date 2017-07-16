@@ -1074,7 +1074,7 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
         // If the sign of both values is same then "res" is with correct sign.
         // If the sign of values is different then "res" has opposite sign.
         // The XOR operations will revert the sign bit of res if sign of values is different.
-        // After that converting to signum is "(1 + ((v >> 63) << 1)).toInt"
+        // After that converting to signum is "(1 + ((v >> 63) << 1))"
         //   where (v >> 63) will flow the sign to give -1 or 0, and (1 + 2 times)
         //   of that will give -1 or 1 respectively.
         if (res != 0) return (int)(1 + (((ll ^ rl ^ res) >> 63) << 1));
@@ -1083,7 +1083,9 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
       }
       endOffset += 4;
       if (leftOffset <= endOffset) {
-        // In UTF-8, the byte should be unsigned, so we should compare them as unsigned int.
+        // In UTF-8, the byte should be unsigned, so we should compare them as unsigned int
+        // which is done by converting to unsigned longs.
+        // After that conversion to signed integer is "(1 + ((v >> 63) << 1))" as above.
         final long res = (getIntBigEndian(leftBase, leftOffset) & 0xffffffffL) -
             (getIntBigEndian(rightBase, rightOffset) & 0xffffffffL);
         if (res != 0) return (int)(1 + ((res >> 63) << 1));
