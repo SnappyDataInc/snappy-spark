@@ -67,7 +67,7 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
     5, 5, 5, 5,
     6, 6};
 
-  private static boolean isLittleEndian = ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
+  private static final boolean isLittleEndian = ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
 
   private static final UTF8String COMMA_UTF8 = UTF8String.fromString(",");
   public static final UTF8String EMPTY_UTF8 = UTF8String.fromString("");
@@ -1043,15 +1043,61 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
     return compare(other);
   }
 
-  public int compare(final UTF8String other) {
-    int len = Math.min(numBytes, other.numBytes);
-    // TODO: compare 8 bytes as unsigned long
-    for (int i = 0; i < len; i ++) {
-      // In UTF-8, the byte should be unsigned, so we should compare them as unsigned int.
-      int res = (getByte(i) & 0xFF) - (other.getByte(i) & 0xFF);
-      if (res != 0) {
-        return res;
+  /** Read integer in big-endian format */
+  static int getIntBigEndian(final Object base, final long offset) {
+    return isLittleEndian ? Integer.reverseBytes(Platform.getInt(base, offset))
+        : Platform.getInt(base, offset);
+  }
+
+  /** Read long in big-endian format */
+  static long getLongBigEndian(final Object base, final long offset) {
+    return isLittleEndian ? Long.reverseBytes(Platform.getLong(base, offset))
+        : Platform.getLong(base, offset);
+  }
+
+  public final int compare(final UTF8String other) {
+    final Object rightBase = other.getBaseObject();
+    long rightOffset = other.getBaseOffset();
+    final Object leftBase = base;
+    long leftOffset = offset;
+
+    final int len = Math.min(numBytes, other.numBytes);
+    long endOffset = leftOffset + len;
+    // for architectures that support unaligned accesses, read 8 bytes at a time
+    if (Platform.unaligned() || (((leftOffset & 0x7) == 0) && ((rightOffset & 0x7) == 0))) {
+      endOffset -= 8;
+      while (leftOffset <= endOffset) {
+        // In UTF-8, the byte should be unsigned, so we should compare them as unsigned long.
+        final long ll = getLongBigEndian(leftBase, leftOffset);
+        final long rl = getLongBigEndian(rightBase, rightOffset);
+        final long res = ll - rl;
+        // If the sign of both values is same then get the "res" is with correct sign.
+        // If the sign of values if different then "res" has opposite sign.
+        // The XOR operations will revert the sign bit of res if sign of values is different.
+        // After that converting to signum is "(1 + ((v >> 63) << 1)).toInt"
+        if (res != 0) return (int)(1 + (((ll ^ rl ^ res) >> 63) << 1));
+        leftOffset += 8;
+        rightOffset += 8;
       }
+      endOffset += 4;
+      if (leftOffset <= endOffset) {
+        // In UTF-8, the byte should be unsigned, so we should compare them as unsigned int.
+        final long res = (getIntBigEndian(leftBase, leftOffset) & 0xffffffffL) -
+            (getIntBigEndian(rightBase, rightOffset) & 0xffffffffL);
+        if (res != 0) return (int)(1 + ((res >> 63) << 1));
+        leftOffset += 4;
+        rightOffset += 4;
+      }
+      endOffset += 4;
+    }
+    // finish the remaining bytes
+    while (leftOffset < endOffset) {
+      // In UTF-8, the byte should be unsigned, so we should compare them as unsigned int.
+      final int res = (Platform.getByte(leftBase, leftOffset) & 0xff) -
+          (Platform.getByte(rightBase, rightOffset) & 0xff);
+      if (res != 0) return res;
+      leftOffset++;
+      rightOffset++;
     }
     return numBytes - other.numBytes;
   }
