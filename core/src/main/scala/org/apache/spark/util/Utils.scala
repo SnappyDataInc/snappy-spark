@@ -111,6 +111,12 @@ private[spark] object Utils extends Logging {
    */
   val DEFAULT_MAX_TO_STRING_FIELDS = 25
 
+  // A regular expression to match classes of the internal Spark API's
+  // that we want to skip when finding the call site of a method.
+  private val SPARK_CORE_CLASS_REGEX =
+  """^org\.apache\.spark(\.api\.java)?(\.util)?(\.rdd)?(\.broadcast)?\.[A-Z]""".r
+  private val SPARK_SQL_CLASS_REGEX = """^org\.apache\.spark\.sql.*""".r
+
   private def maxNumToStringFields = {
     if (SparkEnv.get != null) {
       SparkEnv.get.conf.getInt("spark.debug.maxToStringFields", DEFAULT_MAX_TO_STRING_FIELDS)
@@ -1427,11 +1433,6 @@ private[spark] object Utils extends Logging {
 
   /** Default filtering function for finding call sites using `getCallSite`. */
   private def sparkInternalExclusionFunction(className: String): Boolean = {
-    // A regular expression to match classes of the internal Spark API's
-    // that we want to skip when finding the call site of a method.
-    val SPARK_CORE_CLASS_REGEX =
-      """^org\.apache\.spark(\.api\.java)?(\.util)?(\.rdd)?(\.broadcast)?\.[A-Z]""".r
-    val SPARK_SQL_CLASS_REGEX = """^org\.apache\.spark\.sql.*""".r
     val SCALA_CORE_CLASS_PREFIX = "scala"
     val isSparkClass = SPARK_CORE_CLASS_REGEX.findFirstIn(className).isDefined ||
       SPARK_SQL_CLASS_REGEX.findFirstIn(className).isDefined

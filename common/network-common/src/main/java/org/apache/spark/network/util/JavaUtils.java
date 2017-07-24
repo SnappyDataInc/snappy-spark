@@ -39,7 +39,9 @@ import org.slf4j.LoggerFactory;
  */
 public class JavaUtils {
   private static final Logger logger = LoggerFactory.getLogger(JavaUtils.class);
-
+  private static final Pattern timePattern = Pattern.compile("(-?[0-9]+)([a-z]+)?");
+  private static final Pattern byteAsStringPattern = Pattern.compile("([0-9]+)([a-z]+)?");
+  private static final Pattern fractionPattern = Pattern.compile("([0-9]+\\.[0-9]+)([a-z]+)?");
   /**
    * Define a default value for driver memory here since this value is referenced across the code
    * base and nearly all files already use Utils.scala
@@ -211,7 +213,7 @@ public class JavaUtils {
     String lower = str.toLowerCase().trim();
 
     try {
-      Matcher m = Pattern.compile("(-?[0-9]+)([a-z]+)?").matcher(lower);
+      Matcher m = timePattern.matcher(lower);
       if (!m.matches()) {
         throw new NumberFormatException("Failed to parse time string: " + str);
       }
@@ -259,8 +261,8 @@ public class JavaUtils {
     String lower = str.toLowerCase().trim();
 
     try {
-      Matcher m = Pattern.compile("([0-9]+)([a-z]+)?").matcher(lower);
-      Matcher fractionMatcher = Pattern.compile("([0-9]+\\.[0-9]+)([a-z]+)?").matcher(lower);
+      Matcher m = byteAsStringPattern.matcher(lower);
+      Matcher fractionMatcher = fractionPattern.matcher(lower);
 
       if (m.matches()) {
         long val = Long.parseLong(m.group(1));

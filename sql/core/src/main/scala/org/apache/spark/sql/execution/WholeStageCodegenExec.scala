@@ -479,11 +479,14 @@ case class CollapseCodegenStages(conf: SQLConf) extends Rule[SparkPlan] {
   }
 }
 
-class WholeStageCodegenRDD(sc: SparkContext, var source: CodeAndComment,
+
+case class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAndComment,
     var references: Array[Any], var durationMs: SQLMetric,
     inputRDDs: Seq[RDD[InternalRow]])
     extends ZippedPartitionsBaseRDD[InternalRow](sc, inputRDDs)
         with Serializable with KryoSerializable {
+  // PooledKryoSerializer.serializer refers this class using productIterator
+  // Any change to this class should be reflected there.
 
   override def getPartitions: Array[Partition] = {
     if (rdds.length == 1) rdds.head.partitions
@@ -523,6 +526,9 @@ class WholeStageCodegenRDD(sc: SparkContext, var source: CodeAndComment,
   }
 
   override def write(kryo: Kryo, output: Output): Unit = {
+    // PooledKryoSerializer.serializer refers this class using productIterator
+    // Any change to this class should be reflected there.
+
     output.writeInt(_id)
 
     // write CodeAndComment
