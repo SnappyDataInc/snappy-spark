@@ -596,7 +596,9 @@ private[spark] object UIUtils extends Logging {
   }
 
   def getProductUINameNode(): Node = {
-    <span class="UIName" data-toggle="tooltip" data-placement="bottom"
+    <span style="line-height: 2.5; vertical-align: middle; font-size: 20px; padding: 0;
+          margin: 0; font-weight: bold; color: #3CA881;" data-toggle="tooltip"
+          data-placement="bottom"
           data-original-title="SnappyData Monitoring Application"> Pulse </span>
   }
 
