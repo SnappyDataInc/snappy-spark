@@ -54,6 +54,8 @@ dependencies {
   compile(group: 'org.apache.zookeeper', name: 'zookeeper', version: '3.4.8') {
     exclude(group: 'org.jboss.netty', module: 'netty')
     exclude(group: 'jline', module: 'jline')
+    exclude(group: 'org.slf4j', module: 'slf4j-api')
+    exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
   }
   compile group: 'com.google.protobuf', name: 'protobuf-java', version: protobufVersion
   compile(group: 'org.apache.hadoop', name: 'hadoop-client', version: hadoopVersion) {
@@ -123,10 +125,22 @@ dependencies {
   compile(group: 'com.clearspring.analytics', name: 'stream', version: '2.7.0') {
     exclude(group: 'it.unimi.dsi', module: 'fastutil')
   }
-  compile group: 'io.dropwizard.metrics', name: 'metrics-core', version: metricsVersion
-  compile group: 'io.dropwizard.metrics', name: 'metrics-jvm', version: metricsVersion
-  compile group: 'io.dropwizard.metrics', name: 'metrics-json', version: metricsVersion
-  compile group: 'io.dropwizard.metrics', name: 'metrics-graphite', version: metricsVersion
+  compile(group: 'io.dropwizard.metrics', name: 'metrics-core', version: metricsVersion) {
+    exclude(group: 'org.slf4j', module: 'slf4j-api')
+    exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
+  }
+  compile(group: 'io.dropwizard.metrics', name: 'metrics-jvm', version: metricsVersion) {
+    exclude(group: 'org.slf4j', module: 'slf4j-api')
+    exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
+  }
+  compile(group: 'io.dropwizard.metrics', name: 'metrics-json', version: metricsVersion) {
+    exclude(group: 'org.slf4j', module: 'slf4j-api')
+    exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
+  }
+  compile(group: 'io.dropwizard.metrics', name: 'metrics-graphite', version: metricsVersion) {
+    exclude(group: 'org.slf4j', module: 'slf4j-api')
+    exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
+  }
   compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: fasterXmlVersion
   compile(group: 'com.fasterxml.jackson.module', name: 'jackson-module-scala_' + scalaBinaryVersion, version: fasterXmlVersion) {
     exclude(group: 'com.google.guava', module: 'guava')

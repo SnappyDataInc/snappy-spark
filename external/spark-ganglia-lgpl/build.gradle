@@ -20,7 +20,10 @@ description = 'Spark Ganglia Integration'
 dependencies {
   compile project(subprojectBase + 'spark-core_' + scalaBinaryVersion)
 
-  compile group: 'io.dropwizard.metrics', name: 'metrics-ganglia', version: metricsVersion
+  compile(group: 'io.dropwizard.metrics', name: 'metrics-ganglia', version: metricsVersion) {
+    exclude(group: 'org.slf4j', module: 'slf4j-api')
+    exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
+  }
 
   testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')
 }
