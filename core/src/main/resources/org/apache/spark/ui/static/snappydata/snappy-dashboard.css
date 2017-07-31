@@ -4,6 +4,16 @@
  ==========================================================================
 */
 
+.UIName {
+  line-height: 2.5;
+  vertical-align: middle;
+  font-size: 20px;
+  padding: 0;
+  margin: 0;
+  font-weight: bold;
+  color: #3CA881;
+}
+
 /*
 .keyStates {
   float: left;
