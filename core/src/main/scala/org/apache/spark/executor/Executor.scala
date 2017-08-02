@@ -433,10 +433,23 @@ private[spark] class Executor(
           //Check if cache is closing
           val snappyCallBack = SparkCallBackFactory.getSnappySparkCallback()
           if (snappyCallBack.checkCacheClosing(t)) {
-            logInfo(s"Cache closed exception in $taskName (TID $taskId)", t)
+            logError(s"Cache closed exception in $taskName (TID $taskId)", t)
             setTaskFinishedAndClearInterruptStatus()
             val reason = new ExecutorLostFailure(executorId, false, Some(t.getMessage))
             execBackend.statusUpdate(taskId, TaskState.KILLED, ser.serialize(reason))
+          } else if(snappyCallBack.checkRuntimeOrGemfireException(t)) {
+            logError(s"Executor killed $taskName (TID $taskId)", t)
+            setTaskFinishedAndClearInterruptStatus()
+            val reason = {
+              try {
+                new ExceptionFailure(t, null, true)
+              } catch {
+                case _:Throwable => new ExceptionFailure(t, null, false)
+              }
+            }
+            execBackend.statusUpdate(taskId, TaskState.KILLED, ser.serialize(reason))
+
+
           } else {
             // Attempt to exit cleanly by informing the driver of our failure.
             // If anything goes wrong (or this was a fatal exception), we will delegate to

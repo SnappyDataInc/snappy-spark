@@ -5,7 +5,7 @@ package org.apache.spark
  */
 trait SnappySparkCallback {
 
-  def checkCacheClosing(t:Throwable): Boolean
+  def checkCacheClosing(t: Throwable): Boolean
 
-
+  def checkRuntimeOrGemfireException(t: Throwable): Boolean
 }
