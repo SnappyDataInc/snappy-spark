@@ -533,7 +533,6 @@ private[spark] class WholeStageCodegenRDD(@transient sc: SparkContext, var sourc
         if (!v) durationMs += buffer.durationMs()
         v
       }
-
       override def next: InternalRow = buffer.next()
     }
   }
