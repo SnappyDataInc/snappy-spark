@@ -479,8 +479,7 @@ case class CollapseCodegenStages(conf: SQLConf) extends Rule[SparkPlan] {
   }
 }
 
-
-case class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAndComment,
+private[spark] class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAndComment,
     var references: Array[Any], var durationMs: SQLMetric,
     inputRDDs: Seq[RDD[InternalRow]])
     extends ZippedPartitionsBaseRDD[InternalRow](sc, inputRDDs)
@@ -499,6 +498,19 @@ case class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAnd
   }
 
   override def compute(split: Partition,
+      context: TaskContext): Iterator[InternalRow] = {
+    try {
+      computeInternal(split, context)
+    } catch {
+      case ex: ClassCastException => {
+        // Any other exception in future might be added here
+        CodeGenerator.refresh(source)
+        computeInternal(split, context)
+      }
+    }
+  }
+
+  def computeInternal(split: Partition,
       context: TaskContext): Iterator[InternalRow] = {
     val clazz = CodeGenerator.compile(source)
     val buffer = clazz.generate(references).asInstanceOf[BufferedRowIterator]
@@ -521,6 +533,7 @@ case class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAnd
         if (!v) durationMs += buffer.durationMs()
         v
       }
+
       override def next: InternalRow = buffer.next()
     }
   }

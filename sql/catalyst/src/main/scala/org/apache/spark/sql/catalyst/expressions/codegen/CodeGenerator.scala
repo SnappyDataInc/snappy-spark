@@ -916,6 +916,10 @@ object CodeGenerator extends Logging {
     cache.get(code)
   }
 
+  def refresh(code: CodeAndComment) : Unit = {
+    cache.refresh(code)
+  }
+
   /**
    * Compile the Java source code into a Java class, using Janino.
    */
