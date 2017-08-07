@@ -234,16 +234,17 @@ private[spark] object UIUtils extends Logging {
       <body>
         <div class="navbar navbar-static-top">
           <div class="navbar-inner">
+            <div class="product-brand">
+              <a href={prependBaseUri("/")} class="brand">
+                <img src={prependBaseUri("/static/snappydata/pulse-snappydata-130X50.png")} />
+              </a>
+            </div>
             <div class="brand">
               <a href={prependBaseUri("/")} class="brand">
-                <img src={prependBaseUri("/static/snappydata/SnappyData-Logo-230X50.png")} />
-                {getProductUINameNode}
+                <img src={prependBaseUri("/static/snappydata/snappydata-310X50.png")} />
                 {getProductVersionNode}
               </a>
             </div>
-            <p class="navbar-text pull-right">
-              <strong title={appName}>{shortAppName}</strong> application UI
-            </p>
             {getProductDocLinkNode()}
             <ul class="nav">{header}</ul>
           </div>
@@ -291,16 +292,17 @@ private[spark] object UIUtils extends Logging {
       <body>
         <div class="navbar navbar-static-top">
           <div class="navbar-inner">
+            <div class="product-brand">
+              <a href={prependBaseUri("/")} class="brand">
+                <img src={prependBaseUri("/static/snappydata/pulse-snappydata-130X50.png")} />
+              </a>
+            </div>
             <div class="brand">
               <a href={prependBaseUri("/")} class="brand">
-                <img src={prependBaseUri("/static/snappydata/SnappyData-Logo-230X50.png")} />
-                {getProductUINameNode}
+                <img src={prependBaseUri("/static/snappydata/snappydata-310X50.png")} />
                 {getProductVersionNode}
               </a>
             </div>
-            <p class="navbar-text pull-right">
-              <strong title={appName}>{shortAppName}</strong> application UI
-            </p>
             {getProductDocLinkNode()}
             <ul class="nav">{header}</ul>
           </div>
@@ -590,7 +592,7 @@ private[spark] object UIUtils extends Logging {
       "SnappyData Ver. " + SparkUI.getProductVersion + " ( Underlying Spark Ver. " +
           org.apache.spark.SPARK_VERSION + " )"
 
-    <span class="version" style="font-size: 14px; color: #3CA881;" data-toggle="tooltip"
+    <span class="version" style="font-size: 14px; color: #202020;" data-toggle="tooltip"
           data-placement="bottom"
           data-original-title={versionTooltipText} > {SparkUI.getProductVersion} </span>
   }

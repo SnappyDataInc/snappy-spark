@@ -22,7 +22,16 @@
 }
 
 .navbar .brand {
-  margin-right: 20px;
+  float: right;
+  margin-right: 5px;
+  margin-bottom: 0;
+  margin-top: 0;
+  margin-left: 10px;
+  padding: 0;
+}
+.product-brand {
+  float: left;
+  margin-right: 10px;
   margin-bottom: 0;
   margin-top: 0;
   margin-left: 10px;
