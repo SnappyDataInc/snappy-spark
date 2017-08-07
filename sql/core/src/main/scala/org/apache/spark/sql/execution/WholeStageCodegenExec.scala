@@ -502,11 +502,11 @@ private[spark] class WholeStageCodegenRDD(@transient sc: SparkContext, var sourc
     try {
       computeInternal(split, context)
     } catch {
-      case ex: ClassCastException => {
-        // Any other exception in future might be added here
-        CodeGenerator.refresh(source)
+      // Any other exception in future might be added here
+      case ex: ClassCastException =>
+        CodeGenerator.invalidate(source)
         computeInternal(split, context)
-      }
+
     }
   }
 

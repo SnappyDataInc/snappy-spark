@@ -916,8 +916,8 @@ object CodeGenerator extends Logging {
     cache.get(code)
   }
 
-  def refresh(code: CodeAndComment) : Unit = {
-    cache.refresh(code)
+  def invalidate(code: CodeAndComment) : Unit = {
+    cache.invalidate(code)
   }
 
   /**
