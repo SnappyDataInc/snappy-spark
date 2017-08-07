@@ -15,12 +15,14 @@
  * limitations under the License.
  */
 
+
 package org.apache.spark.sql.execution
 
-import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
-import com.esotericsoftware.kryo.io.{Input, Output}
+import scala.util.control.Exception.catching
 
-import org.apache.spark.{broadcast, Partition, SparkContext, TaskContext}
+import com.esotericsoftware.kryo.io.{Input, Output}
+import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
+
 import org.apache.spark.rdd.{RDD, ZippedPartitionsBaseRDD, ZippedPartitionsPartition}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -34,6 +36,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.util.Utils
+import org.apache.spark.{Partition, SparkContext, TaskContext, broadcast}
 
 /**
  * An interface for those physical operators that support codegen.
@@ -499,14 +502,21 @@ private[spark] class WholeStageCodegenRDD(@transient sc: SparkContext, var sourc
 
   override def compute(split: Partition,
       context: TaskContext): Iterator[InternalRow] = {
-    try {
-      computeInternal(split, context)
-    } catch {
-      // Any other exception in future might be added here
-      case ex: ClassCastException =>
+    val catcher = catching(classOf[ClassCastException])
+    new Iterator[InternalRow] {
+      private[this] var i = computeInternal(split, context)
+
+      private[this] def replace() = i = {
+        logInfo(s"ClassCast Exception, hence recompiling")
         CodeGenerator.invalidate(source)
         computeInternal(split, context)
+      }
 
+      override def hasNext: Boolean = catcher.opt(i.hasNext).getOrElse {
+        replace(); hasNext
+      }
+
+      override def next(): InternalRow = i.next()
     }
   }
 
