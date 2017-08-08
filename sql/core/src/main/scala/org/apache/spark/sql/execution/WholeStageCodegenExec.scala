@@ -463,9 +463,10 @@ case class CollapseCodegenStages(conf: SQLConf) extends Rule[SparkPlan] {
       plan.withNewChildren(plan.children.map(insertWholeStageCodegen))
     case plan: CodegenSupport => if (supportCodegen(plan)) {
       WholeStageCodegenExec(insertInputAdapter(plan))
-    } else {
-      plan.withNewChildren(plan.children.map(insertInputAdapter))
-    }
+    } else plan match {
+      case s: SortMergeJoinExec => s.withNewChildren(s.children.map(insertWholeStageCodegen))
+      case _ => plan.withNewChildren(plan.children.map(insertInputAdapter))
+      }
     case other =>
       other.withNewChildren(other.children.map(insertWholeStageCodegen))
   }
