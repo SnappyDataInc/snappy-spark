@@ -236,7 +236,7 @@ private[spark] object UIUtils extends Logging {
           <div class="navbar-inner">
             <div class="product-brand">
               <a href={prependBaseUri("/")} class="brand">
-                <img src={prependBaseUri("/static/snappydata/pulse-snappydata-130X50.png")} />
+                <img src={prependBaseUri("/static/snappydata/pulse-snappydata-152X50.png")} />
               </a>
             </div>
             <div class="brand">
@@ -294,7 +294,7 @@ private[spark] object UIUtils extends Logging {
           <div class="navbar-inner">
             <div class="product-brand">
               <a href={prependBaseUri("/")} class="brand">
-                <img src={prependBaseUri("/static/snappydata/pulse-snappydata-130X50.png")} />
+                <img src={prependBaseUri("/static/snappydata/pulse-snappydata-152X50.png")} />
               </a>
             </div>
             <div class="brand">
