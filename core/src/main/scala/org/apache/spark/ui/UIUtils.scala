@@ -240,10 +240,10 @@ private[spark] object UIUtils extends Logging {
               </a>
             </div>
             <div class="brand">
-              <a href={prependBaseUri("/")} class="brand">
+              <a href={prependBaseUri("/")} class="brand" style="float: left;">
                 <img src={prependBaseUri("/static/snappydata/snappydata-310X50.png")} />
-                {getProductVersionNode}
               </a>
+              {getProductVersionNode}
             </div>
             {getProductDocLinkNode()}
             <ul class="nav">{header}</ul>
@@ -298,10 +298,10 @@ private[spark] object UIUtils extends Logging {
               </a>
             </div>
             <div class="brand">
-              <a href={prependBaseUri("/")} class="brand">
+              <a href={prependBaseUri("/")} class="brand" style="float: left;">
                 <img src={prependBaseUri("/static/snappydata/snappydata-310X50.png")} />
-                {getProductVersionNode}
               </a>
+              {getProductVersionNode}
             </div>
             {getProductDocLinkNode()}
             <ul class="nav">{header}</ul>
@@ -588,13 +588,28 @@ private[spark] object UIUtils extends Logging {
   }
 
   def getProductVersionNode(): Node = {
+    val versionDetails = SparkUI.getProductVersion
     val versionTooltipText =
-      "SnappyData Ver. " + SparkUI.getProductVersion + " ( Underlying Spark Ver. " +
-          org.apache.spark.SPARK_VERSION + " )"
+      "SnappyData Ver. " + versionDetails.getOrElse("productVersion", "") +
+          " ( Underlying Spark Ver. " + org.apache.spark.SPARK_VERSION + " )"
 
-    <span class="version" style="font-size: 14px; color: #202020;" data-toggle="tooltip"
-          data-placement="bottom"
-          data-original-title={versionTooltipText} > {SparkUI.getProductVersion} </span>
+    <div class="popup">
+      <span class="version" style="font-size: 14px; color: #202020;"
+            data-toggle="tooltip" data-placement="bottom" data-original-title={versionTooltipText}
+            onclick="displayVersionDetails()" >{
+          versionDetails.getOrElse("productVersion", "")
+        }
+      </span>
+      <div class="popuptext" id="sdVersionDetails">
+        Product Name : {versionDetails.getOrElse("productName", "")} <br/>
+        Product Version : {versionDetails.getOrElse("productVersion", "")} <br/>
+        Build : {
+          versionDetails.getOrElse("buildId", "") + " " +
+          versionDetails.getOrElse("buildDate", "")
+        } <br/>
+        Source Revision : {versionDetails.getOrElse("sourceRevision", "")}
+      </div>
+    </div>
   }
 
   def getProductUINameNode(): Node = {

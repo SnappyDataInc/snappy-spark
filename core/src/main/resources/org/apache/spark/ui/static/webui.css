@@ -260,3 +260,68 @@ a.expandbutton {
 .table-cell-width-limited td {
   max-width: 600px;
 }
+
+
+/* SnappyData */
+/* Popup container */
+.popup {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  line-height: 2.5;
+  vertical-align: bottom;
+}
+
+/* The actual popup */
+.popup .popuptext {
+  visibility: hidden;
+  width: 400px;
+  background-color: #CCCCCC;
+  color: #202020;
+  text-align: left;
+  text-shadow: none;
+  border-radius: 5px;
+  padding: 10px;
+  position: absolute;
+  z-index: 1;
+  right:0%;
+  font-size: 13px;
+  line-height: normal;
+  margin: 5px -10px 0px 0px;
+  /* bottom: 125%; */
+}
+
+/* Popup Arrow */
+.popup .popuptext::after {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left:90%;
+  border-width: 10px;
+  border-style: solid;
+  border-color:  transparent transparent #CCCCCC transparent;
+  /* left: 50%;
+  margin-left: -5px;*/
+}
+
+/* Toggle the popup */
+.popup .show {
+  visibility: visible;
+  -webkit-animation: fadeIn 1s;
+  animation: fadeIn 1s;
+}
+
+/* Add animation (fade in the popup) */
+@-webkit-keyframes fadeIn {
+  from {opacity: 0;}
+  to {opacity: 1;}
+}
+
+@keyframes fadeIn {
+  from {opacity: 0;}
+  to {opacity:1 ;}
+}
