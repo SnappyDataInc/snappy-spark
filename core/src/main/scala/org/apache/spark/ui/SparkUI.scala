@@ -21,6 +21,7 @@ import java.util.{Date, ServiceLoader}
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.HashMap
 
 import org.apache.spark.{SecurityManager, SparkConf, SparkContext}
 import org.apache.spark.internal.Logging
@@ -152,14 +153,14 @@ private[spark] object SparkUI {
   val DEFAULT_RETAINED_STAGES = 1000
   val DEFAULT_RETAINED_JOBS = 1000
 
-  var productVersion: String = new String()
+  var productVersion: HashMap[String, String] = HashMap.empty[String, String]
 
-  def getProductVersion: String = {
+  def getProductVersion: HashMap[String, String] = {
     productVersion
   }
 
-  def setProductVersion(version: String): Unit = {
-    productVersion = version
+  def setProductVersion(versionDetails: HashMap[String, String]): Unit = {
+    productVersion = versionDetails
   }
 
   def getUIPort(conf: SparkConf): Int = {

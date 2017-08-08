@@ -234,16 +234,17 @@ private[spark] object UIUtils extends Logging {
       <body>
         <div class="navbar navbar-static-top">
           <div class="navbar-inner">
-            <div class="brand">
+            <div class="product-brand">
               <a href={prependBaseUri("/")} class="brand">
-                <img src={prependBaseUri("/static/snappydata/SnappyData-Logo-230X50.png")} />
-                {getProductUINameNode}
-                {getProductVersionNode}
+                <img src={prependBaseUri("/static/snappydata/pulse-snappydata-152X50.png")} />
               </a>
             </div>
-            <p class="navbar-text pull-right">
-              <strong title={appName}>{shortAppName}</strong> application UI
-            </p>
+            <div class="brand">
+              <a href={prependBaseUri("/")} class="brand" style="float: left;">
+                <img src={prependBaseUri("/static/snappydata/snappydata-310X50.png")} />
+              </a>
+              {getProductVersionNode}
+            </div>
             {getProductDocLinkNode()}
             <ul class="nav">{header}</ul>
           </div>
@@ -291,16 +292,17 @@ private[spark] object UIUtils extends Logging {
       <body>
         <div class="navbar navbar-static-top">
           <div class="navbar-inner">
-            <div class="brand">
+            <div class="product-brand">
               <a href={prependBaseUri("/")} class="brand">
-                <img src={prependBaseUri("/static/snappydata/SnappyData-Logo-230X50.png")} />
-                {getProductUINameNode}
-                {getProductVersionNode}
+                <img src={prependBaseUri("/static/snappydata/pulse-snappydata-152X50.png")} />
               </a>
             </div>
-            <p class="navbar-text pull-right">
-              <strong title={appName}>{shortAppName}</strong> application UI
-            </p>
+            <div class="brand">
+              <a href={prependBaseUri("/")} class="brand" style="float: left;">
+                <img src={prependBaseUri("/static/snappydata/snappydata-310X50.png")} />
+              </a>
+              {getProductVersionNode}
+            </div>
             {getProductDocLinkNode()}
             <ul class="nav">{header}</ul>
           </div>
@@ -586,13 +588,28 @@ private[spark] object UIUtils extends Logging {
   }
 
   def getProductVersionNode(): Node = {
+    val versionDetails = SparkUI.getProductVersion
     val versionTooltipText =
-      "SnappyData Ver. " + SparkUI.getProductVersion + " ( Underlying Spark Ver. " +
-          org.apache.spark.SPARK_VERSION + " )"
+      "SnappyData Ver. " + versionDetails.getOrElse("productVersion", "") +
+          " ( Underlying Spark Ver. " + org.apache.spark.SPARK_VERSION + " )"
 
-    <span class="version" style="font-size: 14px; color: #3CA881;" data-toggle="tooltip"
-          data-placement="bottom"
-          data-original-title={versionTooltipText} > {SparkUI.getProductVersion} </span>
+    <div class="popup">
+      <span class="version" style="font-size: 14px; color: #202020;"
+            data-toggle="tooltip" data-placement="bottom" data-original-title={versionTooltipText}
+            onclick="displayVersionDetails()" >{
+          versionDetails.getOrElse("productVersion", "")
+        }
+      </span>
+      <div class="popuptext" id="sdVersionDetails">
+        Product Name : {versionDetails.getOrElse("productName", "")} <br/>
+        Product Version : {versionDetails.getOrElse("productVersion", "")} <br/>
+        Build : {
+          versionDetails.getOrElse("buildId", "") + " " +
+          versionDetails.getOrElse("buildDate", "")
+        } <br/>
+        Source Revision : {versionDetails.getOrElse("sourceRevision", "")}
+      </div>
+    </div>
   }
 
   def getProductUINameNode(): Node = {
