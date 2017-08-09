@@ -15,6 +15,7 @@
  * limitations under the License.
  */
 
+
 package org.apache.spark.sql.execution
 
 import java.util.Locale
@@ -734,7 +735,6 @@ case class CollapseCodegenStages(conf: SQLConf) extends Rule[SparkPlan] {
   }
 }
 
-
 case class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAndComment,
     var references: Array[Any], var durationMs: SQLMetric,
     inputRDDs: Seq[RDD[InternalRow]])
@@ -754,6 +754,25 @@ case class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAnd
   }
 
   override def compute(split: Partition,
+      context: TaskContext): Iterator[InternalRow] = {
+    new Iterator[InternalRow] {
+      private[this] var iter = computeInternal(split, context)
+
+      override def hasNext: Boolean = try {
+        iter.hasNext
+      } catch {
+        case _: ClassCastException =>
+          logInfo(s"ClassCastException, hence recompiling")
+          CodeGenerator.invalidate(source)
+          iter = computeInternal(split, context)
+          iter.hasNext
+      }
+
+      override def next(): InternalRow = iter.next()
+    }
+  }
+
+  def computeInternal(split: Partition,
       context: TaskContext): Iterator[InternalRow] = {
     val clazz = CodeGenerator.compile(source)._1
     val buffer = clazz.generate(references).asInstanceOf[BufferedRowIterator]

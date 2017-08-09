@@ -70,7 +70,7 @@ private[spark] class Executor(
 
   private val EMPTY_BYTE_BUFFER = ByteBuffer.wrap(new Array[Byte](0))
 
-  private val conf = env.conf
+  protected val conf = env.conf
 
   // No ip or host:port - just hostname
   Utils.checkHost(executorHostname)
@@ -334,13 +334,21 @@ private[spark] class Executor(
      *    2. Collect accumulator updates
      *    3. Set the finished flag to true and clear current thread's interrupt status
      */
-    private def collectAccumulatorsAndResetStatusOnFailure(taskStartTime: Long) = {
+    private def collectAccumulatorsAndResetStatusOnFailure(taskStartTime: Long,
+        taskStartCpu: Long) = {
+      val threadMXBean = ManagementFactory.getThreadMXBean
       // Report executor runtime and JVM gc time
       Option(task).foreach(t => {
         t.metrics.setExecutorRunTime(
           // SPARK-32898: it's possible that a task is killed when taskStartTime has the initial
           // value(=0) still. In this case, the executorRunTime should be considered as 0.
           if (taskStartTime > 0) math.max(System.nanoTime() - taskStartTime, 0L) / 1000000.0 else 0)
+            math.max(System.nanoTime() - taskStartTime, 0L) / 1000000.0)
+        val taskEndCpu = if (threadMXBean.isCurrentThreadCpuTimeSupported) {
+          threadMXBean.getCurrentThreadCpuTime
+        } else 0L
+        t.metrics.setExecutorCpuTime(
+          if (taskStartCpu > 0) math.max(taskEndCpu - taskStartCpu, 0L) / 1000000.0 else 0)
         t.metrics.setJvmGCTime(computeTotalGcTime() - startGCTime)
       })
 
@@ -553,7 +561,8 @@ private[spark] class Executor(
         case t: TaskKilledException =>
           logInfo(s"Executor killed $taskName (TID $taskId), reason: ${t.reason}")
 
-          val (accums, accUpdates) = collectAccumulatorsAndResetStatusOnFailure(taskStartTime)
+          val (accums, accUpdates) = collectAccumulatorsAndResetStatusOnFailure(taskStartTime,
+            taskStartCpu)
           val serializedTK = ser.serialize(TaskKilled(t.reason, accUpdates, accums))
           execBackend.statusUpdate(taskId, TaskState.KILLED, serializedTK)
 
@@ -562,11 +571,12 @@ private[spark] class Executor(
           val killReason = task.reasonIfKilled.getOrElse("unknown reason")
           logInfo(s"Executor interrupted and killed $taskName (TID $taskId), reason: $killReason")
 
-          val (accums, accUpdates) = collectAccumulatorsAndResetStatusOnFailure(taskStartTime)
+          val (accums, accUpdates) = collectAccumulatorsAndResetStatusOnFailure(taskStartTime,
+            taskStartCpu)
           val serializedTK = ser.serialize(TaskKilled(killReason, accUpdates, accums))
           execBackend.statusUpdate(taskId, TaskState.KILLED, serializedTK)
 
-        case t: Throwable if hasFetchFailure && !Utils.isFatalError(t) =>
+        case t: Throwable if hasFetchFailure && !isFatalError(t) =>
           val reason = task.context.fetchFailed.get.toTaskFailedReason
           if (!t.isInstanceOf[FetchFailedException]) {
             // there was a fetch failure in the task, but some user code wrapped that exception
@@ -585,10 +595,27 @@ private[spark] class Executor(
           setTaskFinishedAndClearInterruptStatus()
           execBackend.statusUpdate(taskId, TaskState.KILLED, ser.serialize(reason))
 
-        case t: Throwable if env.isStopped =>
+        case t: Throwable if isStoreCloseException(t) =>
+          logError(s"Store closed exception in $taskName (TID $taskId)", t)
+          setTaskFinishedAndClearInterruptStatus()
+          val reason = ExecutorLostFailure(executorId, exitCausedByApp = false, Some(t.getMessage))
+          val ser = env.closureSerializer.newInstance()
+          execBackend.statusUpdate(taskId, TaskState.KILLED, ser.serialize(reason))
+
+        case t: Throwable if env.isStopped || isStoreException(t) =>
           // Log the expected exception after executor.stop without stack traces
           // see: SPARK-19147
           logError(s"Exception in $taskName (TID $taskId): ${t.getMessage}")
+          setTaskFinishedAndClearInterruptStatus()
+          val reason = {
+            try {
+              new ExceptionFailure(t, accumUpdates = null, preserveCause = true)
+            } catch {
+              case _: Throwable =>
+                new ExceptionFailure(t, accumUpdates = null, preserveCause = false)
+            }
+          }
+          execBackend.statusUpdate(taskId, TaskState.KILLED, ser.serialize(reason))
 
         case t: Throwable =>
           // Attempt to exit cleanly by informing the driver of our failure.
@@ -602,7 +629,8 @@ private[spark] class Executor(
           // the task failure would not be ignored if the shutdown happened because of premption,
           // instead of an app issue).
           if (!ShutdownHookManager.inShutdown()) {
-            val (accums, accUpdates) = collectAccumulatorsAndResetStatusOnFailure(taskStartTime)
+            val (accums, accUpdates) = collectAccumulatorsAndResetStatusOnFailure(taskStartTime,
+              taskStartCpu)
 
             val serializedTaskEndReason = {
               try {
@@ -621,9 +649,10 @@ private[spark] class Executor(
 
           // Don't forcibly exit unless the exception was inherently fatal, to avoid
           // stopping other tasks unnecessarily.
-          if (!t.isInstanceOf[SparkOutOfMemoryError] && Utils.isFatalError(t)) {
+          if (!t.isInstanceOf[SparkOutOfMemoryError] && isFatalError(t)) {
             uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), t)
           }
+
       } finally {
         runningTasks.remove(taskId)
       }
@@ -883,6 +912,13 @@ private[spark] class Executor(
     }
     heartbeater.scheduleAtFixedRate(heartbeatTask, initialDelay, intervalMs, TimeUnit.MILLISECONDS)
   }
+
+  // Pluggable Throwable handlers for a task related to underlying store
+  protected def isStoreCloseException(t: Throwable): Boolean = false
+
+  protected def isStoreException(t: Throwable): Boolean = false
+
+  protected def isFatalError(t: Throwable): Boolean = Utils.isFatalError(t)
 }
 
 private[spark] object Executor {
