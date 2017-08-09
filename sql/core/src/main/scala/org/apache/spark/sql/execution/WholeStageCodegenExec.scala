@@ -482,7 +482,7 @@ case class CollapseCodegenStages(conf: SQLConf) extends Rule[SparkPlan] {
   }
 }
 
-private[spark] class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAndComment,
+case class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAndComment,
     var references: Array[Any], var durationMs: SQLMetric,
     inputRDDs: Seq[RDD[InternalRow]])
     extends ZippedPartitionsBaseRDD[InternalRow](sc, inputRDDs)
