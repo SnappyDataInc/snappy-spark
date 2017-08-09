@@ -104,7 +104,7 @@ allprojects {
     jsr305Version = '3.0.2'
     jlineVersion = '2.14.6'
     xbeanAsm5Version = '4.5'
-    breezeVersion = '0.13.1'
+    breezeVersion = '0.13.2'
     pmmlVersion = '1.2.17'
     classutilVersion = '1.4.0'
     scoptVersion = '3.7.1'
