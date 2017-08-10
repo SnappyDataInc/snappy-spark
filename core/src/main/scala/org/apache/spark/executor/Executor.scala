@@ -64,7 +64,7 @@ private[spark] class Executor(
 
   private val EMPTY_BYTE_BUFFER = ByteBuffer.wrap(new Array[Byte](0))
 
-  private val conf = env.conf
+  protected val conf = env.conf
 
   // No ip or host:port - just hostname
   Utils.checkHost(executorHostname, "Expected executed slave to be a hostname")
@@ -108,8 +108,8 @@ private[spark] class Executor(
 
   // Create our ClassLoader
   // do this after SparkEnv creation so can access the SecurityManager
-  protected var urlClassLoader = createClassLoader()
-  protected var replClassLoader = addReplClassLoaderIfNeeded(urlClassLoader)
+  protected val urlClassLoader = createClassLoader()
+  protected val replClassLoader = addReplClassLoaderIfNeeded(urlClassLoader)
 
   // Set the classloader for serializer
   env.serializer.setDefaultClassLoader(replClassLoader)
@@ -430,52 +430,73 @@ private[spark] class Executor(
           execBackend.statusUpdate(taskId, TaskState.FAILED, ser.serialize(reason))
 
         case t: Throwable =>
-          // Attempt to exit cleanly by informing the driver of our failure.
-          // If anything goes wrong (or this was a fatal exception), we will delegate to
-          // the default uncaught exception handler, which will terminate the Executor.
-          logError(s"Exception in $taskName (TID $taskId)", t)
-
-          // Collect latest accumulator values to report back to the driver
-          val accums: Seq[AccumulatorV2[_, _]] =
-            if (task != null) {
-              task.metrics.setExecutorRunTime(
-                math.max(System.nanoTime() - taskStart, 0L) / 1000000.0)
-              val taskEndCpu = if (threadMXBean.isCurrentThreadCpuTimeSupported) {
-                threadMXBean.getCurrentThreadCpuTime
-              } else 0L
-              task.metrics.setExecutorCpuTime(
-                math.max(taskEndCpu - taskStartCpu, 0L) / 1000000.0)
-              task.metrics.setJvmGCTime(computeTotalGcTime() - startGCTime)
-              task.collectAccumulatorUpdates(taskFailed = true)
-            } else {
-              Seq.empty
+          //Check if cache is closing
+          val snappyCallBack = SparkCallBackFactory.getSnappySparkCallback()
+          if (snappyCallBack != null && snappyCallBack.checkCacheClosing(t)) {
+            logError(s"Cache closed exception in $taskName (TID $taskId)", t)
+            setTaskFinishedAndClearInterruptStatus()
+            val reason = new ExecutorLostFailure(executorId, false, Some(t.getMessage))
+            execBackend.statusUpdate(taskId, TaskState.KILLED, ser.serialize(reason))
+          } else if (snappyCallBack != null && snappyCallBack.checkRuntimeOrGemfireException(t)) {
+            logError(s"Executor killed $taskName (TID $taskId)", t)
+            setTaskFinishedAndClearInterruptStatus()
+            val reason = {
+              try {
+                new ExceptionFailure(t, null, true)
+              } catch {
+                case _:Throwable => new ExceptionFailure(t, null, false)
+              }
             }
+            execBackend.statusUpdate(taskId, TaskState.KILLED, ser.serialize(reason))
 
-          val accUpdates = accums.map(acc => acc.toInfo(Some(acc.value), None))
 
-          val serializedTaskEndReason = {
-            try {
-              ser.serialize(new ExceptionFailure(t, accUpdates).withAccums(accums))
-            } catch {
-              case _: NotSerializableException =>
-                // t is not serializable so just send the stacktrace
-                ser.serialize(new ExceptionFailure(t, accUpdates, false).withAccums(accums))
+          } else {
+            // Attempt to exit cleanly by informing the driver of our failure.
+            // If anything goes wrong (or this was a fatal exception), we will delegate to
+            // the default uncaught exception handler, which will terminate the Executor.
+            logError(s"Exception in $taskName (TID $taskId)", t)
+
+            // Collect latest accumulator values to report back to the driver
+            val accums: Seq[AccumulatorV2[_, _]] =
+              if (task != null) {
+                task.metrics.setExecutorRunTime(
+                  math.max(System.nanoTime() - taskStart, 0L) / 1000000.0)
+                val taskEndCpu = if (threadMXBean.isCurrentThreadCpuTimeSupported) {
+                  threadMXBean.getCurrentThreadCpuTime
+                } else 0L
+                task.metrics.setExecutorCpuTime(
+                  math.max(taskEndCpu - taskStartCpu, 0L) / 1000000.0)
+                task.metrics.setJvmGCTime(computeTotalGcTime() - startGCTime)
+                task.collectAccumulatorUpdates(taskFailed = true)
+              } else {
+                Seq.empty
+              }
+
+            val accUpdates = accums.map(acc => acc.toInfo(Some(acc.value), None))
+
+            val serializedTaskEndReason = {
+              try {
+                ser.serialize(new ExceptionFailure(t, accUpdates).withAccums(accums))
+              } catch {
+                case _: NotSerializableException =>
+                  // t is not serializable so just send the stacktrace
+                  ser.serialize(new ExceptionFailure(t, accUpdates, false).withAccums(accums))
+              }
             }
-          }
-          setTaskFinishedAndClearInterruptStatus()
-          execBackend.statusUpdate(taskId, TaskState.FAILED, serializedTaskEndReason)
+            setTaskFinishedAndClearInterruptStatus()
+            execBackend.statusUpdate(taskId, TaskState.FAILED, serializedTaskEndReason)
 
-          // Don't forcibly exit unless the exception was inherently fatal, to avoid
-          // stopping other tasks unnecessarily.
-          if (Utils.isFatalError(t)) {
-            if (!isLocal) {
-              Thread.getDefaultUncaughtExceptionHandler.
+            // Don't forcibly exit unless the exception was inherently fatal, to avoid
+            // stopping other tasks unnecessarily.
+            if (Utils.isFatalError(t)) {
+              if (!isLocal) {
+                Thread.getDefaultUncaughtExceptionHandler.
                   uncaughtException(Thread.currentThread(), t)
-            } else {
-              SparkUncaughtExceptionHandler.uncaughtException(t)
+              } else {
+                SparkUncaughtExceptionHandler.uncaughtException(t)
+              }
             }
           }
-
       } finally {
         runningTasks.remove(taskId)
       }
