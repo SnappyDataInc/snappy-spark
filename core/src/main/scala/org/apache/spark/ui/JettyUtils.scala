@@ -55,6 +55,27 @@ private[spark] object JettyUtils extends Logging {
   val snappyDataRoles = Array("user")
   var customAuthenticator: Option[BasicAuthenticator] = None
 
+  val constraintMapping = {
+    val constraint = new Constraint()
+    constraint.setName(Constraint.__BASIC_AUTH);
+    constraint.setRoles(snappyDataRoles);
+    constraint.setAuthenticate(true);
+
+    val cm = new ConstraintMapping();
+    cm.setConstraint(constraint);
+    cm.setPathSpec("/*")
+    cm
+  }
+
+  val snappyHashLoginService = {
+    val userName = "snappyuser"
+    val password = "snappyuser"
+    val ls = new HashLoginService()
+    ls.putUser(userName, Credential.getCredential(password), snappyDataRoles)
+    ls.setName(snappyDataRealm)
+    ls
+  }
+
   // Base type for a function that returns something based on an HTTP request. Allows for
   // implicit conversion from many types of functions to jetty Handlers.
   type Responder[T] = HttpServletRequest => T
@@ -291,7 +312,7 @@ private[spark] object JettyUtils extends Logging {
       // set Security Handler
       customAuthenticator match {
         case Some(auth) =>
-          h.setSecurityHandler(basicAuthenticationHandler("snappyuser", "snappyuser", snappyDataRealm))
+          h.setSecurityHandler(basicAuthenticationHandler())
         case None =>
           logDebug("Not setting auth handler")
       }
@@ -391,28 +412,12 @@ private[spark] object JettyUtils extends Logging {
       server.getHandler().asInstanceOf[ContextHandlerCollection])
   }
   /* Basic Authentication Handler */
-  private def basicAuthenticationHandler(userName:String,
-      password:String,
-      realm:String): SecurityHandler = {
-
-    val l = new HashLoginService()
-    l.putUser(userName, Credential.getCredential(password), snappyDataRoles)
-    l.setName(realm)
-
-    val constraint = new Constraint()
-    constraint.setName(Constraint.__BASIC_AUTH);
-    constraint.setRoles(snappyDataRoles);
-    constraint.setAuthenticate(true);
-
-    val cm = new ConstraintMapping();
-    cm.setConstraint(constraint);
-    cm.setPathSpec("/*")
-
+  private def basicAuthenticationHandler(): SecurityHandler = {
     val csh = new ConstraintSecurityHandler();
     csh.setAuthenticator(customAuthenticator.get);
-    csh.setRealmName(realm);
-    csh.addConstraintMapping(cm);
-    csh.setLoginService(l);
+    csh.setRealmName(snappyDataRealm);
+    csh.addConstraintMapping(constraintMapping);
+    csh.setLoginService(snappyHashLoginService);
 
     csh
   }
