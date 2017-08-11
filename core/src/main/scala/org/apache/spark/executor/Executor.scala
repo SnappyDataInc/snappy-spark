@@ -430,7 +430,7 @@ private[spark] class Executor(
           execBackend.statusUpdate(taskId, TaskState.FAILED, ser.serialize(reason))
 
         case t: Throwable =>
-          //Check if cache is closing
+          // Check if cache is closing
           val snappyCallBack = SparkCallBackFactory.getSnappySparkCallback()
           if (snappyCallBack != null && snappyCallBack.checkCacheClosing(t)) {
             logError(s"Cache closed exception in $taskName (TID $taskId)", t)
@@ -444,7 +444,7 @@ private[spark] class Executor(
               try {
                 new ExceptionFailure(t, null, true)
               } catch {
-                case _:Throwable => new ExceptionFailure(t, null, false)
+                case _: Throwable => new ExceptionFailure(t, null, false)
               }
             }
             execBackend.statusUpdate(taskId, TaskState.KILLED, ser.serialize(reason))
