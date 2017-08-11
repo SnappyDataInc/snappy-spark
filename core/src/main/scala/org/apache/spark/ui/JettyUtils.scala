@@ -51,6 +51,10 @@ private[spark] object JettyUtils extends Logging {
   val SPARK_CONNECTOR_NAME = "Spark"
   val REDIRECT_CONNECTOR_NAME = "HttpsRedirect"
 
+  val snappyDataRealm = "SnappyDataPulse"
+  val snappyDataRoles = Array("user")
+  var customAuthenticator: Option[BasicAuthenticator] = None
+
   // Base type for a function that returns something based on an HTTP request. Allows for
   // implicit conversion from many types of functions to jetty Handlers.
   type Responder[T] = HttpServletRequest => T
@@ -285,7 +289,12 @@ private[spark] object JettyUtils extends Logging {
     val gzipHandlers = handlers.map { h =>
       h.setVirtualHosts(Array("@" + SPARK_CONNECTOR_NAME))
       // set Security Handler
-      h.setSecurityHandler(basicAuthetication("snappy", "snappy123", "Private!"))
+      customAuthenticator match {
+        case Some(auth) =>
+          h.setSecurityHandler(basicAuthenticationHandler("snappyuser", "snappyuser", snappyDataRealm))
+        case None =>
+          logDebug("Not setting auth handler")
+      }
       val gzipHandler = new GzipHandler
       gzipHandler.setHandler(h)
       gzipHandler
@@ -382,17 +391,17 @@ private[spark] object JettyUtils extends Logging {
       server.getHandler().asInstanceOf[ContextHandlerCollection])
   }
   /* Basic Authentication Handler */
-  private def basicAuthetication(userName:String, password:String, realm:String): SecurityHandler = {
-
-    val args = Array("user")
+  private def basicAuthenticationHandler(userName:String,
+      password:String,
+      realm:String): SecurityHandler = {
 
     val l = new HashLoginService()
-    l.putUser(userName, Credential.getCredential(password), args)
+    l.putUser(userName, Credential.getCredential(password), snappyDataRoles)
     l.setName(realm)
 
     val constraint = new Constraint()
     constraint.setName(Constraint.__BASIC_AUTH);
-    constraint.setRoles(args);
+    constraint.setRoles(snappyDataRoles);
     constraint.setAuthenticate(true);
 
     val cm = new ConstraintMapping();
@@ -400,8 +409,8 @@ private[spark] object JettyUtils extends Logging {
     cm.setPathSpec("/*")
 
     val csh = new ConstraintSecurityHandler();
-    csh.setAuthenticator(new BasicAuthenticator());
-    csh.setRealmName("snappyrealm");
+    csh.setAuthenticator(customAuthenticator.get);
+    csh.setRealmName(realm);
     csh.addConstraintMapping(cm);
     csh.setLoginService(l);
 
