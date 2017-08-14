@@ -486,7 +486,7 @@ private[spark] class Executor(
 
           // Don't forcibly exit unless the exception was inherently fatal, to avoid
           // stopping other tasks unnecessarily.
-          if (Utils.isFatalError(t)) {
+          if (isFatalError(t)) {
             if (!isLocal) {
               Thread.getDefaultUncaughtExceptionHandler.
                   uncaughtException(Thread.currentThread(), t)
@@ -755,6 +755,10 @@ private[spark] class Executor(
   protected  def isStoreCloseException(t: Throwable) : Boolean = false
 
   protected  def isStoreException(t: Throwable) : Boolean = false
+
+  protected  def isFatalError(t: Throwable) : Boolean = {
+    Utils.isFatalError(t)
+  }
 }
 
 private[spark] object Executor {
