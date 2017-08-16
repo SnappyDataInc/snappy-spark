@@ -51,11 +51,11 @@ private[spark] object JettyUtils extends Logging {
   val SPARK_CONNECTOR_NAME = "Spark"
   val REDIRECT_CONNECTOR_NAME = "HttpsRedirect"
 
-  val snappyDataRealm = "SnappyDataPulse"
-  val snappyDataRoles = Array("user")
+  lazy val snappyDataRealm = "SnappyDataPulse"
+  lazy val snappyDataRoles = Array("user")
   var customAuthenticator: Option[BasicAuthenticator] = None
 
-  val constraintMapping = {
+  lazy val constraintMapping = {
     val constraint = new Constraint()
     constraint.setName(Constraint.__BASIC_AUTH);
     constraint.setRoles(snappyDataRoles);
@@ -67,7 +67,7 @@ private[spark] object JettyUtils extends Logging {
     cm
   }
 
-  val snappyHashLoginService = {
+  lazy val snappyHashLoginService = {
     val userName = "snappyuser"
     val password = "snappyuser"
     val ls = new HashLoginService()
