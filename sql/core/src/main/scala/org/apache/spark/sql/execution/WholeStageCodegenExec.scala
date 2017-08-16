@@ -18,12 +18,8 @@
 
 package org.apache.spark.sql.execution
 
-import scala.util.control.Exception.catching
-
-import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
 import com.esotericsoftware.kryo.io.{Input, Output}
-
-import org.apache.spark.{broadcast, Partition, SparkContext, TaskContext}
+import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
 import org.apache.spark.rdd.{RDD, ZippedPartitionsBaseRDD, ZippedPartitionsPartition}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -37,6 +33,9 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.util.Utils
+import org.apache.spark.{Partition, SparkContext, TaskContext, broadcast}
+
+import scala.util.control.Exception.catching
 
 /**
  * An interface for those physical operators that support codegen.
@@ -444,13 +443,13 @@ case class CollapseCodegenStages(conf: SQLConf) extends Rule[SparkPlan] {
    * Inserts an InputAdapter on top of those that do not support codegen.
    */
   private def insertInputAdapter(plan: SparkPlan): SparkPlan = plan match {
+    case p if !supportCodegen(p) =>
+      // collapse them recursively
+      InputAdapter(insertWholeStageCodegen(p))
     case j @ SortMergeJoinExec(_, _, _, _, left, right) if j.supportCodegen =>
       // The children of SortMergeJoin should do codegen separately.
       j.copy(left = InputAdapter(insertWholeStageCodegen(left)),
         right = InputAdapter(insertWholeStageCodegen(right)))
-    case p if !supportCodegen(p) =>
-      // collapse them recursively
-      InputAdapter(insertWholeStageCodegen(p))
     case p =>
       p.withNewChildren(p.children.map(insertInputAdapter))
   }
@@ -464,11 +463,8 @@ case class CollapseCodegenStages(conf: SQLConf) extends Rule[SparkPlan] {
     case plan if plan.output.length == 1 &&
       plan.output.head.dataType.isInstanceOf[ObjectType] =>
       plan.withNewChildren(plan.children.map(insertWholeStageCodegen))
-    case plan: CodegenSupport => if (supportCodegen(plan)) {
+    case plan: CodegenSupport if supportCodegen(plan) =>
       WholeStageCodegenExec(insertInputAdapter(plan))
-    } else {
-      plan.withNewChildren(plan.children.map(insertInputAdapter))
-    }
     case other =>
       other.withNewChildren(other.children.map(insertWholeStageCodegen))
   }
