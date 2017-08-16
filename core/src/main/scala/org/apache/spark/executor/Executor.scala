@@ -64,7 +64,7 @@ private[spark] class Executor(
 
   private val EMPTY_BYTE_BUFFER = ByteBuffer.wrap(new Array[Byte](0))
 
-  private val conf = env.conf
+  protected val conf = env.conf
 
   // No ip or host:port - just hostname
   Utils.checkHost(executorHostname, "Expected executed slave to be a hostname")
@@ -108,8 +108,8 @@ private[spark] class Executor(
 
   // Create our ClassLoader
   // do this after SparkEnv creation so can access the SecurityManager
-  protected var urlClassLoader = createClassLoader()
-  protected var replClassLoader = addReplClassLoaderIfNeeded(urlClassLoader)
+  protected val urlClassLoader = createClassLoader()
+  protected val replClassLoader = addReplClassLoaderIfNeeded(urlClassLoader)
 
   // Set the classloader for serializer
   env.serializer.setDefaultClassLoader(replClassLoader)
@@ -429,6 +429,25 @@ private[spark] class Executor(
           setTaskFinishedAndClearInterruptStatus()
           execBackend.statusUpdate(taskId, TaskState.FAILED, ser.serialize(reason))
 
+        case t: Throwable if isStoreCloseException(t) =>
+          logError(s"Store closed exception in $taskName (TID $taskId)", t)
+          setTaskFinishedAndClearInterruptStatus()
+          val reason = new ExecutorLostFailure(executorId, false, Some(t.getMessage))
+          val ser = env.closureSerializer.newInstance()
+          execBackend.statusUpdate(taskId, TaskState.KILLED, ser.serialize(reason))
+
+        case t: Throwable if isStoreException(t) =>
+          logError(s"Executor killed $taskName (TID $taskId)", t)
+          setTaskFinishedAndClearInterruptStatus()
+          val reason = {
+            try {
+              new ExceptionFailure(t, null, true)
+            } catch {
+              case _: Throwable => new ExceptionFailure(t, null, false)
+            }
+          }
+          execBackend.statusUpdate(taskId, TaskState.KILLED, ser.serialize(reason))
+
         case t: Throwable =>
           // Attempt to exit cleanly by informing the driver of our failure.
           // If anything goes wrong (or this was a fatal exception), we will delegate to
@@ -467,7 +486,7 @@ private[spark] class Executor(
 
           // Don't forcibly exit unless the exception was inherently fatal, to avoid
           // stopping other tasks unnecessarily.
-          if (Utils.isFatalError(t)) {
+          if (isFatalError(t)) {
             if (!isLocal) {
               Thread.getDefaultUncaughtExceptionHandler.
                   uncaughtException(Thread.currentThread(), t)
@@ -730,6 +749,15 @@ private[spark] class Executor(
       override def run(): Unit = Utils.logUncaughtExceptions(reportHeartBeat())
     }
     heartbeater.scheduleAtFixedRate(heartbeatTask, initialDelay, intervalMs, TimeUnit.MILLISECONDS)
+  }
+
+  // Pluggable Throwable handlers for a task related to underlying store
+  protected  def isStoreCloseException(t: Throwable) : Boolean = false
+
+  protected  def isStoreException(t: Throwable) : Boolean = false
+
+  protected  def isFatalError(t: Throwable) : Boolean = {
+    Utils.isFatalError(t)
   }
 }
 
