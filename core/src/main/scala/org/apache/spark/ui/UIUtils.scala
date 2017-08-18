@@ -216,7 +216,7 @@ private[spark] object UIUtils extends Logging {
       useDataTables: Boolean = false): Seq[Node] = {
 
     val appName = activeTab.appName
-    val shortAppName = if (appName.length < 36) appName else appName.take(32) + "..."
+    // val shortAppName = if (appName.length < 36) appName else appName.take(32) + "..."
     val header = activeTab.headerTabs.map { tab =>
       <li class={if (tab == activeTab) "active" else ""}>
         <a href={prependBaseUri(activeTab.basePath, "/" + tab.prefix + "/")}>{tab.name}</a>
@@ -239,9 +239,9 @@ private[spark] object UIUtils extends Logging {
                 <img src={prependBaseUri("/static/snappydata/pulse-snappydata-152X50.png")} />
               </a>
             </div>
-            <div class="brand">
+            <div class="brand" style="line-height: 2.5;">
               <a href={prependBaseUri("/")} class="brand" style="float: left;">
-                <img src={prependBaseUri("/static/snappydata/snappydata-310X50.png")} />
+                <img src={prependBaseUri("/static/snappydata/snappydata-175X28.png")} />
               </a>
               {getProductVersionNode}
             </div>
@@ -274,7 +274,7 @@ private[spark] object UIUtils extends Logging {
       showVisualization: Boolean = false): Seq[Node] = {
 
     val appName = activeTab.appName
-    val shortAppName = if (appName.length < 36) appName else appName.take(32) + "..."
+    // val shortAppName = if (appName.length < 36) appName else appName.take(32) + "..."
     val header = activeTab.headerTabs.map { tab =>
       <li class={if (tab == activeTab) "active" else ""}>
         <a href={prependBaseUri(activeTab.basePath, "/" + tab.prefix + "/")}>{tab.name}</a>
@@ -297,9 +297,9 @@ private[spark] object UIUtils extends Logging {
                 <img src={prependBaseUri("/static/snappydata/pulse-snappydata-152X50.png")} />
               </a>
             </div>
-            <div class="brand">
+            <div class="brand" style="line-height: 2.5;">
               <a href={prependBaseUri("/")} class="brand" style="float: left;">
-                <img src={prependBaseUri("/static/snappydata/snappydata-310X50.png")} />
+                <img src={prependBaseUri("/static/snappydata/snappydata-175X28.png")} />
               </a>
               {getProductVersionNode}
             </div>
@@ -607,16 +607,10 @@ private[spark] object UIUtils extends Logging {
           versionDetails.getOrElse("buildId", "") + " " +
           versionDetails.getOrElse("buildDate", "")
         } <br/>
-        Source Revision : {versionDetails.getOrElse("sourceRevision", "")}
+        Source Revision : {versionDetails.getOrElse("sourceRevision", "")} <br/>
+        Spark Version : {org.apache.spark.SPARK_VERSION}
       </div>
     </div>
-  }
-
-  def getProductUINameNode(): Node = {
-    <span style="line-height: 2.5; vertical-align: middle; font-size: 20px; padding: 0;
-          margin: 0; font-weight: bold; color: #3CA881;" data-toggle="tooltip"
-          data-placement="bottom"
-          data-original-title="SnappyData Monitoring Application"> Pulse </span>
   }
 
   def getProductDocLinkNode(): Node = {

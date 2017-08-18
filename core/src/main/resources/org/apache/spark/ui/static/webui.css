@@ -292,6 +292,7 @@ a.expandbutton {
   font-size: 13px;
   line-height: normal;
   margin: 5px -10px 0px 0px;
+  cursor: default;
   /* bottom: 125%; */
 }
 
