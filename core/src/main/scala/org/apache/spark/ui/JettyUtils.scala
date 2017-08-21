@@ -322,7 +322,7 @@ private[spark] object JettyUtils extends Logging {
       }
       pool.setDaemon(true)
 
-      // Set SnappyData authenticator into the SecurityHandler
+      // Set SnappyData authenticator into the SecurityHandler.
       // Has to be done inside connect because a failure to bind to port will
       // clear the handler so auth will fail even if bind on next port succeeds.
       customAuthenticator match {
