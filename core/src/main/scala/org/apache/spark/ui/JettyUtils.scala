@@ -309,13 +309,6 @@ private[spark] object JettyUtils extends Logging {
 
     val gzipHandlers = handlers.map { h =>
       h.setVirtualHosts(Array("@" + SPARK_CONNECTOR_NAME))
-      // set Security Handler
-      customAuthenticator match {
-        case Some(auth) =>
-          h.setSecurityHandler(basicAuthenticationHandler())
-        case None =>
-          logDebug("Not setting auth handler")
-      }
       val gzipHandler = new GzipHandler
       gzipHandler.setHandler(h)
       gzipHandler
@@ -328,6 +321,18 @@ private[spark] object JettyUtils extends Logging {
         pool.setName(serverName)
       }
       pool.setDaemon(true)
+
+      // Set SnappyData authenticator into the SecurityHandler
+      // Has to be done inside connect because a failure to bind to port will
+      // clear the handler so auth will fail even if bind on next port succeeds.
+      customAuthenticator match {
+        case Some(_) =>
+          gzipHandlers.foreach { gh =>
+            gh.getHandler.asInstanceOf[ServletContextHandler]
+                .setSecurityHandler(basicAuthenticationHandler())
+          }
+        case None => logDebug("Not setting auth handler")
+      }
 
       val server = new Server(pool)
       val connectors = new ArrayBuffer[ServerConnector]()
