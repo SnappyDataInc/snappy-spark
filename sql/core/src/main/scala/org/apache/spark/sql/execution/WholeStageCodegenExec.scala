@@ -438,6 +438,8 @@ object WholeStageCodegenExec {
   def isTooManyFields(conf: SQLConf, dataType: DataType): Boolean = {
     numOfNestedFields(dataType) > conf.wholeStageMaxNumFields
   }
+
+  val dumpGenCodeForException = System.getProperty("spark.dumpGenCode", "true").toBoolean
 }
 
 object WholeStageCodegenId {
@@ -759,16 +761,33 @@ case class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAnd
       private[this] var iter = computeInternal(split, context)
 
       override def hasNext: Boolean = try {
-        iter.hasNext
-      } catch {
-        case _: ClassCastException =>
-          logInfo(s"ClassCastException, hence recompiling")
-          CodeGenerator.invalidate(source)
-          iter = computeInternal(split, context)
+        try {
           iter.hasNext
+        } catch {
+          case _: ClassCastException =>
+            logInfo(s"ClassCastException, hence recompiling")
+            CodeGenerator.invalidate(source)
+            iter = computeInternal(split, context)
+            iter.hasNext
+        }
+      } catch {
+        case e: Throwable =>
+          if (WholeStageCodegenExec.dumpGenCodeForException) {
+            logError(s"\n${CodeFormatter.format(source)}")
+          }
+          throw e
       }
 
-      override def next(): InternalRow = iter.next()
+      override def next(): InternalRow = try {
+        iter.next()
+      } catch {
+        case e: Throwable =>
+          if (WholeStageCodegenExec.dumpGenCodeForException) {
+            logError(s"\n${CodeFormatter.format(source)}")
+          }
+          throw e
+      }
+
     }
   }
 
