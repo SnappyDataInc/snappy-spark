@@ -266,6 +266,7 @@ case class InputAdapter(child: SparkPlan) extends UnaryExecNode with CodegenSupp
 
 object WholeStageCodegenExec {
   val PIPELINE_DURATION_METRIC = "duration"
+  val dumpGenCodeForException = System.getProperty("spark.dumpGenCode", "true").toBoolean
 }
 
 /**
@@ -515,7 +516,9 @@ case class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAnd
         }
       } catch {
         case e: Throwable =>
-          logError(s"\n${CodeFormatter.format(source)}")
+          if (WholeStageCodegenExec.dumpGenCodeForException) {
+            logError(s"\n${CodeFormatter.format(source)}")
+          }
           throw e
       }
 
@@ -523,7 +526,9 @@ case class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAnd
         iter.next()
       } catch {
         case e: Throwable =>
-          logError(s"\n${CodeFormatter.format(source)}")
+          if (WholeStageCodegenExec.dumpGenCodeForException) {
+            logError(s"\n${CodeFormatter.format(source)}")
+          }
           throw e
       }
 
