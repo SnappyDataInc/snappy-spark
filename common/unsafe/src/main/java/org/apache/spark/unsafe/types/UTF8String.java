@@ -289,15 +289,18 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
    * Returns whether this contains `substring` or not.
    */
   public boolean contains(final UTF8String substring) {
-    if (substring.numBytes == 0) {
+    final int len = substring.numBytes;
+    if (len == 0) {
       return true;
     }
 
-    byte first = substring.getByte(0);
-    for (int i = 0; i <= numBytes - substring.numBytes; i++) {
-      if (getByte(i) == first && matchAt(substring, i)) {
-        return true;
-      }
+    final byte first = substring.getByte(0);
+    final Object base = this.base;
+    long offset = this.offset;
+    final long end = offset + numBytes - len;
+    for (; offset <= end; offset++) {
+      if (Platform.getByte(base, offset) == first && ByteArrayMethods.arrayEquals(
+          base, offset, substring.base, substring.offset, len)) return true;
     }
     return false;
   }
@@ -309,7 +312,7 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
     return Platform.getByte(base, offset + i);
   }
 
-  private boolean matchAt(final UTF8String s, int pos) {
+  public boolean matchAt(final UTF8String s, int pos) {
     if (s.numBytes + pos > numBytes || pos < 0) {
       return false;
     }
