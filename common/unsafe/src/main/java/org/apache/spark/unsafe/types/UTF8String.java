@@ -30,6 +30,7 @@ import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
+import org.apache.spark.unsafe.Native;
 import org.apache.spark.unsafe.Platform;
 import org.apache.spark.unsafe.array.ByteArrayMethods;
 import org.apache.spark.unsafe.hash.Murmur3_x86_32;
@@ -289,18 +290,25 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
    * Returns whether this contains `substring` or not.
    */
   public boolean contains(final UTF8String substring) {
-    final int len = substring.numBytes;
-    if (len == 0) {
+    final int slen = substring.numBytes;
+    if (slen == 0) {
       return true;
     }
 
-    final byte first = substring.getByte(0);
     final Object base = this.base;
+    final int len = this.numBytes;
+    // noinspection ConstantConditions
+    if (base == null && len > Native.MIN_JNI_SIZE &&
+        substring.base == null && Native.isLoaded()) {
+      return Native.containsString(offset, offset + len, substring.offset, slen);
+    }
+
+    final byte first = substring.getByte(0);
     long offset = this.offset;
-    final long end = offset + numBytes - len;
+    final long end = offset + len - slen;
     for (; offset <= end; offset++) {
       if (Platform.getByte(base, offset) == first && ByteArrayMethods.arrayEquals(
-          base, offset, substring.base, substring.offset, len)) return true;
+          base, offset, substring.base, substring.offset, slen)) return true;
     }
     return false;
   }

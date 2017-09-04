@@ -17,6 +17,7 @@
 
 package org.apache.spark.unsafe.array;
 
+import org.apache.spark.unsafe.Native;
 import org.apache.spark.unsafe.Platform;
 
 public class ByteArrayMethods {
@@ -46,6 +47,10 @@ public class ByteArrayMethods {
    */
   public static boolean arrayEquals(final Object leftBase, long leftOffset,
       final Object rightBase, long rightOffset, final long length) {
+    if (leftBase == null && rightBase == null &&
+        length > Native.MIN_JNI_SIZE && Native.isLoaded()) {
+      return Native.arrayEquals(leftOffset, rightOffset, length);
+    }
     long endOffset = leftOffset + length;
     // try to align at least one side
     if ((rightOffset & 0x7) != 0 && (leftOffset & 0x7) != 0) { // mod 8
