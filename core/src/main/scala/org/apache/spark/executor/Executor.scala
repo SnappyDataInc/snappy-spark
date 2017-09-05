@@ -88,7 +88,7 @@ private[spark] class Executor(
   }
 
   // Start worker thread pool
-  private val threadPool = {
+  protected final val threadPool = {
     val threadFactory = new ThreadFactoryBuilder()
       .setDaemon(true)
       .setNameFormat("Executor task launch worker-%d")
@@ -430,7 +430,7 @@ private[spark] class Executor(
             if (conf.getBoolean("spark.unsafe.exceptionOnMemoryLeak", false)) {
               throw new SparkException(errMsg)
             } else {
-              logWarning(errMsg)
+              logDebug(errMsg)
             }
           }
 

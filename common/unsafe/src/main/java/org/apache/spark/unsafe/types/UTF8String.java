@@ -31,6 +31,7 @@ import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 import com.google.common.primitives.Ints;
 
+import org.apache.spark.unsafe.Native;
 import org.apache.spark.unsafe.Platform;
 import org.apache.spark.unsafe.array.ByteArrayMethods;
 import org.apache.spark.unsafe.hash.Murmur3_x86_32;
@@ -366,15 +367,25 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
    * Returns whether this contains `substring` or not.
    */
   public boolean contains(final UTF8String substring) {
-    if (substring.numBytes == 0) {
+    final int slen = substring.numBytes;
+    if (slen == 0) {
       return true;
     }
 
-    byte first = substring.getByte(0);
-    for (int i = 0; i <= numBytes - substring.numBytes; i++) {
-      if (getByte(i) == first && matchAt(substring, i)) {
-        return true;
-      }
+    final Object base = this.base;
+    final int len = this.numBytes;
+    // noinspection ConstantConditions
+    if (base == null && len >= Native.MIN_JNI_SIZE &&
+        substring.base == null && Native.isLoaded()) {
+      return Native.containsString(offset, len, substring.offset, slen);
+    }
+
+    final byte first = substring.getByte(0);
+    long offset = this.offset;
+    final long end = offset + len - slen;
+    for (; offset <= end; offset++) {
+      if (Platform.getByte(base, offset) == first && ByteArrayMethods.arrayEquals(
+          base, offset, substring.base, substring.offset, slen)) return true;
     }
     return false;
   }
@@ -1269,6 +1280,18 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
 
   public int compare(final UTF8String other) {
     int len = Math.min(numBytes, other.numBytes);
+
+    // for the case that compare will fail in first few bytes itself, the overhead
+    // of JNI call is too high
+    /*
+    // noinspection ConstantConditions
+    if (leftBase == null && rightBase == null &&
+        len >= Native.MIN_JNI_SIZE && Native.isLoaded()) {
+      final int result = Native.compareString(leftOffset, rightOffset, len);
+      return result != 0 ? result : (numBytes - other.numBytes);
+    }
+    */
+
     int wordMax = (len / 8) * 8;
     long roffset = other.offset;
     Object rbase = other.base;
