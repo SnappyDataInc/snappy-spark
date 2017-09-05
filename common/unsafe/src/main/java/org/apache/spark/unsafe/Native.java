@@ -90,7 +90,9 @@ public final class Native {
 
       loaded = true;
     } catch (IOException ioe) {
-      throw new IllegalStateException(ioe);
+      if (logger.isInfoEnabled()) {
+        logger.info("library " + library + " could not be loaded due to " + ioe);
+      }
     } catch (UnsatisfiedLinkError ule) {
       if (logger.isInfoEnabled()) {
         logger.info("library " + library + " could not be loaded");
