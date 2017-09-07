@@ -18,9 +18,10 @@
 
 package org.apache.spark.sql.execution
 
+
 import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
 import com.esotericsoftware.kryo.io.{Input, Output}
-
+import java.sql.SQLException
 import org.apache.spark.{broadcast, Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.{RDD, ZippedPartitionsBaseRDD, ZippedPartitionsPartition}
 import org.apache.spark.sql.catalyst.InternalRow
@@ -517,7 +518,7 @@ case class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAnd
       } catch {
         case e: Throwable =>
           if (WholeStageCodegenExec.dumpGenCodeForException) {
-            logError(s"\n${CodeFormatter.format(source)}")
+            logFormattedError(e, s"\n${CodeFormatter.format(source)}")
           }
           throw e
       }
@@ -527,12 +528,24 @@ case class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAnd
       } catch {
         case e: Throwable =>
           if (WholeStageCodegenExec.dumpGenCodeForException) {
-            logError(s"\n${CodeFormatter.format(source)}")
+            logFormattedError(e, s"\n${CodeFormatter.format(source)}")
           }
           throw e
       }
-
     }
+  }
+
+  def logFormattedError(e: Throwable, source: String): Unit = {
+    var cause = e
+    while (cause ne null) {
+      // Don't log the code when the exception is out of memory
+      if (cause.isInstanceOf[SQLException] &&
+        cause.asInstanceOf[SQLException].getSQLState == "XCL54.T") {
+        return
+      }
+      cause = cause.getCause
+    }
+    logError(s"\nFailed with exception $e:$source")
   }
 
   def computeInternal(split: Partition,
