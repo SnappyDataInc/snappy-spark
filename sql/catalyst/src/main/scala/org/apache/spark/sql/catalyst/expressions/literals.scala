@@ -306,9 +306,15 @@ case class Literal (value: Any, dataType: DataType) extends LeafExpression with 
           ev.isNull = "false"
           ev.value = s"${value}L"
           ev.copy("")
-        // eval() version may be faster for non-primitive types
-        case other =>
-          super[CodegenFallback].doGenCode(ctx, ev)
+        case _ =>
+          if (value == null) {
+            ev.isNull = "true"
+            ev.value = "null"
+          } else {
+            ev.isNull = "false"
+            ev.value = ctx.addReferenceObj("value", value, ctx.javaType(dataType))
+          }
+          ev.copy("")
       }
     }
   }
