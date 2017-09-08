@@ -537,9 +537,14 @@ case class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAnd
     var cause = e
     while (cause ne null) {
       // Don't log the code when the exception is out of memory
-      if (cause.isInstanceOf[SQLException] &&
-        cause.asInstanceOf[SQLException].getSQLState == "XCL54.T") {
-        return
+      cause match {
+        case e: SQLException if e.getSQLState == "XCL54.T" =>
+          return
+        case o: RuntimeException if o.getClass.equals(
+          // scalastyle:off classforname
+          Class.forName("com.gemstone.gemfire.cache.LowMemoryException")) =>
+          return
+        case _ =>
       }
       cause = cause.getCause
     }
