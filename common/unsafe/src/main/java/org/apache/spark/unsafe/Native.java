@@ -30,13 +30,16 @@ import org.apache.log4j.Logger;
  */
 public final class Native {
 
-  public static final int MIN_JNI_SIZE = 32;
+  public static final int MIN_JNI_SIZE = Integer.getInteger("spark.utf8.jniSize", 32);
 
   public static final boolean debug;
   private static final Logger logger;
 
+  private static boolean isMac;
+  private static boolean isWindows;
+  private static boolean isSolaris;
+
   private static final boolean is64Bit;
-  private static final boolean isSolaris;
   private static final boolean nativeLoaded;
 
   private Native() {
@@ -45,14 +48,25 @@ public final class Native {
   static {
     debug = Boolean.getBoolean("spark.native.debug");
 
+    String suffix = "";
+    String os = System.getProperty("os.name").toLowerCase(Locale.ENGLISH);
+    if (os.startsWith("mac") || os.startsWith("darwin")) {
+      isMac = true;
+      // no suffix since library extension will be different
+    } else if (os.startsWith("windows")) {
+      isWindows = true;
+      // no suffix since library extension will be different
+    } else if (os.startsWith("sunos") || os.startsWith("solaris")) {
+      isSolaris = true;
+      suffix = "_sol";
+    }
+
     String arch = System.getProperty("os.arch");
     is64Bit = arch.contains("64") || arch.contains("s390x");
-    String os = System.getProperty("os.name").toLowerCase(Locale.ENGLISH);
-    isSolaris = os.contains("sunos") || os.contains("solaris");
 
     logger = Logger.getLogger(Native.class);
 
-    String library = isSolaris() ? "native_sol" : "native";
+    String library = "native" + suffix;
     if (is64Bit()) {
       library += "64";
     }
@@ -105,6 +119,14 @@ public final class Native {
     return is64Bit;
   }
 
+  public static boolean isMac() {
+    return isMac;
+  }
+
+  public static boolean isWindows() {
+    return isWindows;
+  }
+
   public static boolean isSolaris() {
     return isSolaris;
   }
@@ -114,6 +136,9 @@ public final class Native {
   }
 
   public static native boolean arrayEquals(long leftAddress,
+      long rightAddress, long size);
+
+  public static native int compareString(long leftAddress,
       long rightAddress, long size);
 
   public static native boolean containsString(long sourceAddress,
