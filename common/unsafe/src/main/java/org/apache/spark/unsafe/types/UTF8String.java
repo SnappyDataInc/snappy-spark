@@ -300,7 +300,7 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
     // noinspection ConstantConditions
     if (base == null && len >= Native.MIN_JNI_SIZE &&
         substring.base == null && Native.isLoaded()) {
-      return Native.containsString(offset, offset + len, substring.offset, slen);
+      return Native.containsString(offset, len, substring.offset, slen);
     }
 
     final byte first = substring.getByte(0);

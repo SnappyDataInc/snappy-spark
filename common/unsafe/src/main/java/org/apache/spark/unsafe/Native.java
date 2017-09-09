@@ -142,5 +142,5 @@ public final class Native {
       long rightAddress, long size);
 
   public static native boolean containsString(long sourceAddress,
-      long sourceEnd, long destAddress, int destSize);
+      int sourceSize, long destAddress, int destSize);
 }
