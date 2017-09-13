@@ -19,9 +19,9 @@ description = 'Kafka 0.10 Source for Structured Streaming'
 
 dependencies {
   compile project(subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion)
-  provided project(subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion)
-  provided project(subprojectBase + 'snappy-spark-catalyst_' + scalaBinaryVersion)
-  provided project(subprojectBase + 'snappy-spark-sql_' + scalaBinaryVersion)
+  compile project(subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion)
+  compile project(subprojectBase + 'snappy-spark-catalyst_' + scalaBinaryVersion)
+  compile project(subprojectBase + 'snappy-spark-sql_' + scalaBinaryVersion)
 
   compile group: 'org.apache.kafka', name: 'kafka-clients', version: '0.10.0.1'
 

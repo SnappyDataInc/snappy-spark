@@ -118,16 +118,16 @@ def getStackTrace(def t) {
   return sw.toString()
 }
 
-task cleanSparkScalaTest << {
+task cleanSparkScalaTest { doLast {
   def workingDir = "${testResultsBase}/scalatest"
   delete workingDir
   file(workingDir).mkdirs()
-}
-task cleanSparkJUnit << {
+} }
+task cleanSparkJUnit { doLast {
   def workingDir = "${testResultsBase}/junit"
   delete workingDir
   file(workingDir).mkdirs()
-}
+} }
 
 subprojects {
   apply plugin: 'scala'
@@ -169,10 +169,6 @@ subprojects {
     }
 
     configurations {
-      provided {
-        description 'a dependency that is provided externally at runtime'
-        visible true
-      }
       testOutput {
         extendsFrom testCompile
         description 'a dependency that exposes test artifacts'
@@ -187,21 +183,6 @@ subprojects {
     artifacts {
       testOutput packageTests
     }
-
-    idea {
-      module {
-        scopes.PROVIDED.plus += [ configurations.provided ]
-      }
-    }
-
-    sourceSets {
-      main.compileClasspath += configurations.provided
-      main.runtimeClasspath -= configurations.provided
-      test.compileClasspath += configurations.provided
-      test.runtimeClasspath += configurations.provided
-    }
-
-    javadoc.classpath += configurations.provided
   }
   task packageScalaDocs(type: Jar, dependsOn: scaladoc) {
     classifier = 'javadoc'

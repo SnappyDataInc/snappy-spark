@@ -16,7 +16,7 @@
  */
 
 plugins {
-  id 'com.github.johnrengelman.shadow' version '1.2.3'
+  id 'com.github.johnrengelman.shadow' version '2.0.1'
 }
 
 description = 'Spark Project YARN Shuffle Service'
@@ -26,7 +26,7 @@ dependencies {
   compile project(subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion)
 
   compile group: 'io.netty', name: 'netty-all', version: nettyAllVersion
-  provided (group: 'org.apache.hadoop', name: 'hadoop-client', version: hadoopVersion) {
+  compileOnly (group: 'org.apache.hadoop', name: 'hadoop-client', version: hadoopVersion) {
     exclude(group: 'asm', module: 'asm')
     exclude(group: 'org.codehaus.jackson', module: 'jackson-core-asl')
     exclude(group: 'org.codehaus.jackson', module: 'jackson-mapper-asl')

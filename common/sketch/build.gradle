@@ -26,5 +26,5 @@ dependencies {
 tasks.withType(JavaCompile) {
   options.compilerArgs << '-XDignore.symbol.file'
   options.fork = true
-  options.forkOptions.executable = "${System.properties['java.home']}/../bin/javac"
+  options.forkOptions.javaHome = file(System.properties['java.home'])
 }
