@@ -281,7 +281,7 @@ subprojects {
   }
   test {
     jvmArgs '-Xss4096k'
-    maxParallelForks = (2 * Runtime.getRuntime().availableProcessors())
+    maxParallelForks = Runtime.getRuntime().availableProcessors()
     systemProperties 'spark.master.rest.enabled': 'false',
       'test.src.tables': 'src'
 
