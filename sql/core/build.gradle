@@ -36,7 +36,9 @@ dependencies {
   testCompile group: 'com.h2database', name: 'h2', version: '1.4.183'
   testCompile group: 'mysql', name: 'mysql-connector-java', version: '5.1.38'
   testCompile group: 'org.postgresql', name: 'postgresql', version: '9.4.1207.jre7'
-  testCompile group: 'org.apache.parquet', name: 'parquet-avro', version: parquetVersion
+  testCompile(group: 'org.apache.parquet', name: 'parquet-avro', version: parquetVersion) {
+    exclude(group: 'it.unimi.dsi', module: 'fastutil')
+  }
 }
 
 // fix scala+java test ordering
