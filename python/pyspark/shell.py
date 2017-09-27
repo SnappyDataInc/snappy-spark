@@ -49,7 +49,7 @@ import py4j
 import pyspark
 from pyspark.context import SparkContext
 from pyspark.sql import SparkSession, SQLContext
-from pyspark.sql.snappy import SnappyContext
+from pyspark.sql.snappy import SnappySession
 from pyspark.storagelevel import StorageLevel
 
 if os.environ.get("SPARK_EXECUTOR_URI"):
@@ -58,24 +58,24 @@ if os.environ.get("SPARK_EXECUTOR_URI"):
 SparkContext._ensure_initialized()
 
 try:
-    sqlContext = SnappyContext(sc)
-except py4j.protocol.Py4JError:
     # Try to access HiveConf, it will raise exception if Hive is not added
     SparkContext._jvm.org.apache.hadoop.hive.conf.HiveConf()
-    spark = SparkSession.builder\
-        .enableHiveSupport()\
+    spark = SparkSession.builder \
+        .enableHiveSupport() \
         .getOrCreate()
 except py4j.protocol.Py4JError:
     spark = SparkSession.builder.getOrCreate()
 except TypeError:
     spark = SparkSession.builder.getOrCreate()
 
+
 sc = spark.sparkContext
-sql = spark.sql
+snSession = SnappySession(sc)
+sql = snSession.sql
 atexit.register(lambda: sc.stop())
 
 # for compatibility
-sqlContext = spark._wrapped
+sqlContext = snSession._wrapped
 sqlCtx = sqlContext
 
 print("""Welcome to
