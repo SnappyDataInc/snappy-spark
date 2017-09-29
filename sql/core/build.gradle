@@ -23,12 +23,12 @@ dependencies {
   compile project(subprojectBase + 'snappy-spark-sketch_' + scalaBinaryVersion)
   compile project(subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion)
 
-  compile group: 'com.univocity', name: 'univocity-parsers', version: '2.2.1'
+  compile group: 'com.univocity', name: 'univocity-parsers', version: '2.5.6'
   compile group: 'org.apache.parquet', name: 'parquet-column', version: parquetVersion
   compile group: 'org.apache.parquet', name: 'parquet-hadoop', version: parquetVersion
   compile group: 'org.eclipse.jetty', name: 'jetty-servlet', version: jettyVersion
-  compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: fasterXmlVersion
-  compile group: 'org.apache.xbean', name: 'xbean-asm5-shaded', version: '4.4'
+  compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: jacksonVersion
+  compile group: 'org.apache.xbean', name: 'xbean-asm5-shaded', version: xbeanAsm5Version
 
   testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile project(path: subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion, configuration: 'testOutput')

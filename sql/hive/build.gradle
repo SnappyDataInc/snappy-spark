@@ -21,9 +21,13 @@ dependencies {
   compile project(subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion)
   compile project(subprojectBase + 'snappy-spark-sql_' + scalaBinaryVersion)
 
-  compile group: 'com.twitter', name: 'parquet-hadoop-bundle', version: hiveParquetVersion
+  // compile group: 'com.twitter', name: 'parquet-hadoop-bundle', version: hiveParquetVersion
   compile group: 'org.apache.derby', name: 'derby', version: derbyVersion
+  compile group: 'org.datanucleus', name: 'datanucleus-core', version: '3.2.15'
+  compile group: 'org.datanucleus', name: 'datanucleus-api-jdo', version: '3.2.8'
+  compile group: 'org.datanucleus', name: 'datanucleus-rdbms', version: '3.2.13'
   compile(group: 'org.spark-project.hive', name: 'hive-exec', version: hiveVersion) {
+    exclude(group: 'org.datanucleus', module: 'datanucleus-core')
     exclude(group: 'org.spark-project.hive', module: 'hive-metastore')
     exclude(group: 'org.spark-project.hive', module: 'hive-shims')
     exclude(group: 'org.spark-project.hive', module: 'hive-ant')
@@ -49,6 +53,9 @@ dependencies {
     exclude(group: 'org.json', module: 'json')
   }
   compile(group: 'org.spark-project.hive', name: 'hive-metastore', version: hiveVersion) {
+    exclude(group: 'org.datanucleus', module: 'datanucleus-core')
+    exclude(group: 'org.datanucleus', module: 'datanucleus-api-jdo')
+    exclude(group: 'org.datanucleus', module: 'datanucleus-rdbms')
     exclude(group: 'org.spark-project.hive', module: 'hive-serde')
     exclude(group: 'org.spark-project.hive', module: 'hive-shims')
     exclude(group: 'org.apache.thrift', module: 'libfb303')
@@ -95,12 +102,11 @@ dependencies {
     exclude(group: 'org.pentaho', module: 'pentaho-aggdesigner-algorithm')
   }
   compile group: 'org.apache.httpcomponents', name: 'httpclient', version: httpClientVersion
-  compile group: 'org.codehaus.jackson', name: 'jackson-mapper-asl', version: '1.9.13'
+  compile group: 'org.codehaus.jackson', name: 'jackson-mapper-asl', version: jackson1Version
   compile group: 'commons-codec', name: 'commons-codec', version: commonsCodecVersion
-  compile group: 'joda-time', name: 'joda-time', version: '2.9.4'
-  compile group: 'org.jodd', name: 'jodd-core', version: '3.5.2'
+  compile group: 'joda-time', name: 'joda-time', version: '2.9.9'
+  compile group: 'org.jodd', name: 'jodd-core', version: '3.9.1'
   compile group: 'com.google.code.findbugs', name: 'jsr305', version: jsr305Version
-  compile group: 'org.datanucleus', name: 'datanucleus-core', version: '3.2.10'
   compile(group: 'org.apache.thrift', name: 'libthrift', version: thriftVersion) {
     exclude(group: 'org.slf4j', module: 'slf4j-api')
   }

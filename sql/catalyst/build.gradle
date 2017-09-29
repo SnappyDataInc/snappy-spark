@@ -25,7 +25,7 @@ dependencies {
   compile project(subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion)
 
   compile group: 'org.scala-lang', name: 'scala-compiler', version: scalaVersion
-  compile group: 'org.scala-lang.modules', name: 'scala-parser-combinators_' + scalaBinaryVersion, version: '1.0.4'
+  // compile group: 'org.scala-lang.modules', name: 'scala-parser-combinators_' + scalaBinaryVersion, version: '1.0.4'
   compile group: 'org.codehaus.janino', name: 'janino', version: '3.0.7'
   compile group: 'org.codehaus.janino', name: 'commons-compiler', version: '3.0.7'
   compile group: 'org.antlr', name: 'antlr4-runtime', version: antlrVersion
