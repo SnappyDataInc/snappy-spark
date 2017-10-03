@@ -17,12 +17,12 @@
 
 package org.apache.spark.sql
 
-import java.beans.BeanInfo
+import java.beans.{BeanInfo, Introspector}
+import java.lang.reflect.Method
 import java.util.Properties
 
 import scala.collection.immutable
 import scala.reflect.runtime.universe.TypeTag
-
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.annotation.{DeveloperApi, Experimental, InterfaceStability}
 import org.apache.spark.api.java.{JavaRDD, JavaSparkContext}
@@ -32,7 +32,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.command.ShowTablesCommand
-import org.apache.spark.sql.internal.{SessionState, SharedState, SQLConf}
+import org.apache.spark.sql.internal.{SQLConf, SessionState, SharedState}
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.streaming.{DataStreamReader, StreamingQueryManager}
 import org.apache.spark.sql.types._
@@ -1094,15 +1094,17 @@ object SQLContext {
     SparkSession.clearActiveSession()
   }
 
+
   /**
-   * Converts an iterator of Java Beans to InternalRow using the provided
-   * bean info & schema. This is not related to the singleton, but is a static
-   * method for internal use.
-   */
+    * Converts an iterator of Java Beans to InternalRow using the provided
+    * bean info & schema. This is not related to the singleton, but is a static
+    * method for internal use.
+    */
+  /*
   private[sql] def beansToRows(
-        data: Iterator[_],
-        beanInfo: BeanInfo,
-        attrs: Seq[AttributeReference]): Iterator[InternalRow] = {
+                                data: Iterator[_],
+                                beanInfo: BeanInfo,
+                                attrs: Seq[AttributeReference]): Iterator[InternalRow] = {
     val extractors =
       beanInfo.getPropertyDescriptors.filterNot(_.getName == "class").map(_.getReadMethod)
     val methodsToConverts = extractors.zip(attrs).map { case (e, attr) =>
@@ -1112,6 +1114,44 @@ object SQLContext {
       new GenericInternalRow(
         methodsToConverts.map { case (e, convert) => convert(e.invoke(element)) }
       ): InternalRow
+    }
+  }
+  */
+
+  /**
+   * Converts an iterator of Java Beans to InternalRow using the provided
+   * bean info & schema. This is not related to the singleton, but is a static
+   * method for internal use.
+   */
+  private[sql] def beansToRows(
+        data: Iterator[_],
+        beanInfo: BeanInfo,
+        attrs: Seq[AttributeReference]): Iterator[InternalRow] = {
+    val converters = getExtractors(beanInfo, attrs)
+    data.map{ element =>
+      new GenericInternalRow(
+        converters.map { case (e, convert) => convert(e.invoke(element)) }
+      ): InternalRow
+    }
+  }
+
+  def getExtractors( beanInfo: BeanInfo,
+                     attrs: Seq[AttributeReference]): Array[(Method, Any => Any)] = {
+   val methodsToConverts = beanInfo.getPropertyDescriptors.filterNot(_.getName == "class").
+      map(_.getReadMethod).zip(attrs)
+    methodsToConverts.map { case (e, attr) =>
+      attr.dataType match {
+        case strct: StructType => {
+          val extractors = getExtractors(Introspector.getBeanInfo(e.getReturnType),
+            strct.map(sf => AttributeReference(sf.name, sf.dataType, sf.nullable)()))
+          (e, (x: Any) => {
+            val arr = Array.tabulate[Any](strct.length)(i =>
+              extractors(i)._2(extractors(i)._1.invoke(x)))
+            new GenericInternalRow(arr)
+          })
+        }
+        case _ => (e, CatalystTypeConverters.createToCatalystConverter(attr.dataType))
+      }
     }
   }
 
