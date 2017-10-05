@@ -70,12 +70,12 @@ except TypeError:
 
 
 sc = spark.sparkContext
-snSession = SnappySession(sc)
-sql = snSession.sql
+snappy = SnappySession(sc)
+sql = snappy.sql
 atexit.register(lambda: sc.stop())
 
 # for compatibility
-sqlContext = snSession._wrapped
+sqlContext = snappy._wrapped
 sqlCtx = sqlContext
 
 print("""Welcome to
@@ -90,6 +90,7 @@ print("Using Python version %s (%s, %s)" % (
     platform.python_build()[0],
     platform.python_build()[1]))
 print("SparkSession available as 'spark'.")
+print("SnappySession available as 'snappy'.")
 
 # The ./bin/pyspark script stores the old PYTHONSTARTUP value in OLD_PYTHONSTARTUP,
 # which allows us to execute the user's PYTHONSTARTUP file:
