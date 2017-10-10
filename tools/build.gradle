@@ -18,7 +18,7 @@
 description = 'Spark Project Tools'
 
 dependencies {
-  compile group: 'org.scala-lang', name: 'scala-compiler', version: scalaCompilerVersion
+  compile group: 'org.scala-lang', name: 'scala-compiler', version: scalaVersion
   compile group: 'org.clapper', name: 'classutil_' + scalaBinaryVersion, version: '1.0.12'
 }
 
