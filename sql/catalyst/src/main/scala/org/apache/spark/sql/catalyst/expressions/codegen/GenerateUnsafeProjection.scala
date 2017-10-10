@@ -250,8 +250,6 @@ object GenerateUnsafeProjection extends CodeGenerator[Seq[Expression], UnsafePro
           final int $tmpCursor = $bufferHolder.cursor;
           ${writeArrayToBuffer(ctx, element, et, bufferHolder)}
           $arrayWriter.setOffsetAndSize($index, $tmpCursor, $bufferHolder.cursor - $tmpCursor);
-          $arrayWriter.setOffset($index);
-          ${writeArrayToBuffer(ctx, element, et, bufferHolder)}
         """
 
       case m @ MapType(kt, vt, _) =>

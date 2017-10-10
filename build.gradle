@@ -78,7 +78,7 @@ allprojects {
     snappyJavaVersion = '1.1.4'
     lz4Version = '1.4.0'
     lzfVersion = '1.0.4'
-    parquetVersion = '1.8.1'
+    parquetVersion = '1.8.2'
     // hiveParquetVersion = '1.6.0'
     metricsVersion = '3.2.5'
     thriftVersion = '0.9.3'

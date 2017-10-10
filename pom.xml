@@ -134,7 +134,7 @@
     <!-- Version used for internal directory structure -->
     <hive.version.short>1.2.1</hive.version.short>
     <derby.version>10.12.1.1</derby.version>
-    <parquet.version>1.8.1</parquet.version>
+    <parquet.version>1.8.2</parquet.version>
     <hive.parquet.version>1.6.0</hive.parquet.version>
     <jetty.version>9.2.16.v20160414</jetty.version>
     <javaxservlet.version>3.1.0</javaxservlet.version>
@@ -179,7 +179,7 @@
     <antlr4.version>4.5.3</antlr4.version>
     <jpam.version>1.1</jpam.version>
     <selenium.version>2.52.0</selenium.version>
-    <paranamer.version>2.8</paranamer.version>
+    <paranamer.version>2.6</paranamer.version>
     <maven-antrun.version>1.8</maven-antrun.version>
     <commons-crypto.version>1.0.0</commons-crypto.version>
 
@@ -558,12 +558,12 @@
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty-all</artifactId>
-        <version>4.0.42.Final</version>
+        <version>4.0.43.Final</version>
       </dependency>
       <dependency>
         <groupId>io.netty</groupId>
         <artifactId>netty</artifactId>
-        <version>3.8.0.Final</version>
+        <version>3.9.9.Final</version>
       </dependency>
       <dependency>
         <groupId>org.apache.derby</groupId>
@@ -661,7 +661,7 @@
       <dependency>
         <groupId>org.scalanlp</groupId>
         <artifactId>breeze_${scala.binary.version}</artifactId>
-        <version>0.12</version>
+        <version>0.13.1</version>
         <exclusions>
           <!-- This is included as a compile-scoped dependency by jtransforms, which is
                a dependency of breeze. -->
@@ -1868,6 +1868,11 @@
             <artifactId>jna</artifactId>
           </exclusion>
         </exclusions>
+      </dependency>
+      <dependency>
+        <groupId>com.thoughtworks.paranamer</groupId>
+        <artifactId>paranamer</artifactId>
+        <version>${paranamer.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
