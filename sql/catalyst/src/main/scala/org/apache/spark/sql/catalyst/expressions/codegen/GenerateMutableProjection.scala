@@ -51,7 +51,6 @@ object GenerateMutableProjection extends CodeGenerator[Seq[Expression], MutableP
   private def create(
       expressions: Seq[Expression],
       useSubexprElimination: Boolean): MutableProjection = {
-    org.apache.spark.sql.execution.BufferedRowIterator.shouldStop
     val ctx = newCodeGenContext()
     val (validExpr, index) = expressions.zipWithIndex.filter {
       case (NoOp, _) => false
