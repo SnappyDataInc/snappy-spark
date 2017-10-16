@@ -27,7 +27,7 @@ abstract class BaseMutableProjection extends MutableProjection
  * Generates byte code that produces a [[InternalRow]] object that can update itself based on a new
  * input [[InternalRow]] for a fixed set of [[Expression Expressions]].
  * It exposes a `target` method, which is used to set the row that will be updated.
- * The internal [[InternalRow]] object created internally is used only when `target` is not used.
+ * The internal [[org.apache.spark.sql.catalyst.InternalRow]] object created internally is used only when `target` is not used.
  */
 object GenerateMutableProjection extends CodeGenerator[Seq[Expression], MutableProjection] {
 
@@ -51,6 +51,7 @@ object GenerateMutableProjection extends CodeGenerator[Seq[Expression], MutableP
   private def create(
       expressions: Seq[Expression],
       useSubexprElimination: Boolean): MutableProjection = {
+    org.apache.spark.sql.execution.BufferedRowIterator.shouldStop
     val ctx = newCodeGenContext()
     val (validExpr, index) = expressions.zipWithIndex.filter {
       case (NoOp, _) => false

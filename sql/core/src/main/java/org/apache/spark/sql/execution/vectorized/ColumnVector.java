@@ -102,6 +102,16 @@ public abstract class ColumnVector implements AutoCloseable {
       throw new UnsupportedOperationException();
     }
 
+    @Override
+    public void update(int i, Object o) {
+      throw new UnsupportedOperationException();	
+    }
+
+    @Override
+    public void setNullAt(int i) {
+      throw new UnsupportedOperationException();	
+    }      
+
     // TODO: this is extremely expensive.
     @Override
     public Object[] array() {
@@ -174,6 +184,7 @@ public abstract class ColumnVector implements AutoCloseable {
       }
       return list;
     }
+
 
     @Override
     public boolean isNullAt(int ordinal) { return data.isNullAt(offset + ordinal); }

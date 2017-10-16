@@ -18,6 +18,7 @@
 package org.apache.spark.sql.catalyst
 
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.util.{ArrayData, MapData}
 import org.apache.spark.sql.types.{DataType, Decimal, StructType}
 
 /**
@@ -33,6 +34,10 @@ abstract class InternalRow extends SpecializedGetters with Serializable {
 
   def setNullAt(i: Int): Unit
 
+  /**
+   * Updates the value at column `i`. Note that after updating, the given value will be kept in this
+   * row, and the caller side should guarantee that this value won't be changed afterwards.
+   */
   def update(i: Int, value: Any): Unit
 
   // default implementation (slow)
@@ -58,7 +63,15 @@ abstract class InternalRow extends SpecializedGetters with Serializable {
   def copy(): InternalRow
 
   /** Returns true if there are any NULL values in this row. */
-  def anyNull: Boolean
+  def anyNull: Boolean = {
+    val len = numFields
+    var i = 0
+    while (i < len) {
+      if (isNullAt(i)) { return true }
+      i += 1
+    }
+    false
+  }
 
   /* ---------------------- utility methods for Scala ---------------------- */
 
@@ -94,4 +107,14 @@ object InternalRow {
 
   /** Returns an empty [[InternalRow]]. */
   val empty = apply()
+
+  /**
+   * Copies the given value if it's string/struct/array/map type.
+   */
+  def copyValue(value: Any): Any = value match {
+    case v: InternalRow => v.copy()
+    case v: ArrayData => v.copy()
+    case v: MapData => v.copy()
+    case _ => value
+  }
 }
