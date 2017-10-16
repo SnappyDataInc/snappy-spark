@@ -37,6 +37,9 @@ dependencies {
   testCompile group: 'mysql', name: 'mysql-connector-java', version: '5.1.38'
   testCompile group: 'org.postgresql', name: 'postgresql', version: '9.4.1207.jre7'
   testCompile group: 'org.apache.parquet', name: 'parquet-avro', version: parquetVersion
+  // different avro version from parent (1.7.7) since parquet-avro depends on 1.8.x
+  // which is used by ParquetAvroCompatibilitySuite that uses AvroParquetWriter
+  testCompile group: 'org.apache.avro', name: 'avro', version: '1.8.1'
 }
 
 // fix scala+java test ordering
