@@ -60,8 +60,8 @@ SparkContext._ensure_initialized()
 try:
     # Try to access HiveConf, it will raise exception if Hive is not added
     SparkContext._jvm.org.apache.hadoop.hive.conf.HiveConf()
-    spark = SparkSession.builder \
-        .enableHiveSupport() \
+    spark = SparkSession.builder\
+        .enableHiveSupport()\
         .getOrCreate()
 except py4j.protocol.Py4JError:
     spark = SparkSession.builder.getOrCreate()
