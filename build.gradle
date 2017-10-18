@@ -72,7 +72,7 @@ allprojects {
     httpCoreVersion = '4.4.4'
     fasterXmlVersion = '2.6.5'
     snappyJavaVersion = '1.1.2.6'
-    parquetVersion = '1.8.1'
+    parquetVersion = '1.8.2'
     hiveParquetVersion = '1.6.0'
     metricsVersion = '3.1.2'
     thriftVersion = '0.9.3'
