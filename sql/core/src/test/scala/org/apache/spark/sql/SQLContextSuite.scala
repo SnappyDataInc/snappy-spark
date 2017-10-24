@@ -154,7 +154,6 @@ class SQLContextSuite extends SparkFunSuite with SharedSparkContext {
         new Address("12320 sw horizon," + k, 97007*k))
     }
 
-    // create a pair RDD from the collection
     val personsRDD = sc.parallelize(personsCollection)
     val df = sqlContext.createDataFrame(personsRDD, classOf[Person])
     val rows = df.collect()
@@ -182,6 +181,74 @@ class SQLContextSuite extends SparkFunSuite with SharedSparkContext {
     }
     assert(keys.isEmpty)
   }
+
+  test("Bug SNAP-2061 Nested POJO object not handled when creating DataSet from RDD") {
+    val sqlContext = SQLContext.getOrCreate(sc)
+    val spark = sqlContext.sparkSession
+
+    val personsCollection = for (k <- 1 until 100) yield {
+      new Person(k, "name_" + k, k.toLong, k.toShort,
+        k.toByte, k.toDouble *86.7543d, k.toFloat *7.31f,
+        true, Array.fill[Byte](k)(k.toByte),
+        new java.sql.Date(7836*k*1000), new Timestamp(7896*k*1000),
+        new Address("12320 sw horizon," + k, 97007*k))
+    }
+
+
+
+    val personsDataSet = spark.createDataset(personsCollection)(Encoders.bean(classOf[Person]))
+
+    var rows = personsDataSet.toDF().collect()
+    val keys = scala.collection.mutable.Set[Int]()
+    for(i <- 1 until 100) keys.add(i)
+    for(row <- rows) {
+      assert(keys.remove(row.getAs[Int]("id")))
+      val k = row.getAs[Int]("id")
+      assert("name_" + k == row.getAs[String]("name"), "String field match not as expected")
+      assert(k.toLong == row.getAs[Long]("longField"), "Long field match not as expected")
+      assert(k.toShort == row.getAs[Short]("shortField"), "Short field match not as expected")
+      assert(k.toByte == row.getAs[Byte]("byteField"), "Byte field match not as expected")
+      assert(k*86.7543d == row.getAs[Double]("doubleField"), "Double field match not as expected")
+      assert(k*7.31f == row.getAs[Float]("floatField"), "Float field match not as expected")
+      assert(true == row.getAs[Boolean]("booleanField"), "Boolean field match not as expected")
+      assertResult(Array.fill[Byte](k)(k.toByte).seq) {row.getAs[Array[Byte]]("binaryField").toSeq}
+      assert(new java.sql.Date(7836*k*1000).toString == row.getAs[Date]("datee").toString,
+        "Date field match not as expected")
+      assert(new Timestamp(7896*k*1000).toString == row.getAs[Timestamp]("timeeStamp").toString,
+        "TimeStamp field match not as expected")
+      val addressStruct = row.getAs[Row]("address")
+      assert("12320 sw horizon," + k == addressStruct.getAs[String]("street"),
+        "struct field match not as expected")
+      assert(97007*k == addressStruct.getAs[Int]("zip"), "struct field match not as expected")
+    }
+    assert(keys.isEmpty)
+    personsDataSet.createOrReplaceTempView("tempPersonsTable")
+    rows = spark.sql("select * from tempPersonsTable").collect()
+    for(i <- 1 until 100) keys.add(i)
+    for(row <- rows) {
+      assert(keys.remove(row.getAs[Int]("id")))
+      val k = row.getAs[Int]("id")
+      assert("name_" + k == row.getAs[String]("name"), "String field match not as expected")
+      assert(k.toLong == row.getAs[Long]("longField"), "Long field match not as expected")
+      assert(k.toShort == row.getAs[Short]("shortField"), "Short field match not as expected")
+      assert(k.toByte == row.getAs[Byte]("byteField"), "Byte field match not as expected")
+      assert(k*86.7543d == row.getAs[Double]("doubleField"), "Double field match not as expected")
+      assert(k*7.31f == row.getAs[Float]("floatField"), "Float field match not as expected")
+      assert(true == row.getAs[Boolean]("booleanField"), "Boolean field match not as expected")
+      assertResult(Array.fill[Byte](k)(k.toByte).seq) {row.getAs[Array[Byte]]("binaryField").toSeq}
+      assert(new java.sql.Date(7836*k*1000).toString == row.getAs[Date]("datee").toString,
+        "Date field match not as expected")
+      assert(new Timestamp(7896*k*1000).toString == row.getAs[Timestamp]("timeeStamp").toString,
+        "TimeStamp field match not as expected")
+      val addressStruct = row.getAs[Row]("address")
+      assert("12320 sw horizon," + k == addressStruct.getAs[String]("street"),
+        "struct field match not as expected")
+      assert(97007*k == addressStruct.getAs[Int]("zip"), "struct field match not as expected")
+    }
+    assert(keys.isEmpty)
+    sqlContext.dropTempTable("tempPersonsTable")
+  }
+
 
 }
 

@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql
 
-import java.beans.{BeanInfo, Introspector}
+import java.beans.{BeanInfo, Introspector, PropertyDescriptor}
 import java.lang.reflect.Method
 import java.util.Properties
 
@@ -1094,30 +1094,6 @@ object SQLContext {
     SparkSession.clearActiveSession()
   }
 
-
-  /**
-    * Converts an iterator of Java Beans to InternalRow using the provided
-    * bean info & schema. This is not related to the singleton, but is a static
-    * method for internal use.
-    */
-  /*
-  private[sql] def beansToRows(
-                                data: Iterator[_],
-                                beanInfo: BeanInfo,
-                                attrs: Seq[AttributeReference]): Iterator[InternalRow] = {
-    val extractors =
-      beanInfo.getPropertyDescriptors.filterNot(_.getName == "class").map(_.getReadMethod)
-    val methodsToConverts = extractors.zip(attrs).map { case (e, attr) =>
-      (e, CatalystTypeConverters.createToCatalystConverter(attr.dataType))
-    }
-    data.map{ element =>
-      new GenericInternalRow(
-        methodsToConverts.map { case (e, convert) => convert(e.invoke(element)) }
-      ): InternalRow
-    }
-  }
-  */
-
   /**
    * Converts an iterator of Java Beans to InternalRow using the provided
    * bean info & schema. This is not related to the singleton, but is a static
@@ -1130,27 +1106,27 @@ object SQLContext {
     val converters = getExtractors(beanInfo, attrs)
     data.map{ element =>
       new GenericInternalRow(
-        converters.map { case (e, convert) => convert(e.invoke(element)) }
+        converters.map { case (e, convert) => convert(e.getReadMethod.invoke(element)) }
       ): InternalRow
     }
   }
 
   def getExtractors( beanInfo: BeanInfo,
-                     attrs: Seq[AttributeReference]): Array[(Method, Any => Any)] = {
-   val methodsToConverts = beanInfo.getPropertyDescriptors.filterNot(_.getName == "class").
-      map(_.getReadMethod).zip(attrs)
-    methodsToConverts.map { case (e, attr) =>
+                     attrs: Seq[AttributeReference]): Array[(PropertyDescriptor, Any => Any)] = {
+   val methodsToConverts = beanInfo.getPropertyDescriptors.
+     filterNot(_.getName == "class").zip(attrs)
+   methodsToConverts.map { case (desc, attr) =>
       attr.dataType match {
         case strct: StructType => {
-          val extractors = getExtractors(Introspector.getBeanInfo(e.getReturnType),
-            strct.map(sf => AttributeReference(sf.name, sf.dataType, sf.nullable)()))
-          (e, (x: Any) => {
+          val extractors = getExtractors(Introspector.getBeanInfo(desc.getPropertyType),
+            strct.toAttributes)
+          (desc, (x: Any) => {
             val arr = Array.tabulate[Any](strct.length)(i =>
-              extractors(i)._2(extractors(i)._1.invoke(x)))
+              extractors(i)._2(extractors(i)._1.getReadMethod.invoke(x)))
             new GenericInternalRow(arr)
           })
         }
-        case _ => (e, CatalystTypeConverters.createToCatalystConverter(attr.dataType))
+        case _ => (desc, CatalystTypeConverters.createToCatalystConverter(attr.dataType))
       }
     }
   }
