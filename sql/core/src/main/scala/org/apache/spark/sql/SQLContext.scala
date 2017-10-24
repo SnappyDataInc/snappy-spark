@@ -17,6 +17,7 @@
 
 package org.apache.spark.sql
 
+import java.beans.PropertyDescriptor
 import java.util.Properties
 
 import scala.collection.immutable
@@ -30,6 +31,7 @@ import org.apache.spark.internal.config.ConfigEntry
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst._
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.util.ArrayData
 import org.apache.spark.sql.execution.command.ShowTablesCommand
 import org.apache.spark.sql.internal.{SessionState, SharedState, SQLConf}
 import org.apache.spark.sql.sources.BaseRelation
@@ -1098,15 +1100,46 @@ object SQLContext {
       data: Iterator[_],
       beanClass: Class[_],
       attrs: Seq[AttributeReference]): Iterator[InternalRow] = {
-    val extractors =
-      JavaTypeInference.getJavaBeanReadableProperties(beanClass).map(_.getReadMethod)
-    val methodsToConverts = extractors.zip(attrs).map { case (e, attr) =>
-      (e, CatalystTypeConverters.createToCatalystConverter(attr.dataType))
-    }
+    val converters = getExtractors(beanClass, attrs)
     data.map { element =>
       new GenericInternalRow(
-        methodsToConverts.map { case (e, convert) => convert(e.invoke(element)) }
+        converters.map { case (e, convert) => convert(e.getReadMethod.invoke(element)) }
       ): InternalRow
+    }
+  }
+
+  def getExtractors(
+      beanClass: Class[_],
+      attrs: Seq[AttributeReference]): Array[(PropertyDescriptor, Any => Any)] = {
+    val methodsToConverts = JavaTypeInference.getJavaBeanReadableProperties(beanClass).zip(attrs)
+    methodsToConverts.map { case (desc, attr) =>
+      attr.dataType match {
+        case struct: StructType =>
+          val extractors = getExtractors(desc.getPropertyType, struct.toAttributes)
+          (desc, (x: Any) => {
+            val arr = Array.tabulate[Any](struct.length)(i =>
+              extractors(i)._2(extractors(i)._1.getReadMethod.invoke(x)))
+            InternalRow(arr: _*)
+          })
+        case ArrayType(st: StructType, _) =>
+          val extractors = getExtractors(desc.getPropertyType.getComponentType, st.toAttributes)
+          (desc, (x: Any) => {
+            if (x != null) {
+              ArrayData.toArrayData(x.asInstanceOf[Array[_]].map(elem => {
+                if (elem != null) {
+                  val arr = Array.tabulate[Any](st.length)(i =>
+                    extractors(i)._2(extractors(i)._1.getReadMethod.invoke(elem)))
+                  InternalRow(arr: _*)
+                } else {
+                  null
+                }
+              }))
+            } else {
+              null
+            }
+          })
+        case _ => (desc, CatalystTypeConverters.createToCatalystConverter(attr.dataType))
+      }
     }
   }
 
