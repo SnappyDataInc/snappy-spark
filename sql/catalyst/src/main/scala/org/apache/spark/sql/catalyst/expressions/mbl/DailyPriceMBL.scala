@@ -97,7 +97,7 @@ case class DailyPriceMBL(children: Seq[Expression]) extends DeclarativeAggregate
             ))
         }),
         points),
-      If(crawlTime < 0, crawlTime - (crawlTime + 28800) % 86400, crawlTime)
+      If(dayStartTime < 0, crawlTime - (crawlTime + 28800) % 86400, dayStartTime)
     )
   }
 

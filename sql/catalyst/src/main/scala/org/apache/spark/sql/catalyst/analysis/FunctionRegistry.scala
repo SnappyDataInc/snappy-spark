@@ -24,7 +24,7 @@ import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
-import org.apache.spark.sql.catalyst.expressions.mbl.{DailyPriceMBL, PriceMBL, SumMBL, UnsafePriceMBL}
+import org.apache.spark.sql.catalyst.expressions.mbl._
 import org.apache.spark.sql.catalyst.expressions.xml._
 import org.apache.spark.sql.catalyst.util.StringKeyHashMap
 import org.apache.spark.sql.types._
@@ -418,6 +418,7 @@ object FunctionRegistry {
     expression[UnsafePriceMBL]("builtin_unsafe_price_mbl"),
     expression[PriceMBL]("builtin_price_mbl"),
     expression[DailyPriceMBL]("builtin_daily_price_mbl"),
+    expression[RoomStatusMBL]("builtin_room_status_mbl"),
     expression[SumMBL]("builtin_sum_mbl"),
 
     // Cast aliases (SPARK-16730)
