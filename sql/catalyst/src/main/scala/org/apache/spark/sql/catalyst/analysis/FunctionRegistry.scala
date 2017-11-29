@@ -20,11 +20,11 @@ package org.apache.spark.sql.catalyst.analysis
 import scala.language.existentials
 import scala.reflect.ClassTag
 import scala.util.{Failure, Success, Try}
-
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
+import org.apache.spark.sql.catalyst.expressions.mbl.{DailyPriceMBL, PriceMBL, SumMBL, UnsafePriceMBL}
 import org.apache.spark.sql.catalyst.expressions.xml._
 import org.apache.spark.sql.catalyst.util.StringKeyHashMap
 import org.apache.spark.sql.types._
@@ -413,6 +413,12 @@ object FunctionRegistry {
     expression[BitwiseNot]("~"),
     expression[BitwiseOr]("|"),
     expression[BitwiseXor]("^"),
+
+    // mbl
+    expression[UnsafePriceMBL]("builtin_unsafe_price_mbl"),
+    expression[PriceMBL]("builtin_price_mbl"),
+    expression[DailyPriceMBL]("builtin_daily_price_mbl"),
+    expression[SumMBL]("builtin_sum_mbl"),
 
     // Cast aliases (SPARK-16730)
     castAlias("boolean", BooleanType),
