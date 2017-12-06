@@ -20,10 +20,11 @@ import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
 import com.esotericsoftware.kryo.io.{Input, Output}
 import java.sql.SQLException
 
-import org.apache.spark.{broadcast, Partition, SparkContext, TaskContext}
+import org.apache.spark.{Partition, SparkContext, TaskContext, broadcast}
 import org.apache.spark.rdd.{RDD, ZippedPartitionsBaseRDD, ZippedPartitionsPartition}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.expressions.codegen.CodeGenerator.logInfo
 import org.apache.spark.sql.catalyst.expressions.codegen._
 import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
@@ -356,7 +357,11 @@ case class WholeStageCodegenExec(child: SparkPlan) extends UnaryExecNode with Co
   }
 
   override def doExecute(): RDD[InternalRow] = {
+    val startTime = System.nanoTime()
     val (ctx, cleanedSource) = doCodeGen()
+    val endTime = System.nanoTime()
+    def timeMs: Double = (endTime - startTime).toDouble / 1000000
+    logInfo(s"WholeStageCodegenExec doCodeGen in $timeMs ms")
     // try to compile and fallback if it failed
     try {
       CodeGenerator.compile(cleanedSource)
