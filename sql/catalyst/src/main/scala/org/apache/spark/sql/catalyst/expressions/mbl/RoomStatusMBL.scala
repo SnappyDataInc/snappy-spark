@@ -31,14 +31,17 @@ case class RoomStatusMBL(children: Seq[Expression]) extends DeclarativeAggregate
 
   private lazy val numRowsReal: Int = (endTimeInSeconds - startTimeInSeconds) / stepInSeconds
 
+  // 行数，设置个最大值，防止OOM
   private lazy val numRows: Int = if (numRowsReal > 1024) 1024 else numRowsReal
 
+  // 每行3个点
   private lazy val numPoints: Int = numRows * 3
 
+  // 最后两个元素用于填充startTimeInSeconds和stepInSeconds
   private lazy val arraySize = numPoints + 2
 
-  private lazy val pointSpan: Int =
-    if (durationInSeconds <= stepInSeconds) 1 else durationInSeconds / stepInSeconds
+  // 如果duartion小于step，说明有部分点是不需要计算的，目前看并不需要，所以没有实现该逻辑，小于和等于是相同的结果
+  private lazy val pointSpan: Int = if (durationInSeconds <= stepInSeconds) 1 else durationInSeconds / stepInSeconds
 
   override def inputTypes: Seq[DataType] = Seq(
     IntegerType,  // 1: startTimeInSeconds
@@ -53,7 +56,7 @@ case class RoomStatusMBL(children: Seq[Expression]) extends DeclarativeAggregate
 
   override def dataType: DataType = ArrayType(IntegerType)
 
-  override def nullable: Boolean = false
+  override def nullable: Boolean= false
 
   private lazy val points = AttributeReference("points", ArrayType(IntegerType), nullable = false)()
 
@@ -61,6 +64,8 @@ case class RoomStatusMBL(children: Seq[Expression]) extends DeclarativeAggregate
 
   override lazy val initialValues: Seq[Expression] = Seq({
     val i = UDFUtils.makeIter("mbl_rs_initalValues")
+
+    // 数组长度=点数+2，最后两个元素用于填充startTimeInSeconds和stepInSeconds
     GenerateArray(Literal(arraySize), i, Literal(-1, IntegerType))
   })
 
@@ -90,12 +95,10 @@ case class RoomStatusMBL(children: Seq[Expression]) extends DeclarativeAggregate
               If(prevWeight < 0,
                 SetArrayItem(points, pointIndex0, weight),
                 /* ignore */ Literal(true)),
-              If(compRoomStatus > prevCompRoomStatus,
-                SetArrayItem(points, pointIndex1, If(compRoomStatus >= 1, 1, 0)),
-                /* ignore */ Literal(true)),
-              If(mtRoomStatus > prevMtRoomStatus,
-                SetArrayItem(points, pointIndex2, If(mtRoomStatus >= 1, 1, 0)),
-                /* ignore */ Literal(true)),
+              SetArrayItem(points, pointIndex1,
+                If(compRoomStatus === 0 && !(prevCompRoomStatus === 1), 1, 0)),
+              SetArrayItem(points, pointIndex2,
+                If(mtRoomStatus === 0 && !(prevMtRoomStatus === 1), 1, 0)),
               points),
             Else(
               points
