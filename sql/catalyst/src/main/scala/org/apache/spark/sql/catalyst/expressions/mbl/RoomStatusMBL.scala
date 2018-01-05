@@ -56,7 +56,7 @@ case class RoomStatusMBL(children: Seq[Expression]) extends DeclarativeAggregate
 
   override def dataType: DataType = ArrayType(IntegerType)
 
-  override def nullable: Boolean= false
+  override def nullable: Boolean = false
 
   private lazy val points = AttributeReference("points", ArrayType(IntegerType), nullable = false)()
 
@@ -79,26 +79,34 @@ case class RoomStatusMBL(children: Seq[Expression]) extends DeclarativeAggregate
     Seq(
       DoSeq(
         ForStep(pointSpan, 1, i, {
-          val pointIndex0 = ((crawlTime - startTimeInSeconds) / stepInSeconds + i) * 3
-          val pointIndex1 = pointIndex0 + 1
-          val pointIndex2 = pointIndex0 + 2
+          val weightIndex = ((crawlTime - startTimeInSeconds) / stepInSeconds + i) * 3
+          val compScoreIndex = weightIndex + 1
+          val mtScoreIndex = weightIndex + 2
 
-          val prevWeight = GetArrayItemWithSize(arraySize, points, pointIndex0)
-          val prevCompRoomStatus = GetArrayItemWithSize(arraySize, points, pointIndex1)
-          val prevMtRoomStatus = GetArrayItemWithSize(arraySize, points, pointIndex2)
+          val prevWeight = GetArrayItemWithSize(arraySize, points, weightIndex)
+          val compRoomStatusScore = GetArrayItemWithSize(arraySize, points, compScoreIndex)
+          val mtRoomStatusScore = GetArrayItemWithSize(arraySize, points, mtScoreIndex)
 
           val weight = children(7)
 
-          If(pointIndex0 < numPoints &&
+          // 此处略拧巴：
+          // SumMBL比较数值大小，但是房态是0表示有房，非0表示无房，所以是0比1大，但是为了
+          // 复用SumMBL，需要把这俩倒过来：
+          //  房态=0时，设置分数为1；
+          //  房态!=0时，设置分数为0.
+
+          If(weightIndex < numPoints &&
             crawlTime > startTimeInSeconds && crawlTime < endTimeInSeconds,
             Then(
               If(prevWeight < 0,
-                SetArrayItem(points, pointIndex0, weight),
+                SetArrayItem(points, weightIndex, weight),
                 /* ignore */ Literal(true)),
-              SetArrayItem(points, pointIndex1,
-                If(compRoomStatus === 0 && !(prevCompRoomStatus === 1), 1, 0)),
-              SetArrayItem(points, pointIndex2,
-                If(mtRoomStatus === 0 && !(prevMtRoomStatus === 1), 1, 0)),
+              SetArrayItem(points, compScoreIndex,
+                /* 遇到compRoomStatus===0，表示有房 */
+                If(compRoomStatusScore === 1 || compRoomStatus === 0, 1, 0)),
+              SetArrayItem(points, mtScoreIndex,
+                /* 遇到mtRoomStatus===0，表示有房 */
+                If(mtRoomStatusScore === 1 || mtRoomStatus === 0, 1, 0)),
               points),
             Else(
               points
