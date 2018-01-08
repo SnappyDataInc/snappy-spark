@@ -631,7 +631,7 @@ case class WholeStageCodegenExec(child: SparkPlan)(val codegenStageId: Int)
     val durationMs = longMetric("pipelineTime")
 
     val rdds = child.asInstanceOf[CodegenSupport].inputRDDs()
-    new WholeStageCodegenRDD(sqlContext.sparkContext, cleanedSource,
+    WholeStageCodegenRDD(sqlContext.sparkContext, cleanedSource,
       references, durationMs, rdds)
   }
 
@@ -842,7 +842,7 @@ case class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAnd
     output.writeInt(source.hashCode())
     output.writeString(source.body)
     val comment = source.comment
-    output.writeVarInt(comment.size, true)
+    output.writeInt(comment.size)
     for ((k, v) <- comment) {
       output.writeString(k)
       output.writeString(v)
@@ -870,7 +870,7 @@ case class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAnd
 
     val hash = input.readInt()
     val body = input.readString()
-    var commentSize = input.readVarInt(true)
+    var commentSize = input.readInt()
     val comment = new scala.collection.mutable.HashMap[String, String]()
     while (commentSize > 0) {
       val k = input.readString()
