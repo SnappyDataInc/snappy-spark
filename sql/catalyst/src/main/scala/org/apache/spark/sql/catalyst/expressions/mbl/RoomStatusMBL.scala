@@ -94,6 +94,7 @@ case class RoomStatusMBL(children: Seq[Expression]) extends DeclarativeAggregate
           // 复用SumMBL，需要把这俩倒过来：
           //  房态=0时，设置分数为1；
           //  房态!=0时，设置分数为0.
+          // SumMBL中，beat为mt<comp；lose为mt>comp,所以设置如果有房，则设置成小的值；如果没有房，设置成较大的值
 
           If(weightIndex < numPoints &&
             crawlTime > startTimeInSeconds && crawlTime < endTimeInSeconds,
@@ -103,10 +104,10 @@ case class RoomStatusMBL(children: Seq[Expression]) extends DeclarativeAggregate
                 /* ignore */ Literal(true)),
               SetArrayItem(points, compScoreIndex,
                 /* 遇到compRoomStatus===0，表示有房 */
-                If(compRoomStatusScore === 1 || compRoomStatus === 0, 1, 0)),
+                If(compRoomStatusScore === 0 || compRoomStatus === 0, 0, 1)),
               SetArrayItem(points, mtScoreIndex,
                 /* 遇到mtRoomStatus===0，表示有房 */
-                If(mtRoomStatusScore === 1 || mtRoomStatus === 0, 1, 0)),
+                If(mtRoomStatusScore === 0 || mtRoomStatus === 0, 0, 1)),
               points),
             Else(
               points
