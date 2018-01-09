@@ -32,6 +32,7 @@ import com.google.common.base.Objects;
 import org.junit.*;
 import org.junit.rules.ExpectedException;
 
+import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.*;
 import org.apache.spark.sql.*;
@@ -816,6 +817,208 @@ public class JavaDatasetSuite implements Serializable {
     }
   }
 
+  public static class NestedBean implements Serializable {
+
+    private int id;
+    private String name;
+    private long longField;
+    private short shortField;
+    private byte byteField;
+    private double doubleField;
+    private float floatField;
+    private boolean booleanField;
+    private byte[] binaryField;
+    private Date date;
+    private Timestamp timestamp;
+    private Address address;
+
+    public NestedBean(int id, String name, long longValue, short shortValue, byte byteValue,
+        double doubleValue, float floatValue, boolean booleanValue, byte[] binaryValue,
+        Date date, Timestamp timestamp, Address address) {
+      this.id = id;
+      this.name = name;
+      this.longField = longValue;
+      this.shortField = shortValue;
+      this.byteField = byteValue;
+      this.doubleField = doubleValue;
+      this.floatField = floatValue;
+      this.booleanField = booleanValue;
+      this.binaryField = binaryValue;
+      this.date = date;
+      this.timestamp = timestamp;
+      this.address = address;
+    }
+
+    public NestedBean() {
+      this(0, null, 0, (short)0, (byte)0, 0d, 0f, false, null, null, null, null);
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public int getId() {
+      return id;
+    }
+
+    public long getLongField() {
+      return longField;
+    }
+
+    public short getShortField() {
+      return shortField;
+    }
+
+    public byte getByteField() {
+      return byteField;
+    }
+
+    public double getDoubleField() {
+      return doubleField;
+    }
+
+    public float getFloatField() {
+      return floatField;
+    }
+
+    public boolean getBooleanField() {
+      return booleanField;
+    }
+
+    public byte[] getBinaryField() {
+      return binaryField;
+    }
+
+    public Date getDate() {
+      return date;
+    }
+
+    public Timestamp getTimestamp() {
+      return timestamp;
+    }
+
+    public Address getAddress() {
+      return address;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public void setId(int id) {
+      this.id = id;
+    }
+
+    public void setLongField(long longValue) {
+      this.longField = longValue;
+    }
+
+    public void setShortField(short shortValue) {
+      this.shortField = shortValue;
+    }
+
+    public void setByteField(byte byteValue) {
+      this.byteField = byteValue;
+    }
+
+    public void setDoubleField(double doubleValue) {
+      this.doubleField = doubleValue;
+    }
+
+    public void setFloatField(float floatValue) {
+      this.floatField = floatValue;
+    }
+
+    public void setBooleanField(boolean booleanValue) {
+      this.booleanField = booleanValue;
+    }
+
+    public void setBinaryField(byte[] binaryValue) {
+      this.binaryField = binaryValue;
+    }
+
+    public void setDate(Date date) {
+      this.date = date;
+    }
+
+    public void setTimestamp(Timestamp timestamp) {
+      this.timestamp = timestamp;
+    }
+
+    public void setAddress(Address address) {
+      this.address = address;
+    }
+  }
+
+  public static class Address implements Serializable {
+
+    private String street;
+    private int zip;
+
+    public Address(String street, int zip) {
+      this.street = street;
+      this.zip = zip;
+    }
+
+    public Address() {
+      this(null, -1);
+    }
+
+    public String getStreet() {
+      return this.street;
+    }
+
+    public int getZip() {
+      return this.zip;
+    }
+
+    public void setStreet(String street) {
+      this.street = street;
+    }
+
+    public void setZip(int zip) {
+      this.zip = zip;
+    }
+  }
+
+  private void checkNestedBeansResult(List<Row> rows) {
+    Set<Integer> keys = new HashSet<>(100);
+    for (int k = 1; k <= 100; k++) {
+      keys.add(k);
+    }
+    for (Row row : rows) {
+      int k = row.<Integer>getAs("id");
+      Assert.assertTrue(keys.remove(k));
+      Assert.assertEquals("String field match not as expected",
+          "name_" + k, row.<String>getAs("name"));
+      Assert.assertEquals("Long field match not as expected",
+          (long)k, row.<Long>getAs("longField").longValue());
+      Assert.assertEquals("Short field match not as expected",
+          (short)k, row.<Short>getAs("shortField").shortValue());
+      Assert.assertEquals("Byte field match not as expected",
+          (byte)k, row.<Byte>getAs("byteField").byteValue());
+      Assert.assertEquals("Double field match not as expected",
+          k * 86.7543d, row.<Double>getAs("doubleField"), 0.0);
+      Assert.assertEquals("Float field match not as expected",
+          k * 7.31f, row.<Float>getAs("floatField"), 0.0f);
+      Assert.assertTrue("Boolean field match not as expected",
+          row.<Boolean>getAs("booleanField"));
+      byte[] bytesValue = new byte[k];
+      Arrays.fill(bytesValue, (byte)k);
+      Assert.assertTrue(Arrays.equals(bytesValue, row.getAs("binaryField")));
+      Assert.assertEquals("Date field match not as expected",
+          new Date(7836L * k * 1000L).toString(), row.<Date>getAs("date").toString());
+      Assert.assertEquals("TimeStamp field match not as expected",
+          new Timestamp(7896L * k * 1000L), row.<Timestamp>getAs("timestamp"));
+      Row addressStruct = row.getAs("address");
+      Assert.assertEquals("Address.street field match not as expected",
+          "12320 sw horizon," + k, addressStruct.<String>getAs("street"));
+      Assert.assertEquals("Address.zip field match not as expected",
+          97007 * k, addressStruct.<Integer>getAs("zip").intValue());
+    }
+    assert (keys.isEmpty());
+  }
+
   @Rule
   public transient ExpectedException nullabilityCheck = ExpectedException.none();
 
@@ -1328,5 +1531,82 @@ public class JavaDatasetSuite implements Serializable {
         }
       }, encoder);
     Assert.assertEquals(beans, ds2.collectAsList());
+  }
+
+  // see SNAP-2061
+  @Test
+  public void testNestedBeanInDataFrameFromRDD() {
+    List<NestedBean> beanCollection = new ArrayList<>(100);
+    for (int k = 1; k <= 100; k++) {
+      byte[] bytesValue = new byte[k];
+      Arrays.fill(bytesValue, (byte)k);
+      beanCollection.add(new NestedBean(k, "name_" + k, (long)k, (short)k,
+          (byte)k, (double)k * 86.7543d, (float)k * 7.31f, true,
+          bytesValue, new Date(7836L * k * 1000L), new Timestamp(7896L * k * 1000L),
+          new Address("12320 sw horizon," + k, 97007 * k)));
+    }
+
+    JavaRDD<NestedBean> beanRDD = jsc.parallelize(beanCollection);
+    Dataset<Row> df = spark.createDataFrame(beanRDD, NestedBean.class);
+    checkNestedBeansResult(df.collectAsList());
+  }
+
+  // see SNAP-2061
+  @Test
+  public void testNestedBeanInDatasetFromRDD() {
+    List<NestedBean> beansCollection = new ArrayList<>(100);
+    for (int k = 1; k <= 100; k++) {
+      byte[] bytesValue = new byte[k];
+      Arrays.fill(bytesValue, (byte)k);
+      beansCollection.add(new NestedBean(k, "name_" + k, (long)k, (short)k,
+          (byte)k, (double)k * 86.7543d, (float)k * 7.31f, true,
+          bytesValue, new Date(7836L * k * 1000L), new Timestamp(7896L * k * 1000L),
+          new Address("12320 sw horizon," + k, 97007 * k)));
+    }
+
+    Encoder<NestedBean> encoder = Encoders.bean(NestedBean.class);
+    Dataset<NestedBean> beansDataset = spark.createDataset(beansCollection, encoder);
+    checkNestedBeansResult(beansDataset.toDF().collectAsList());
+
+    beansDataset.createOrReplaceTempView("tempPersonsTable");
+    List<Row> rows = spark.sql("select * from tempPersonsTable").collectAsList();
+    checkNestedBeansResult(rows);
+
+    // test Dataset.as[Person]
+    JavaRDD<Row> beansRDD = jsc.parallelize(rows);
+    Dataset<Row> beansDF = spark.createDataFrame(beansRDD, beansDataset.schema());
+    List<NestedBean> results = beansDF.as(encoder).collectAsList();
+    Set<Integer> keys = new HashSet<>(100);
+    for (int k = 1; k <= 100; k++) {
+      keys.add(k);
+    }
+    for (NestedBean bean : results) {
+      int k = bean.getId();
+      Assert.assertTrue(keys.remove(k));
+      Assert.assertEquals("String field match not as expected", "name_" + k, bean.getName());
+      Assert.assertEquals("Long field match not as expected", k, bean.getLongField());
+      Assert.assertEquals("Short field match not as expected", (short)k, bean.getShortField());
+      Assert.assertEquals("Byte field match not as expected", (byte)k, bean.getByteField());
+      Assert.assertEquals("Double field match not as expected",
+          k * 86.7543d, bean.getDoubleField(), 0.0);
+      Assert.assertEquals("Float field match not as expected",
+          k * 7.31f, bean.getFloatField(), 0.0f);
+      Assert.assertTrue("Boolean field match not as expected", bean.getBooleanField());
+      byte[] bytesValue = new byte[k];
+      Arrays.fill(bytesValue, (byte)k);
+      Assert.assertTrue(Arrays.equals(bytesValue, bean.getBinaryField()));
+      Assert.assertEquals("Date field match not as expected",
+          new Date(7836L * k * 1000L).toString(), bean.getDate().toString());
+      Assert.assertEquals("TimeStamp field match not as expected",
+          new Timestamp(7896L * k * 1000L), bean.getTimestamp());
+      Address address = bean.getAddress();
+      Assert.assertEquals("Address.street field match not as expected",
+          "12320 sw horizon," + k, address.getStreet());
+      Assert.assertEquals("Address.zip field match not as expected",
+          97007 * k, address.getZip());
+    }
+    assert (keys.isEmpty());
+
+    spark.catalog().dropTempView("tempPersonsTable");
   }
 }

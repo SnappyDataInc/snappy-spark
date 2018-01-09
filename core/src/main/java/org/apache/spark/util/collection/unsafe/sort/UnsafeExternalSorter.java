@@ -31,6 +31,7 @@ import org.apache.spark.TaskContext;
 import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.memory.MemoryConsumer;
 import org.apache.spark.memory.TaskMemoryManager;
+import org.apache.spark.memory.TooLargePageException;
 import org.apache.spark.serializer.SerializerManager;
 import org.apache.spark.storage.BlockManager;
 import org.apache.spark.unsafe.Platform;
@@ -61,12 +62,10 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
   private final int fileBufferSizeBytes;
 
   /**
-   * Force this sorter to spill when there are this many elements in memory. The default value is
-   * 1024 * 1024 * 1024 / 2 which allows the maximum size of the pointer array to be 8G.
+   * Force this sorter to spill when there are this many elements in memory.
    */
-  public static final long DEFAULT_NUM_ELEMENTS_FOR_SPILL_THRESHOLD = 1024 * 1024 * 1024 / 2;
+  private final int numElementsForSpillThreshold;
 
-  private final long numElementsForSpillThreshold;
   /**
    * Memory pages that hold the records being sorted. The pages in this list are freed when
    * spilling, although in principle we could recycle these pages across spills (on the other hand,
@@ -96,11 +95,11 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
       PrefixComparator prefixComparator,
       int initialSize,
       long pageSizeBytes,
-      long numElementsForSpillThreshold,
+      int numElementsForSpillThreshold,
       UnsafeInMemorySorter inMemorySorter) throws IOException {
     UnsafeExternalSorter sorter = new UnsafeExternalSorter(taskMemoryManager, blockManager,
       serializerManager, taskContext, recordComparator, prefixComparator, initialSize,
-        numElementsForSpillThreshold, pageSizeBytes, inMemorySorter, false /* ignored */);
+      pageSizeBytes, numElementsForSpillThreshold, inMemorySorter, false /* ignored */);
     sorter.spill(Long.MAX_VALUE, sorter);
     // The external sorter will be used to insert records, in-memory sorter is not needed.
     sorter.inMemSorter = null;
@@ -116,7 +115,7 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
       PrefixComparator prefixComparator,
       int initialSize,
       long pageSizeBytes,
-      long numElementsForSpillThreshold,
+      int numElementsForSpillThreshold,
       boolean canUseRadixSort) {
     return new UnsafeExternalSorter(taskMemoryManager, blockManager, serializerManager,
       taskContext, recordComparator, prefixComparator, initialSize, pageSizeBytes,
@@ -132,7 +131,7 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
       PrefixComparator prefixComparator,
       int initialSize,
       long pageSizeBytes,
-      long numElementsForSpillThreshold,
+      int numElementsForSpillThreshold,
       @Nullable UnsafeInMemorySorter existingInMemorySorter,
       boolean canUseRadixSort) {
     super(taskMemoryManager, pageSizeBytes, taskMemoryManager.getTungstenMemoryMode());
@@ -355,6 +354,10 @@ public final class UnsafeExternalSorter extends MemoryConsumer {
       try {
         // could trigger spilling
         array = allocateArray(used / 8 * 2);
+      } catch (TooLargePageException e) {
+        // The pointer array is too big to fix in a single page, spill.
+        spill();
+        return;
       } catch (OutOfMemoryError e) {
         // should have trigger spilling
         if (!inMemSorter.hasSpaceForAnotherRecord()) {

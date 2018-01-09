@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql
 
-import java.beans.BeanInfo
+import java.beans.{BeanInfo, Introspector, PropertyDescriptor}
 import java.util.Properties
 
 import scala.collection.immutable
@@ -1103,15 +1103,31 @@ object SQLContext {
         data: Iterator[_],
         beanInfo: BeanInfo,
         attrs: Seq[AttributeReference]): Iterator[InternalRow] = {
-    val extractors =
-      beanInfo.getPropertyDescriptors.filterNot(_.getName == "class").map(_.getReadMethod)
-    val methodsToConverts = extractors.zip(attrs).map { case (e, attr) =>
-      (e, CatalystTypeConverters.createToCatalystConverter(attr.dataType))
-    }
+    val converters = getExtractors(beanInfo, attrs)
     data.map{ element =>
       new GenericInternalRow(
-        methodsToConverts.map { case (e, convert) => convert(e.invoke(element)) }
+        converters.map { case (e, convert) => convert(e.getReadMethod.invoke(element)) }
       ): InternalRow
+    }
+  }
+
+  def getExtractors(
+      beanInfo: BeanInfo,
+      attrs: Seq[AttributeReference]): Array[(PropertyDescriptor, Any => Any)] = {
+    val methodsToConverts = beanInfo.getPropertyDescriptors.
+        filterNot(_.getName == "class").zip(attrs)
+    methodsToConverts.map { case (desc, attr) =>
+      attr.dataType match {
+        case struct: StructType =>
+          val extractors = getExtractors(Introspector.getBeanInfo(desc.getPropertyType),
+            struct.toAttributes)
+          (desc, (x: Any) => {
+            val arr = Array.tabulate[Any](struct.length)(i =>
+              extractors(i)._2(extractors(i)._1.getReadMethod.invoke(x)))
+            new GenericInternalRow(arr)
+          })
+        case _ => (desc, CatalystTypeConverters.createToCatalystConverter(attr.dataType))
+      }
     }
   }
 

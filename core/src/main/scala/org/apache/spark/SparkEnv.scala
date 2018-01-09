@@ -374,13 +374,15 @@ object SparkEnv extends Logging {
     val memoryManager: MemoryManager =
       conf.getOption("spark.memory.manager").filterNot(_.equalsIgnoreCase("default"))
           .map(Utils.classForName(_)
-          .getConstructor(classOf[SparkConf], classOf[Int])
-          .newInstance(conf, Int.box(numUsableCores))
-          .asInstanceOf[MemoryManager]).getOrElse {
-        if (useLegacyMemoryManager) {
-          new StaticMemoryManager(conf, numUsableCores)
-        } else {
-          UnifiedMemoryManager(conf, numUsableCores)
+              .getConstructor(classOf[SparkConf], classOf[Int])
+              .newInstance(conf, Int.box(numUsableCores))
+              .asInstanceOf[MemoryManager]).getOrElse {
+        SparkSnappyUtils.loadSnappyManager(conf, numUsableCores).getOrElse {
+          if (useLegacyMemoryManager) {
+            new StaticMemoryManager(conf, numUsableCores)
+          } else {
+            UnifiedMemoryManager(conf, numUsableCores)
+          }
         }
       }
 

@@ -21,6 +21,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 import org.apache.spark.{SparkEnv, TaskContext}
+import org.apache.spark.internal.config
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
@@ -346,8 +347,8 @@ case class WindowExec(
                   null,
                   1024,
                   SparkEnv.get.memoryManager.pageSizeBytes,
-                  SparkEnv.get.conf.getLong("spark.shuffle.spill.numElementsForceSpillThreshold",
-                    UnsafeExternalSorter.DEFAULT_NUM_ELEMENTS_FOR_SPILL_THRESHOLD),
+                  SparkEnv.get.conf.get(
+                    config.SHUFFLE_SPILL_NUM_ELEMENTS_FORCE_SPILL_THRESHOLD),
                   false)
                 rows.foreach { r =>
                   sorter.insertRecord(r.getBaseObject, r.getBaseOffset, r.getSizeInBytes, 0, false)

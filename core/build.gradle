@@ -47,11 +47,11 @@ dependencies {
   compile(group: 'com.twitter', name: 'chill-java', version: chillVersion) {
     exclude(group: 'com.esotericsoftware', module: 'kryo-shaded')
   }
-  compile group: 'org.apache.xbean', name: 'xbean-asm5-shaded', version: '4.4'
+  compile group: 'org.apache.xbean', name: 'xbean-asm5-shaded', version: xbeanAsm5Version
   // explicitly include netty from akka-remote to not let zookeeper override it
   compile group: 'io.netty', name: 'netty', version: nettyVersion
   // explicitly exclude old netty from zookeeper
-  compile(group: 'org.apache.zookeeper', name: 'zookeeper', version: '3.4.8') {
+  compile(group: 'org.apache.zookeeper', name: 'zookeeper', version: '3.4.10') {
     exclude(group: 'org.jboss.netty', module: 'netty')
     exclude(group: 'jline', module: 'jline')
     exclude(group: 'org.slf4j', module: 'slf4j-api')
@@ -76,7 +76,8 @@ dependencies {
     exclude(group: 'com.sun.jersey.contribs')
     exclude(group: 'com.google.protobuf', module: 'protobuf-java')
   }
-  compile(group: 'net.java.dev.jets3t', name: 'jets3t', version: '0.9.3') {
+  compile(group: 'net.java.dev.jets3t', name: 'jets3t', version: '0.9.4') {
+    exclude(group: 'commons-codec', module: 'commons-codec')
     exclude(group: 'commons-logging', module: 'commons-logging')
   }
   compile(group: 'org.apache.curator', name: 'curator-recipes', version: curatorVersion) {
@@ -87,7 +88,6 @@ dependencies {
   }
 
   compile 'org.scala-lang:scalap:' + scalaVersion
-  compile group: 'org.apache.xbean', name: 'xbean-asm5-shaded' , version: '4.4'
   compile group: 'org.roaringbitmap', name: 'RoaringBitmap' , version: '0.5.11'
 
   compile group: 'org.eclipse.jetty', name: 'jetty-server', version: jettyVersion
@@ -111,18 +111,19 @@ dependencies {
   compile group: 'io.netty', name: 'netty-all', version: nettyAllVersion
   compile group: 'org.slf4j', name: 'jul-to-slf4j', version: slf4jVersion
   compile group: 'org.slf4j', name: 'jcl-over-slf4j', version: slf4jVersion
-  compile group: 'com.ning', name: 'compress-lzf', version: '1.0.3'
   compile group: 'org.xerial.snappy', name: 'snappy-java', version: snappyJavaVersion
-  compile group: 'net.jpountz.lz4', name: 'lz4', version: '1.3.0'
-  compile group: 'commons-net', name: 'commons-net', version: '2.2'
+  compile group: 'org.lz4', name: 'lz4-java', version: lz4Version
+  compile group: 'com.ning', name: 'compress-lzf', version: lzfVersion
+  compile group: 'commons-net', name: 'commons-net', version: '3.6'
   compile group: 'org.json4s', name: 'json4s-jackson_' + scalaBinaryVersion, version: '3.2.11'
   compile group: 'org.glassfish.jersey.core', name: 'jersey-client', version: jerseyVersion
   compile group: 'org.glassfish.jersey.core', name: 'jersey-common', version: jerseyVersion
   compile group: 'org.glassfish.jersey.core', name: 'jersey-server', version: jerseyVersion
   compile group: 'org.glassfish.jersey.containers', name: 'jersey-container-servlet', version: jerseyVersion
   compile group: 'org.glassfish.jersey.containers', name: 'jersey-container-servlet-core', version: jerseyVersion
+  compile group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: jerseyVersion
   compile group: 'io.netty', name: 'netty-all', version: nettyAllVersion
-  compile(group: 'com.clearspring.analytics', name: 'stream', version: '2.7.0') {
+  compile(group: 'com.clearspring.analytics', name: 'stream', version: '2.8.0') {
     exclude(group: 'it.unimi.dsi', module: 'fastutil')
   }
   compile(group: 'io.dropwizard.metrics', name: 'metrics-core', version: metricsVersion) {
@@ -141,13 +142,13 @@ dependencies {
     exclude(group: 'org.slf4j', module: 'slf4j-api')
     exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
   }
-  compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: fasterXmlVersion
-  compile(group: 'com.fasterxml.jackson.module', name: 'jackson-module-scala_' + scalaBinaryVersion, version: fasterXmlVersion) {
+  compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: jacksonVersion
+  compile(group: 'com.fasterxml.jackson.module', name: 'jackson-module-scala_' + scalaBinaryVersion, version: jacksonVersion) {
     exclude(group: 'com.google.guava', module: 'guava')
   }
   compile group: 'org.apache.ivy', name: 'ivy', version: '2.4.0'
   compile group: 'oro', name: 'oro', version: '2.0.8'
-  compile(group: 'net.razorvine', name: 'pyrolite', version: '4.13') {
+  compile(group: 'net.razorvine', name: 'pyrolite', version: '4.20') {
     exclude(group: 'net.razorvine', module: 'serpent')
   }
   compile group: 'net.sf.py4j', name: 'py4j', version: '0.10.4'
@@ -161,7 +162,7 @@ dependencies {
   testCompile(group: 'org.seleniumhq.selenium', name: 'selenium-htmlunit-driver', version: seleniumVersion) {
     exclude(group: 'com.google.guava', module: 'guava')
   }
-  testCompile group: 'xml-apis', name: 'xml-apis', version: '1.4.01'
+  testCompile group: 'xml-apis', name: 'xml-apis', version: '1.0.b2'
   testCompile group: 'org.hamcrest', name: 'hamcrest-core', version: '1.3'
   testCompile group: 'org.hamcrest', name: 'hamcrest-library', version: '1.3'
   testCompile(group: 'org.apache.curator', name: 'curator-test', version: curatorVersion) {

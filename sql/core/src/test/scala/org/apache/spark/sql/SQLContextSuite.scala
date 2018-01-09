@@ -141,5 +141,4 @@ class SQLContextSuite extends SparkFunSuite with SharedSparkContext {
         sqlContext.dropTempTable("tables")
     }
   }
-
 }

@@ -1684,6 +1684,7 @@ class SparkContext(config: SparkConf) extends Logging {
   @DeveloperApi
   def getAllPools: Seq[Schedulable] = {
     assertNotStopped()
+    if (taskScheduler eq null) return Seq.empty
     // TODO(xiajunluan): We should take nested pools into account
     taskScheduler.rootPool.schedulableQueue.asScala.toSeq
   }

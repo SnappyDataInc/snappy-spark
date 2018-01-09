@@ -15,6 +15,8 @@
  * LICENSE file.
  */
 
+import org.gradle.api.tasks.testing.logging.*
+
 apply plugin: 'wrapper'
 
 // TODO: profiles and allow changing hadoopVersion
@@ -25,7 +27,7 @@ buildscript {
     mavenCentral()
   }
   dependencies {
-    classpath 'io.snappydata:gradle-scalatest:0.13.1'
+    classpath 'io.snappydata:gradle-scalatest:0.16'
     classpath 'org.github.ngbinh.scalastyle:gradle-scalastyle-plugin_2.11:0.8.2'
   }
 }
@@ -54,38 +56,42 @@ allprojects {
     scalaVersion = scalaBinaryVersion + '.8'
     hadoopVersion = '2.7.3'
     protobufVersion = '2.6.1'
-    jerseyVersion = '2.22.2'
-    sunJerseyVersion = '1.19.1'
+    jerseyVersion = '2.26'
+    sunJerseyVersion = '1.19.4'
     jettyVersion = '9.2.22.v20170606'
     log4jVersion = '1.2.17'
-    slf4jVersion = '1.7.21'
+    slf4jVersion = '1.7.25'
     junitVersion = '4.12'
     javaxServletVersion = '3.1.0'
     guavaVersion = '14.0.1'
     hiveVersion = '1.2.1.spark2'
     chillVersion = '0.8.1'
-    kryoVersion = '4.0.0'
-    nettyVersion = '3.9.9.Final'
-    nettyAllVersion = '4.0.43.Final'
+    kryoVersion = '4.0.1'
+    nettyVersion = '3.10.6.Final'
+    nettyAllVersion = '4.0.51.Final'
     derbyVersion = '10.12.1.1'
-    httpClientVersion = '4.5.2'
-    httpCoreVersion = '4.4.4'
-    fasterXmlVersion = '2.6.5'
-    snappyJavaVersion = '1.1.2.6'
+    httpClientVersion = '4.5.3'
+    httpCoreVersion = '4.4.7'
+    jackson1Version = '1.9.13'
+    jacksonVersion = '2.9.1'
+    snappyJavaVersion = '1.1.4'
+    lz4Version = '1.4.0'
+    lzfVersion = '1.0.4'
     parquetVersion = '1.8.2'
-    hiveParquetVersion = '1.6.0'
-    metricsVersion = '3.1.2'
+    // hiveParquetVersion = '1.6.0'
+    metricsVersion = '3.2.5'
     thriftVersion = '0.9.3'
     antlrVersion = '4.5.3'
     jpamVersion = '1.1'
     seleniumVersion = '2.52.0'
     curatorVersion = '2.7.1'
     commonsCodecVersion = '1.10'
-    commonsLang3Version = '3.5'
-    commonsMath3Version = '3.4.1'
+    commonsLang3Version = '3.6'
+    commonsMath3Version = '3.6.1'
     avroVersion = '1.7.7'
-    jsr305Version = '3.0.1'
+    jsr305Version = '3.0.2'
     jlineVersion = '2.14.2'
+    xbeanAsm5Version = '4.5'
     scalatestVersion = '2.2.6'
     pegdownVersion = '1.6.0'
 
@@ -120,16 +126,16 @@ def getStackTrace(def t) {
   return sw.toString()
 }
 
-task cleanSparkScalaTest << {
+task cleanSparkScalaTest { doLast {
   def workingDir = "${testResultsBase}/scalatest"
   delete workingDir
   file(workingDir).mkdirs()
-}
-task cleanSparkJUnit << {
+} }
+task cleanSparkJUnit { doLast {
   def workingDir = "${testResultsBase}/junit"
   delete workingDir
   file(workingDir).mkdirs()
-}
+} }
 
 subprojects {
   apply plugin: 'scala'
@@ -171,10 +177,6 @@ subprojects {
     }
 
     configurations {
-      provided {
-        description 'a dependency that is provided externally at runtime'
-        visible true
-      }
       testOutput {
         extendsFrom testCompile
         description 'a dependency that exposes test artifacts'
@@ -189,21 +191,6 @@ subprojects {
     artifacts {
       testOutput packageTests
     }
-
-    idea {
-      module {
-        scopes.PROVIDED.plus += [ configurations.provided ]
-      }
-    }
-
-    sourceSets {
-      main.compileClasspath += configurations.provided
-      main.runtimeClasspath -= configurations.provided
-      test.compileClasspath += configurations.provided
-      test.runtimeClasspath += configurations.provided
-    }
-
-    javadoc.classpath += configurations.provided
   }
   task packageScalaDocs(type: Jar, dependsOn: scaladoc) {
     classifier = 'javadoc'
@@ -242,6 +229,9 @@ subprojects {
   if (rootProject.name == 'snappy-spark') {
     task scalaTest(type: Test) {
       actions = [ new com.github.maiflai.ScalaTestAction() ]
+
+      testLogging.exceptionFormat = TestExceptionFormat.FULL
+      testLogging.events = TestLogEvent.values() as Set
 
       List<String> suites = []
       extensions.add(com.github.maiflai.ScalaTestAction.SUITES, suites)

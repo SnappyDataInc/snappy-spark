@@ -49,7 +49,7 @@ import py4j
 import pyspark
 from pyspark.context import SparkContext
 from pyspark.sql import SparkSession, SQLContext
-from pyspark.sql.snappy import SnappyContext
+from pyspark.sql.snappy import SnappySession
 from pyspark.storagelevel import StorageLevel
 
 if os.environ.get("SPARK_EXECUTOR_URI"):
@@ -58,8 +58,6 @@ if os.environ.get("SPARK_EXECUTOR_URI"):
 SparkContext._ensure_initialized()
 
 try:
-    sqlContext = SnappyContext(sc)
-except py4j.protocol.Py4JError:
     # Try to access HiveConf, it will raise exception if Hive is not added
     SparkContext._jvm.org.apache.hadoop.hive.conf.HiveConf()
     spark = SparkSession.builder\
@@ -70,12 +68,14 @@ except py4j.protocol.Py4JError:
 except TypeError:
     spark = SparkSession.builder.getOrCreate()
 
+
 sc = spark.sparkContext
-sql = spark.sql
+snappy = SnappySession(sc)
+sql = snappy.sql
 atexit.register(lambda: sc.stop())
 
 # for compatibility
-sqlContext = spark._wrapped
+sqlContext = snappy._wrapped
 sqlCtx = sqlContext
 
 print("""Welcome to
@@ -90,6 +90,7 @@ print("Using Python version %s (%s, %s)" % (
     platform.python_build()[0],
     platform.python_build()[1]))
 print("SparkSession available as 'spark'.")
+print("SnappySession available as 'snappy'.")
 
 # The ./bin/pyspark script stores the old PYTHONSTARTUP value in OLD_PYTHONSTARTUP,
 # which allows us to execute the user's PYTHONSTARTUP file:

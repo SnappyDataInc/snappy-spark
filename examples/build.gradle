@@ -28,7 +28,7 @@ dependencies {
 
   compile group: 'org.apache.commons', name: 'commons-math3', version: commonsMath3Version
   compile group: 'com.github.scopt', name: 'scopt_' + scalaBinaryVersion, version: '3.3.0'
-  compile group: 'com.twitter', name: 'parquet-hadoop-bundle', version: hiveParquetVersion
+  // compile group: 'com.twitter', name: 'parquet-hadoop-bundle', version: hiveParquetVersion
 
   runtimeJar group: 'com.github.scopt', name: 'scopt_' + scalaBinaryVersion, version: '3.3.0'
 }

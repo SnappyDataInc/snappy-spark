@@ -19,16 +19,20 @@ description = 'Kafka 0.10 Source for Structured Streaming'
 
 dependencies {
   compile project(subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion)
-  provided project(subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion)
-  provided project(subprojectBase + 'snappy-spark-catalyst_' + scalaBinaryVersion)
-  provided project(subprojectBase + 'snappy-spark-sql_' + scalaBinaryVersion)
+  compile project(subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion)
+  compile project(subprojectBase + 'snappy-spark-catalyst_' + scalaBinaryVersion)
+  compile project(subprojectBase + 'snappy-spark-sql_' + scalaBinaryVersion)
 
-  compile group: 'org.apache.kafka', name: 'kafka-clients', version: '0.10.0.1'
+  compile(group: 'org.apache.kafka', name: 'kafka-clients', version: '0.10.0.1') {
+    exclude(group: 'net.jpountz.lz4', module: 'lz4')
+  }
 
   testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile project(path: subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile project(path: subprojectBase + 'snappy-spark-catalyst_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile project(path: subprojectBase + 'snappy-spark-sql_' + scalaBinaryVersion, configuration: 'testOutput')
-  testCompile group: 'org.apache.kafka', name: 'kafka_' + scalaBinaryVersion, version: '0.10.0.1'
+  testCompile(group: 'org.apache.kafka', name: 'kafka_' + scalaBinaryVersion, version: '0.10.0.1') {
+    exclude(group: 'net.jpountz.lz4', module: 'lz4')
+  }
   testCompile group: 'net.sf.jopt-simple', name: 'jopt-simple', version: '3.2'
 }

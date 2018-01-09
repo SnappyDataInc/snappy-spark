@@ -38,6 +38,7 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.TaskContext;
 import org.apache.spark.executor.ShuffleWriteMetrics;
 import org.apache.spark.executor.TaskMetrics;
+import org.apache.spark.internal.config.package$;
 import org.apache.spark.memory.TestMemoryManager;
 import org.apache.spark.memory.TaskMemoryManager;
 import org.apache.spark.serializer.JavaSerializer;
@@ -87,6 +88,9 @@ public class UnsafeExternalSorterSuite {
   protected boolean shouldUseRadixSort() { return false; }
 
   private final long pageSizeBytes = conf.getSizeAsBytes("spark.buffer.pageSize", "4m");
+
+  private final int spillThreshold =
+    (int) conf.get(package$.MODULE$.SHUFFLE_SPILL_NUM_ELEMENTS_FORCE_SPILL_THRESHOLD());
 
   @Before
   public void setUp() {
@@ -169,7 +173,7 @@ public class UnsafeExternalSorterSuite {
       prefixComparator,
       /* initialSize */ 1024,
       pageSizeBytes,
-      UnsafeExternalSorter.DEFAULT_NUM_ELEMENTS_FOR_SPILL_THRESHOLD,
+      spillThreshold,
       shouldUseRadixSort());
   }
 
@@ -393,7 +397,7 @@ public class UnsafeExternalSorterSuite {
       null,
       /* initialSize */ 1024,
       pageSizeBytes,
-      UnsafeExternalSorter.DEFAULT_NUM_ELEMENTS_FOR_SPILL_THRESHOLD,
+      spillThreshold,
       shouldUseRadixSort());
     long[] record = new long[100];
     int recordSize = record.length * 8;
@@ -430,7 +434,7 @@ public class UnsafeExternalSorterSuite {
       prefixComparator,
       1024,
       pageSizeBytes,
-      UnsafeExternalSorter.DEFAULT_NUM_ELEMENTS_FOR_SPILL_THRESHOLD,
+      spillThreshold,
       shouldUseRadixSort());
 
     // Peak memory should be monotonically increasing. More specifically, every time
@@ -466,4 +470,3 @@ public class UnsafeExternalSorterSuite {
   }
 
 }
-

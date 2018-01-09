@@ -36,14 +36,14 @@ private[memory] abstract class MemoryPool(lock: Object) {
    * Returns the current size of the pool, in bytes.
    */
   final def poolSize: Long = lock.synchronized {
-    _poolSize
+    return _poolSize
   }
 
   /**
    * Returns the amount of free memory in the pool, in bytes.
    */
   final def memoryFree: Long = lock.synchronized {
-    _poolSize - memoryUsed
+    return _poolSize - memoryUsed
   }
 
   /**

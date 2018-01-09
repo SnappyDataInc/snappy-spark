@@ -1019,9 +1019,12 @@ object CodeGenerator extends Logging {
    * automatically, in order to constrain its memory footprint.  Note that this cache does not use
    * weak keys/values and thus does not respond to memory pressure.
    */
-  private val cache = CacheBuilder.newBuilder()
-    .maximumSize(5000)
-    .build(
+  private lazy val cache = {
+    val env = SparkEnv.get
+    val cacheSize = if (env ne null) {
+      env.conf.getInt("spark.sql.codegen.cacheSize", 5000)
+    } else 5000
+    CacheBuilder.newBuilder().maximumSize(cacheSize).build(
       new CacheLoader[CodeAndComment, GeneratedClass]() {
         override def load(code: CodeAndComment): GeneratedClass = {
           val startTime = System.nanoTime()
@@ -1034,4 +1037,5 @@ object CodeGenerator extends Logging {
           result
         }
       })
+  }
 }
