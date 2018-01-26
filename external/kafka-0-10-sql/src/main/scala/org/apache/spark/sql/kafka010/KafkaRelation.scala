@@ -31,7 +31,7 @@ import org.apache.spark.sql.types.StructType
 import org.apache.spark.unsafe.types.UTF8String
 
 
-private[kafka010] class KafkaRelation(
+private /* [kafka010] */ class KafkaRelation(
     override val sqlContext: SQLContext,
     kafkaReader: KafkaOffsetReader,
     executorKafkaParams: ju.Map[String, Object],
@@ -53,6 +53,7 @@ private[kafka010] class KafkaRelation(
   override def schema: StructType = KafkaOffsetReader.kafkaSchema
 
   override def buildScan(): RDD[Row] = {
+    if (true) throw new NullPointerException("hmm")
     // Leverage the KafkaReader to obtain the relevant partition offsets
     val fromPartitionOffsets = getPartitionOffsets(startingOffsets)
     val untilPartitionOffsets = getPartitionOffsets(endingOffsets)

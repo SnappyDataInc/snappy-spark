@@ -43,7 +43,7 @@ import org.apache.spark.util.{ThreadUtils, UninterruptibleThread}
  *
  * Note: This class is not ThreadSafe
  */
-private[kafka010] class KafkaOffsetReader(
+private /* [kafka010] */ class KafkaOffsetReader(
     consumerStrategy: ConsumerStrategy,
     driverKafkaParams: ju.Map[String, Object],
     readerOptions: Map[String, String],
