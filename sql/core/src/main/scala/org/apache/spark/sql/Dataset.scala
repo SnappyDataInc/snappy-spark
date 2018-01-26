@@ -2690,8 +2690,8 @@ class Dataset[T] private[sql](
   @InterfaceStability.Evolving
   def writeStream: DataStreamWriter[T] = {
     if (!isStreaming) {
-      logicalPlan.failAnalysis(
-        "'writeStream' can be called only on streaming Dataset/DataFrame")
+//      logicalPlan.failAnalysis(
+//        "'writeStream' can be called only on streaming Dataset/DataFrame")
     }
     new DataStreamWriter[T](this)
   }

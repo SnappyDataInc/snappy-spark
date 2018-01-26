@@ -33,7 +33,7 @@ object UnsupportedOperationChecker {
   def checkForBatch(plan: LogicalPlan): Unit = {
     plan.foreachUp {
       case p if p.isStreaming =>
-        throwError("Queries with streaming sources must be executed with writeStream.start()")(p)
+        // throwError("Queries with streaming sources must be executed with writeStream.start()")(p)
 
       case _ =>
     }
@@ -42,8 +42,8 @@ object UnsupportedOperationChecker {
   def checkForStreaming(plan: LogicalPlan, outputMode: OutputMode): Unit = {
 
     if (!plan.isStreaming) {
-      throwError(
-        "Queries without streaming sources cannot be executed with writeStream.start()")(plan)
+//      throwError(
+//        "Queries without streaming sources cannot be executed with writeStream.start()")(plan)
     }
 
     // Disallow multiple streaming aggregations
