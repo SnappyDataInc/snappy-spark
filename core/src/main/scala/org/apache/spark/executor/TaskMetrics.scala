@@ -62,23 +62,23 @@ class TaskMetrics private[spark] () extends Serializable with KryoSerializable {
   /**
    * Time taken on the executor to deserialize this task.
    */
-  def executorDeserializeTime: Long = _executorDeserializeTime.sum.toLong
+  def executorDeserializeTime: Long = math.round(_executorDeserializeTime.sum)
 
   /**
    * CPU Time taken on the executor to deserialize this task in nanoseconds.
    */
-  def executorDeserializeCpuTime: Long = _executorDeserializeCpuTime.sum.toLong
+  def executorDeserializeCpuTime: Long = math.round(_executorDeserializeCpuTime.sum)
 
   /**
    * Time the executor spends actually running the task (including fetching shuffle data).
    */
-  def executorRunTime: Long = _executorRunTime.sum.toLong
+  def executorRunTime: Long = math.round(_executorRunTime.sum)
 
   /**
    * CPU Time the executor spends actually running the task
    * (including fetching shuffle data) in nanoseconds.
    */
-  def executorCpuTime: Long = _executorCpuTime.sum.toLong
+  def executorCpuTime: Long = math.round(_executorCpuTime.sum)
 
   /**
    * The number of bytes this task transmitted back to the driver as the TaskResult.
@@ -93,7 +93,7 @@ class TaskMetrics private[spark] () extends Serializable with KryoSerializable {
   /**
    * Amount of time spent serializing the task result.
    */
-  def resultSerializationTime: Long = _resultSerializationTime.sum.toLong
+  def resultSerializationTime: Long = math.round(_resultSerializationTime.sum)
 
   /**
    * The number of in-memory bytes spilled by this task.

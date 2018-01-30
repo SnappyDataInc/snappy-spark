@@ -35,7 +35,7 @@ import org.apache.spark.sql.AnalysisException
 final class Decimal extends Ordered[Decimal] with Serializable {
   import org.apache.spark.sql.types.Decimal._
 
-  private var decimalVal: BigDecimal = null
+  private var decimalVal: BigDecimal = _
   private var longVal: Long = 0L
   private var _precision: Int = 1
   private var _scale: Int = 0
@@ -358,21 +358,11 @@ final class Decimal extends Ordered[Decimal] with Serializable {
   override def hashCode(): Int = toBigDecimal.hashCode()
 
   def equals(other: Decimal): Boolean = {
-    if (other != null) {
-      val decimalVal = this.decimalVal
-      val otherDecimalVal = other.decimalVal
-      if (decimalVal eq null) {
-        if (otherDecimalVal eq null) {
-          if (_scale == other._scale) longVal == other.longVal
-          else toJavaBigDecimal.equals(other.toJavaBigDecimal)
-        } else {
-          toJavaBigDecimal.equals(otherDecimalVal.bigDecimal)
-        }
-      } else if (otherDecimalVal ne null) {
-        decimalVal.bigDecimal.equals(otherDecimalVal.bigDecimal)
-      } else {
-        decimalVal.bigDecimal.equals(other.toJavaBigDecimal)
-      }
+    if (other ne null) {
+      if (_scale == other._scale) {
+        if ((decimalVal eq null) && (other.decimalVal eq null)) longVal == other.longVal
+        else toJavaBigDecimal.equals(other.toJavaBigDecimal)
+      } else toJavaBigDecimal.compareTo(other.toJavaBigDecimal) == 0
     } else false
   }
 

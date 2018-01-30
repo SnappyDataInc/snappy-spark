@@ -369,11 +369,15 @@ class SingletonReplSuite extends SparkFunSuite {
   }
 
   test("should clone and clean line object in ClosureCleaner") {
-    val output = runInterpreter(
+    val projectDir = sys.props.get("spark.project.home") match {
+      case Some(h) => s"$h/repl"
+      case None => "."
+    }
+    val command =
       """
         |import org.apache.spark.rdd.RDD
         |
-        |val lines = sc.textFile("pom.xml")
+        |val lines = sc.textFile("$$projectDir/pom.xml")
         |case class Data(s: String)
         |val dataRDD = lines.map(line => Data(line.take(3)))
         |dataRDD.cache.count
@@ -390,7 +394,8 @@ class SingletonReplSuite extends SparkFunSuite {
         |val deviation = math.abs(cacheSize2 - cacheSize1).toDouble / cacheSize1
         |assert(deviation < 0.2,
         |  s"deviation too large: $deviation, first size: $cacheSize1, second size: $cacheSize2")
-      """.stripMargin)
+      """.stripMargin.replace("$$projectDir", projectDir)
+    val output = runInterpreter(command)
     assertDoesNotContain("AssertionError", output)
     assertDoesNotContain("Exception", output)
   }

@@ -134,8 +134,8 @@ class OrderingSuite extends SparkFunSuite with ExpressionEvalHelper {
     // this is passing prior to SPARK-16845, and it should also be passing after SPARK-16845
     GenerateOrdering.generate(Array.fill(40)(sortOrder))
 
-    // verify that we can support up to 5000 ordering comparisons, which should be sufficient
-    GenerateOrdering.generate(Array.fill(5000)(sortOrder))
+    // verify that we can support up to 4000 ordering comparisons, which should be sufficient
+    GenerateOrdering.generate(Array.fill(4000)(sortOrder))
   }
 
   test("SPARK-21344: BinaryType comparison does signed byte array comparison") {

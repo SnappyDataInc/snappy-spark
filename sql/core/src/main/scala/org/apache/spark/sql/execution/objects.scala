@@ -86,8 +86,9 @@ case class DeserializeToObjectExec(
   }
 
   override protected def doExecute(): RDD[InternalRow] = {
+    val output = child.output
     child.execute().mapPartitionsWithIndexInternal { (index, iter) =>
-      val projection = GenerateSafeProjection.generate(deserializer :: Nil, child.output)
+      val projection = GenerateSafeProjection.generate(deserializer :: Nil, output)
       projection.initialize(index)
       iter.map(projection)
     }

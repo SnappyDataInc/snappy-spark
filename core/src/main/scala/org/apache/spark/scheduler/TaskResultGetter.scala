@@ -61,7 +61,8 @@ private[spark] class TaskResultGetter(sparkEnv: SparkEnv, scheduler: TaskSchedul
     getTaskResultExecutor.execute(new Runnable {
       override def run(): Unit = Utils.logUncaughtExceptions {
         try {
-          val (result, size) = serializer.get().deserialize[TaskResult[_]](serializedData) match {
+          val resultSerializer = taskResultSerializer.get()
+          val (result, size) = resultSerializer.deserialize[TaskResult[_]](serializedData) match {
             case directResult: DirectTaskResult[_] =>
               if (!taskSetManager.canFetchMoreResults(serializedData.limit())) {
                 // kill the task so that it will not become zombie task
@@ -94,7 +95,7 @@ private[spark] class TaskResultGetter(sparkEnv: SparkEnv, scheduler: TaskSchedul
                   taskSetManager, tid, TaskState.FINISHED, TaskResultLost)
                 return
               }
-              val deserializedResult = serializer.get().deserialize[DirectTaskResult[_]](
+              val deserializedResult = resultSerializer.deserialize[DirectTaskResult[_]](
                 serializedTaskResult.get.toByteBuffer)
               // force deserialization of referenced value
               deserializedResult.value(taskResultSerializer.get())

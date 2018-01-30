@@ -70,7 +70,7 @@ class ShuffleReadMetrics private[spark] () extends Serializable with KryoSeriali
    * blocking on shuffle input data. For instance if block B is being fetched while the task is
    * still not finished processing block A, it is not considered to be blocking on block B.
    */
-  def fetchWaitTime: Long = _fetchWaitTime.sum.toLong
+  def fetchWaitTime: Long = math.round(_fetchWaitTime.sum)
 
   /**
    * Total number of records read from the shuffle by this task.

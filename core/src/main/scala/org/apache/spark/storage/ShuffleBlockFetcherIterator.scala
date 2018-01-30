@@ -402,7 +402,8 @@ final class ShuffleBlockFetcherIterator(
       val startFetchWait = System.nanoTime()
       result = results.take()
       val stopFetchWait = System.nanoTime()
-      shuffleMetrics.incFetchWaitTime(math.max(stopFetchWait - startFetchWait, 0L) / 1000000.0)
+      shuffleMetrics.incFetchWaitTime(
+        math.max(stopFetchWait - startFetchWait, 0L).toDouble / 1000000.0)
 
       result match {
         case r @ SuccessFetchResult(blockId, address, size, buf, isNetworkReqDone) =>

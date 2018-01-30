@@ -1023,7 +1023,7 @@ public class JavaDatasetSuite implements Serializable {
           row.<Boolean>getAs("booleanField"));
       byte[] bytesValue = new byte[k];
       Arrays.fill(bytesValue, (byte)k);
-      Assert.assertTrue(Arrays.equals(bytesValue, row.getAs("binaryField")));
+      Assert.assertTrue(Arrays.equals(bytesValue, (byte[])row.getAs("binaryField")));
       Assert.assertEquals("Date field match not as expected",
           new Date(7836L * k * 1000L).toString(), row.<Date>getAs("date").toString());
       Assert.assertEquals("TimeStamp field match not as expected",

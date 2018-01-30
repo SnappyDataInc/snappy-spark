@@ -371,7 +371,7 @@ private[spark] class Executor(
       } else 0L
       Thread.currentThread.setContextClassLoader(replClassLoader)
       val ser = env.closureSerializer.newInstance()
-      env.taskLogger.info(s"Running $taskName (TID $taskId)")
+      env.taskLogger.logInfo(s"Running $taskName (TID $taskId)")
       execBackend.statusUpdate(taskId, TaskState.RUNNING, EMPTY_BYTE_BUFFER)
       var taskStartTime: Long = 0
       var taskStartCpu: Long = 0
@@ -468,16 +468,15 @@ private[spark] class Executor(
 
         // Deserialization happens in two parts: first, we deserialize a Task object, which
         // includes the Partition. Second, Task.run() deserializes the RDD and function to be run.
-        task.metrics.setExecutorDeserializeTime(math.max(
-          taskStartTime - deserializeStartTime + task.executorDeserializeTime, 0L) / 1000000.0)
-        task.metrics.setExecutorDeserializeCpuTime(math.max(
-          taskStartCpu - deserializeStartCpuTime + task.executorDeserializeCpuTime, 0L) /
-            1000000.0)
+        task.metrics.setExecutorDeserializeTime(math.max(taskStartTime - deserializeStartTime +
+          task.executorDeserializeTime, 0L).toDouble / 1000000.0)
+        task.metrics.setExecutorDeserializeCpuTime(math.max(taskStartCpu -
+          deserializeStartCpuTime + task.executorDeserializeCpuTime, 0L).toDouble / 1000000.0)
         // We need to subtract Task.run()'s deserialization time to avoid double-counting
-        task.metrics.setExecutorRunTime(math.max(
-          taskFinish - taskStartTime - task.executorDeserializeTime, 0L) / 1000000.0)
-        task.metrics.setExecutorCpuTime(math.max(
-          taskFinishCpu - taskStartCpu - task.executorDeserializeCpuTime, 0L) / 1000000.0)
+        task.metrics.setExecutorRunTime(math.max(taskFinish - taskStartTime -
+          task.executorDeserializeTime, 0L).toDouble / 1000000.0)
+        task.metrics.setExecutorCpuTime(math.max(taskFinishCpu - taskStartCpu -
+          task.executorDeserializeCpuTime, 0L).toDouble / 1000000.0)
         task.metrics.setJvmGCTime(computeTotalGcTime() - startGCTime)
         task.metrics.setResultSerializationTime(math.max(
           afterSerialization - beforeSerialization, 0L) / 1000000.0)
@@ -527,7 +526,7 @@ private[spark] class Executor(
         val accumUpdates = task.collectAccumulatorUpdates()
         // TODO: do not serialize value twice
         val directResult = new DirectTaskResult(valueBytes, accumUpdates)
-        val serializedDirectResult = ser.serialize(directResult)
+        val serializedDirectResult = resultSer.serialize(directResult)
         val resultSize = serializedDirectResult.limit()
 
         // directSend = sending directly back to the driver
@@ -536,18 +535,18 @@ private[spark] class Executor(
             logWarning(s"Finished $taskName (TID $taskId). Result is larger than maxResultSize " +
               s"(${Utils.bytesToString(resultSize)} > ${Utils.bytesToString(maxResultSize)}), " +
               s"dropping it.")
-            ser.serialize(new IndirectTaskResult[Any](TaskResultBlockId(taskId), resultSize))
+            resultSer.serialize(new IndirectTaskResult[Any](TaskResultBlockId(taskId), resultSize))
           } else if (resultSize > maxDirectResultSize) {
             val blockId = TaskResultBlockId(taskId)
             env.blockManager.putBytes(
               blockId,
               new ChunkedByteBuffer(serializedDirectResult.duplicate()),
               StorageLevel.MEMORY_AND_DISK_SER)
-            env.taskLogger.info(
+            env.taskLogger.logInfo(
               s"Finished $taskName (TID $taskId). $resultSize bytes result sent via BlockManager)")
-            ser.serialize(new IndirectTaskResult[Any](blockId, resultSize))
+            resultSer.serialize(new IndirectTaskResult[Any](blockId, resultSize))
           } else {
-            env.taskLogger.info(s"Finished $taskName (TID $taskId). $resultSize " +
+            env.taskLogger.logInfo(s"Finished $taskName (TID $taskId). $resultSize " +
               s"bytes result sent to driver")
             serializedDirectResult
           }
@@ -598,7 +597,6 @@ private[spark] class Executor(
           logError(s"Store closed exception in $taskName (TID $taskId)", t)
           setTaskFinishedAndClearInterruptStatus()
           val reason = ExecutorLostFailure(executorId, exitCausedByApp = false, Some(t.getMessage))
-          val ser = env.closureSerializer.newInstance()
           execBackend.statusUpdate(taskId, TaskState.KILLED, ser.serialize(reason))
 
         case t: Throwable if env.isStopped || isStoreException(t) =>
