@@ -695,7 +695,9 @@ private[spark] object Utils extends Logging {
           throw new IllegalStateException(
             "Cannot retrieve files with 'spark' scheme without an active SparkEnv.")
         }
-        val source = SparkEnv.get.rpcEnv.openChannel(url)
+        // wait for max double the configured time (connect + read time)
+        val timeoutMs = conf.getTimeAsSeconds("spark.files.fetchTimeout", "60s") * 2000L
+        val source = SparkEnv.get.rpcEnv.openChannel(url, timeoutMs)
         val is = Channels.newInputStream(source)
         downloadFile(url, is, targetFile, fileOverwrite)
       case "http" | "https" | "ftp" =>

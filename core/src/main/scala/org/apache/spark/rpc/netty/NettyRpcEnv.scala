@@ -24,7 +24,8 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.annotation.Nullable
 
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.duration.Duration
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.reflect.ClassTag
 import scala.util.{DynamicVariable, Failure, Success, Try}
 import scala.util.control.NonFatal
@@ -341,6 +342,13 @@ private[netty] class NettyRpcEnv(
     source
   }
 
+  override def openChannel(uri: String, readTimeoutMs: Long): ReadableByteChannel = {
+    val source = openChannel(uri)
+    if (readTimeoutMs > 0L) {
+      source.asInstanceOf[FileDownloadChannel].setTimeoutMs(readTimeoutMs)
+    }
+  }
+
   private def downloadClient(host: String, port: Int): TransportClient = {
     if (fileDownloadFactory == null) synchronized {
       if (fileDownloadFactory == null) {
@@ -368,14 +376,24 @@ private[netty] class NettyRpcEnv(
   private class FileDownloadChannel(source: ReadableByteChannel) extends ReadableByteChannel {
 
     @volatile private var error: Throwable = _
+    private var timeoutMs: Long = _
 
     def setError(e: Throwable): Unit = {
       error = e
       source.close()
     }
 
+    def setTimeoutMs(millis: Long): Unit = {
+      timeoutMs = millis
+    }
+
     override def read(dst: ByteBuffer): Int = {
-      Try(source.read(dst)) match {
+      val readBuffer = if (timeoutMs > 0) {
+        implicit val context = ExecutionContext.fromExecutorService(clientConnectionExecutor)
+        val future = Future(source.read(dst))(context)
+        Await.result(future, Duration(timeoutMs, TimeUnit.MILLISECONDS))
+      } else source.read(dst)
+      Try(readBuffer) match {
         case Success(bytesRead) => bytesRead
         case Failure(readErr) =>
           if (error != null) {
