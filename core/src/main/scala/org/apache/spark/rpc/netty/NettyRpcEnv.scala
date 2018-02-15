@@ -347,6 +347,7 @@ private[netty] class NettyRpcEnv(
     if (readTimeoutMs > 0L) {
       source.asInstanceOf[FileDownloadChannel].setTimeoutMs(readTimeoutMs)
     }
+    source
   }
 
   private def downloadClient(host: String, port: Int): TransportClient = {
