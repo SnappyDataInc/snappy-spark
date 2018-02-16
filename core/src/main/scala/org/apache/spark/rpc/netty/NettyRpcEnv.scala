@@ -344,7 +344,7 @@ private[netty] class NettyRpcEnv(
 
   override def openChannel(uri: String, readTimeoutMs: Long): ReadableByteChannel = {
     val source = openChannel(uri)
-    if (readTimeoutMs > 0L) {
+    if (readTimeoutMs > 0) {
       source.asInstanceOf[FileDownloadChannel].setTimeoutMs(readTimeoutMs)
     }
     source
@@ -390,7 +390,7 @@ private[netty] class NettyRpcEnv(
 
     override def read(dst: ByteBuffer): Int = {
       def readBuffer: Int = if (timeoutMs > 0) {
-        implicit val context = ExecutionContext.fromExecutorService(clientConnectionExecutor)
+        val context = ExecutionContext.fromExecutorService(clientConnectionExecutor)
         val future = Future(source.read(dst))(context)
         ThreadUtils.awaitResult(future, Duration(timeoutMs, TimeUnit.MILLISECONDS))
       } else source.read(dst)
