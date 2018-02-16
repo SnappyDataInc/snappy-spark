@@ -147,6 +147,16 @@ private[spark] abstract class RpcEnv(conf: SparkConf) {
    * @param uri URI with location of the file.
    */
   def openChannel(uri: String): ReadableByteChannel
+
+  /**
+   * Open a channel to download a file from the given URI. If the URIs returned by the
+   * RpcEnvFileServer use the "spark" scheme, this method will be called by the Utils class to
+   * retrieve the files.
+   *
+   * @param uri URI with location of the file.
+   * @param readTimeoutMs timeout in reading in millisecond
+   */
+  def openChannel(uri: String, readTimeoutMs: Long): ReadableByteChannel
 }
 
 /**

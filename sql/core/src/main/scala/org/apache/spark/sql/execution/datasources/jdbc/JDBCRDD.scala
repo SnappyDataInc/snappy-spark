@@ -68,7 +68,9 @@ object JDBCRDD extends Logging {
         statement.close()
       }
     } finally {
-      conn.close()
+      if (conn ne null) {
+        conn.close()
+      }
     }
   }
 
