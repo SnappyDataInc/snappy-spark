@@ -389,7 +389,7 @@ private[netty] class NettyRpcEnv(
     }
 
     override def read(dst: ByteBuffer): Int = {
-      val readBuffer = if (timeoutMs > 0) {
+      def readBuffer: Int = if (timeoutMs > 0) {
         implicit val context = ExecutionContext.fromExecutorService(clientConnectionExecutor)
         val future = Future(source.read(dst))(context)
         ThreadUtils.awaitResult(future, Duration(timeoutMs, TimeUnit.MILLISECONDS))
