@@ -24,8 +24,8 @@ import java.util.concurrent._
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.annotation.Nullable
 
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.reflect.ClassTag
 import scala.util.{DynamicVariable, Failure, Success, Try}
 import scala.util.control.NonFatal
@@ -392,7 +392,7 @@ private[netty] class NettyRpcEnv(
       val readBuffer = if (timeoutMs > 0) {
         implicit val context = ExecutionContext.fromExecutorService(clientConnectionExecutor)
         val future = Future(source.read(dst))(context)
-        Await.result(future, Duration(timeoutMs, TimeUnit.MILLISECONDS))
+        ThreadUtils.awaitResult(future, Duration(timeoutMs, TimeUnit.MILLISECONDS))
       } else source.read(dst)
       Try(readBuffer) match {
         case Success(bytesRead) => bytesRead
