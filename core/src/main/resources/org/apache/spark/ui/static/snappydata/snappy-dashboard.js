@@ -18,6 +18,21 @@ function toggleCellDetails(detailsId) {
   }
 }
 
+function generateProgressBarHtml(progressValue){
+  var progressBarHtml =
+          '<div style="width:100%;">'
+           + '<div style="float: left; width: 75%;">'
+             + '<div class="progressBar">'
+               + '<div class="completedProgress" style="width: '
+                   + progressValue.toFixed(1) + ';">&nbsp;</div>'
+             + '</div>'
+           + '</div>'
+           + '<div class="progressValue"> ' + progressValue.toFixed(2) + ' %</div>'
+        + '</div>';
+
+  return progressBarHtml;
+}
+
 function getDetailsCellExpansionProps(key){
   var cellProps = {
         caretClass: 'caret-downward',
@@ -58,18 +73,24 @@ function generateDescriptionCellHtml(row) {
 function generateHeapCellHtml(row){
   var cellProps = getDetailsCellExpansionProps(row.userDir + '-heap');
 
-  var heapUsed = convertSizeToHumanReadable(row.heapMemoryUsed);
-  var heapSize = convertSizeToHumanReadable(row.heapMemorySize);
-  var heapHtml = heapUsed[0] + " " + heapUsed[1]
-                 + " / " + heapSize[0] + " " + heapSize[1];
-  var heapStorageUsed = convertSizeToHumanReadable(row.heapStoragePoolUsed);
-  var heapStorageSize = convertSizeToHumanReadable(row.heapStoragePoolSize);
-  var heapStorageHtml = heapStorageUsed[0] + " " + heapStorageUsed[1]
-                    + " / " + heapStorageSize[0] + " " + heapStorageSize[1];
-  var heapExecutionUsed = convertSizeToHumanReadable(row.heapExecutionPoolUsed);
-  var heapExecutionSize = convertSizeToHumanReadable(row.heapExecutionPoolSize);
-  var heapExecutionHtml = heapExecutionUsed[0] + " " + heapExecutionUsed[1]
-                    + " / " + heapExecutionSize[0] + " " + heapExecutionSize[1];
+  var heapHtml = "NA";
+  var heapStorageHtml = "NA";
+  var heapExecutionHtml = "NA";
+
+  if(row.memberType.toUpperCase() !== "LOCATOR"){
+    var heapUsed = convertSizeToHumanReadable(row.heapMemoryUsed);
+    var heapSize = convertSizeToHumanReadable(row.heapMemorySize);
+    heapHtml = heapUsed[0] + " " + heapUsed[1]
+                   + " / " + heapSize[0] + " " + heapSize[1];
+    var heapStorageUsed = convertSizeToHumanReadable(row.heapStoragePoolUsed);
+    var heapStorageSize = convertSizeToHumanReadable(row.heapStoragePoolSize);
+    heapStorageHtml = heapStorageUsed[0] + " " + heapStorageUsed[1]
+                      + " / " + heapStorageSize[0] + " " + heapStorageSize[1];
+    var heapExecutionUsed = convertSizeToHumanReadable(row.heapExecutionPoolUsed);
+    var heapExecutionSize = convertSizeToHumanReadable(row.heapExecutionPoolSize);
+    heapExecutionHtml = heapExecutionUsed[0] + " " + heapExecutionUsed[1]
+                      + " / " + heapExecutionSize[0] + " " + heapExecutionSize[1];
+  }
   var jvmHeapUsed = convertSizeToHumanReadable(row.usedMemory);
   var jvmHeapSize = convertSizeToHumanReadable(row.totalMemory);
   var jvmHeapHtml = jvmHeapUsed[0] + " " + jvmHeapUsed[1]
@@ -89,7 +110,7 @@ function generateHeapCellHtml(row){
            + 'style="width: 90%; ' + cellProps.displayStyle + '">'
            + '<span><strong>JVM Heap:</strong>'
            + '<br>' + jvmHeapHtml
-           + '<span><strong>Storage Memory:</strong>'
+           + '<strong>Storage Memory:</strong>'
            + '<br>' + heapStorageHtml
            + '<br><strong>Execution Memory:</strong>'
            + '<br>' + heapExecutionHtml
@@ -102,18 +123,24 @@ function generateHeapCellHtml(row){
 function generateOffHeapCellHtml(row){
   var cellProps = getDetailsCellExpansionProps(row.userDir + '-offheap');
 
-  var offHeapUsed = convertSizeToHumanReadable(row.offHeapMemoryUsed);
-  var offHeapSize = convertSizeToHumanReadable(row.offHeapMemorySize);
-  var offHeapHtml = offHeapUsed[0] + " " + offHeapUsed[1]
-                    + " / " + offHeapSize[0] + " " + offHeapSize[1];
-  var offHeapStorageUsed = convertSizeToHumanReadable(row.offHeapStoragePoolUsed);
-  var offHeapStorageSize = convertSizeToHumanReadable(row.offHeapStoragePoolSize);
-  var offHeapStorageHtml = offHeapStorageUsed[0] + " " + offHeapStorageUsed[1]
-                    + " / " + offHeapStorageSize[0] + " " + offHeapStorageSize[1];
-  var offHeapExecutionUsed = convertSizeToHumanReadable(row.offHeapExecutionPoolUsed);
-  var offHeapExecutionSize = convertSizeToHumanReadable(row.offHeapExecutionPoolSize);
-  var offHeapExecutionHtml = offHeapExecutionUsed[0] + " " + offHeapExecutionUsed[1]
-                    + " / " + offHeapExecutionSize[0] + " " + offHeapExecutionSize[1];
+  var offHeapHtml = "NA";
+  var offHeapStorageHtml = "NA";
+  var offHeapExecutionHtml = "NA";
+
+  if(row.memberType.toUpperCase() !== "LOCATOR"){
+    var offHeapUsed = convertSizeToHumanReadable(row.offHeapMemoryUsed);
+    var offHeapSize = convertSizeToHumanReadable(row.offHeapMemorySize);
+    offHeapHtml = offHeapUsed[0] + " " + offHeapUsed[1]
+                      + " / " + offHeapSize[0] + " " + offHeapSize[1];
+    var offHeapStorageUsed = convertSizeToHumanReadable(row.offHeapStoragePoolUsed);
+    var offHeapStorageSize = convertSizeToHumanReadable(row.offHeapStoragePoolSize);
+    offHeapStorageHtml = offHeapStorageUsed[0] + " " + offHeapStorageUsed[1]
+                      + " / " + offHeapStorageSize[0] + " " + offHeapStorageSize[1];
+    var offHeapExecutionUsed = convertSizeToHumanReadable(row.offHeapExecutionPoolUsed);
+    var offHeapExecutionSize = convertSizeToHumanReadable(row.offHeapExecutionPoolSize);
+    offHeapExecutionHtml = offHeapExecutionUsed[0] + " " + offHeapExecutionUsed[1]
+                      + " / " + offHeapExecutionSize[0] + " " + offHeapExecutionSize[1];
+  }
 
   var offHeapCellHtml =
           '<div style="width: 80%; float: left; padding-right:10px;'
@@ -219,13 +246,18 @@ $(document).ready(function() {
       },
       { // cpu
         data: function(row, type) {
-                return row.cpuActive + " %";
+                return generateProgressBarHtml(row.cpuActive);
               }
       },
       { // memory usage
         data: function(row, type) {
-                var memoryUsage = row.usedMemory * 100 / row.totalMemory;
-                return memoryUsage.toFixed(2) + " %";
+                var totalMemorySize = row.heapMemorySize + row.offHeapMemorySize;
+                var totalMemoryUsed = row.heapMemoryUsed + row.offHeapMemoryUsed;
+                var memoryUsage = (totalMemoryUsed * 100) / totalMemorySize;
+                if(isNaN(memoryUsage)){
+                  memoryUsage = 0;
+                }
+                return generateProgressBarHtml(memoryUsage);
               }
       },
       { // heap usage
