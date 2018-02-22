@@ -24,7 +24,7 @@ function generateProgressBarHtml(progressValue){
            + '<div style="float: left; width: 75%;">'
              + '<div class="progressBar">'
                + '<div class="completedProgress" style="width: '
-                   + progressValue.toFixed(1) + ';">&nbsp;</div>'
+                   + progressValue.toFixed(1) + '%;">&nbsp;</div>'
              + '</div>'
            + '</div>'
            + '<div class="progressValue"> ' + progressValue.toFixed(1) + ' %</div>'
