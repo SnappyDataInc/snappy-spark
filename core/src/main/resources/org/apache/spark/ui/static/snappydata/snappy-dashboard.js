@@ -163,46 +163,7 @@ function generateOffHeapCellHtml(row){
   return offHeapCellHtml;
 }
 
-function createStatusBlock() {
-
-  var cpuUsage = $( "div#cpuUsage" ).data( "value" );
-  var memoryUsage = $( "div#memoryUsage" ).data( "value" );
-  // var heapUsageGauge = $( "div#heapUsage" ).data( "value" );
-  // var offHeapUsageGauge = $( "div#offHeapUsage" ).data( "value" );
-  var jvmHeapUsageGauge = $( "div#jvmHeapUsage" ).data( "value" );
-
-  var config = liquidFillGaugeDefaultSettings();
-  config.circleThickness = 0.15;
-  config.circleColor = "#3EC0FF";
-  config.textColor = "#3EC0FF";
-  config.waveTextColor = "#00B0FF";
-  config.waveColor = "#A0DFFF";
-  config.textVertPosition = 0.8;
-  config.waveAnimateTime = 1000;
-  config.waveHeight = 0.05;
-  config.waveAnimate = true;
-  config.waveRise = false;
-  config.waveHeightScaling = false;
-  config.waveOffset = 0.25;
-  config.textSize = 0.75;
-  config.waveCount = 2;
-
-  var cpuGauge = loadLiquidFillGauge("cpuUsageGauge", cpuUsage, config);
-  var memoryGauge = loadLiquidFillGauge("memoryUsageGauge", memoryUsage, config);
-  // var heapGauge = loadLiquidFillGauge("heapUsageGauge", heapUsageGauge, config);
-  // var offHeapGauge = loadLiquidFillGauge("offHeapUsageGauge", offHeapUsageGauge, config);
-  var jvmGauge = loadLiquidFillGauge("jvmHeapUsageGauge", jvmHeapUsageGauge, config);
-
-}
-
-$(document).ready(function() {
-
-  createStatusBlock()
-
-  $.ajaxSetup({
-      cache : false
-    });
-
+function getMemberStatsGridConf() {
   // Members Grid Data Table Configurations
   var memberStatsGridConf = {
     "ajax": {
@@ -276,9 +237,10 @@ $(document).ready(function() {
     ]
   }
 
-  // Members Grid Data Table
-  var membersStatsGrid = $('#memberStatsGrid').DataTable( memberStatsGridConf );
+  return memberStatsGridConf;
+}
 
+function getTableStatsGridConf() {
   // Tables Grid Data Table Configurations
   var tableStatsGridConf = {
     "ajax": {
@@ -347,45 +309,95 @@ $(document).ready(function() {
     ]
   }
 
-  // Tables Grid Data Table
-  var tableStatsGrid = $('#tableStatsGrid').DataTable( tableStatsGridConf );
+  return tableStatsGridConf;
+}
 
+function getExternalTableStatsGridConf() {
   // External Tables Grid Data Table Configurations
-    var extTableStatsGridConf = {
-      "ajax": {
-        "url": "/snappy-api/services/allexternaltables",
-        "dataSrc": ""
+  var extTableStatsGridConf = {
+    "ajax": {
+      "url": "/snappy-api/services/allexternaltables",
+      "dataSrc": ""
+    },
+    "columns": [
+      { // Name
+        data: function(row, type) {
+                var nameHtml = '<div style="width:100%; padding-left:10px;">'
+                               + row.tableName
+                             + '</div>';
+                return nameHtml;
+              }
       },
-      "columns": [
-        { // Name
-          data: function(row, type) {
-                  var nameHtml = '<div style="width:100%; padding-left:10px;">'
-                                 + row.tableName
-                               + '</div>';
-                  return nameHtml;
-                }
-        },
-        { // Provider
-          data: function(row, type) {
-                  var providerHtml = '<div style="width:100%; text-align:center;">'
-                                     + row.provider
-                                   + '</span>';
-                  return providerHtml;
-                }
-        },
-        { // Source
-          data: function(row, type) {
-                  var sourceHtml = '<div style="padding-right:10px; text-align:left;">'
-                                   + row.source
+      { // Provider
+        data: function(row, type) {
+                var providerHtml = '<div style="width:100%; text-align:center;">'
+                                   + row.provider
                                  + '</span>';
-                  return sourceHtml;
-                }
-        }
-      ]
-    }
+                return providerHtml;
+              }
+      },
+      { // Source
+        data: function(row, type) {
+                var sourceHtml = '<div style="padding-right:10px; text-align:left;">'
+                                 + row.source
+                               + '</span>';
+                return sourceHtml;
+              }
+      }
+    ]
+  }
 
-    // External Tables Grid Data Table
-    var extTableStatsGrid = $('#extTableStatsGrid').DataTable( extTableStatsGridConf );
+  return extTableStatsGridConf;
+}
+
+function createStatusBlock() {
+
+  var cpuUsage = $( "div#cpuUsage" ).data( "value" );
+  var memoryUsage = $( "div#memoryUsage" ).data( "value" );
+  // var heapUsageGauge = $( "div#heapUsage" ).data( "value" );
+  // var offHeapUsageGauge = $( "div#offHeapUsage" ).data( "value" );
+  var jvmHeapUsageGauge = $( "div#jvmHeapUsage" ).data( "value" );
+
+  var config = liquidFillGaugeDefaultSettings();
+  config.circleThickness = 0.15;
+  config.circleColor = "#3EC0FF";
+  config.textColor = "#3EC0FF";
+  config.waveTextColor = "#00B0FF";
+  config.waveColor = "#A0DFFF";
+  config.textVertPosition = 0.8;
+  config.waveAnimateTime = 1000;
+  config.waveHeight = 0.05;
+  config.waveAnimate = true;
+  config.waveRise = false;
+  config.waveHeightScaling = false;
+  config.waveOffset = 0.25;
+  config.textSize = 0.75;
+  config.waveCount = 2;
+
+  var cpuGauge = loadLiquidFillGauge("cpuUsageGauge", cpuUsage, config);
+  var memoryGauge = loadLiquidFillGauge("memoryUsageGauge", memoryUsage, config);
+  // var heapGauge = loadLiquidFillGauge("heapUsageGauge", heapUsageGauge, config);
+  // var offHeapGauge = loadLiquidFillGauge("offHeapUsageGauge", offHeapUsageGauge, config);
+  var jvmGauge = loadLiquidFillGauge("jvmHeapUsageGauge", jvmHeapUsageGauge, config);
+
+}
+
+$(document).ready(function() {
+
+  createStatusBlock()
+
+  $.ajaxSetup({
+      cache : false
+    });
+
+  // Members Grid Data Table
+  var membersStatsGrid = $('#memberStatsGrid').DataTable( getMemberStatsGridConf() );
+
+  // Tables Grid Data Table
+  var tableStatsGrid = $('#tableStatsGrid').DataTable( getTableStatsGridConf() );
+
+  // External Tables Grid Data Table
+  var extTableStatsGrid = $('#extTableStatsGrid').DataTable( getExternalTableStatsGridConf() );
 
   // Members stats are updated after every 30 seconds
   var memberStatsUpdateInterval = setInterval(function() {
