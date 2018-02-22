@@ -27,7 +27,7 @@ function generateProgressBarHtml(progressValue){
                    + progressValue.toFixed(1) + ';">&nbsp;</div>'
              + '</div>'
            + '</div>'
-           + '<div class="progressValue"> ' + progressValue.toFixed(2) + ' %</div>'
+           + '<div class="progressValue"> ' + progressValue.toFixed(1) + ' %</div>'
         + '</div>';
 
   return progressBarHtml;
@@ -110,7 +110,7 @@ function generateHeapCellHtml(row){
            + 'style="width: 90%; ' + cellProps.displayStyle + '">'
            + '<span><strong>JVM Heap:</strong>'
            + '<br>' + jvmHeapHtml
-           + '<strong>Storage Memory:</strong>'
+           + '<br><strong>Storage Memory:</strong>'
            + '<br>' + heapStorageHtml
            + '<br><strong>Execution Memory:</strong>'
            + '<br>' + heapExecutionHtml
@@ -203,6 +203,7 @@ $(document).ready(function() {
       cache : false
     });
 
+  // Members Grid Data Table Configurations
   var memberStatsGridConf = {
     "ajax": {
       "url": "/snappy-api/services/allmembers",
@@ -224,32 +225,34 @@ $(document).ready(function() {
                 return statusHtml;
               }
       },
-      { // description
+      { // Description
         data: function(row, type) {
                 var descHtml = generateDescriptionCellHtml(row);
                 return descHtml;
               }
       },
-      { // type
+      { // Type
         data: function(row, type) {
                 var memberType = "";
                 if(row.isActiveLead) {
-                  memberType = '<strong data-toggle="tooltip" title="" '
-                               + 'data-original-title="Active Lead">'
-                               + row.memberType
-                             + '</strong>';
+                  memberType = '<div style="text-align:center;">'
+                               + '<strong data-toggle="tooltip" title="" '
+                                 + 'data-original-title="Active Lead">'
+                                 + row.memberType
+                               + '</strong>'
+                             + '</div>';
                 } else {
-                  memberType = row.memberType;
+                  memberType = '<div style="text-align:center;">' + row.memberType + '</div>';
                 }
                 return memberType;
               }
       },
-      { // cpu
+      { // CPU Usage
         data: function(row, type) {
                 return generateProgressBarHtml(row.cpuActive);
               }
       },
-      { // memory usage
+      { // Memory Usage
         data: function(row, type) {
                 var totalMemorySize = row.heapMemorySize + row.offHeapMemorySize;
                 var totalMemoryUsed = row.heapMemoryUsed + row.offHeapMemoryUsed;
@@ -260,12 +263,12 @@ $(document).ready(function() {
                 return generateProgressBarHtml(memoryUsage);
               }
       },
-      { // heap usage
+      { // Heap Usage
         data: function(row, type) {
                 return generateHeapCellHtml(row);
               }
       },
-      { // off-heap usage
+      { // Off-Heap Usage
         data: function(row, type) {
                 return generateOffHeapCellHtml(row);
               }
@@ -273,17 +276,132 @@ $(document).ready(function() {
     ]
   }
 
+  // Members Grid Data Table
   var membersStatsGrid = $('#memberStatsGrid').DataTable( memberStatsGridConf );
 
+  // Tables Grid Data Table Configurations
+  var tableStatsGridConf = {
+    "ajax": {
+      "url": "/snappy-api/services/alltables",
+      "dataSrc": ""
+    },
+    "columns": [
+      { // Name
+        data: function(row, type) {
+                var nameHtml = '<div style="width:100%; padding-left:10px;">'
+                               + row.tableName
+                             + '</div>';
+                return nameHtml;
+              }
+      },
+      { // Storage Model
+        data: function(row, type) {
+                var smHtml = '<div style="width:100%; text-align:center;">'
+                             + row.storageModel
+                           + '</div>';
+                return smHtml;
+              }
+      },
+      { // Distribution Type
+        data: function(row, type) {
+                var dtHtml = '<div style="width:100%; text-align:center;">'
+                             + row.distributionType
+                           + '</div>';
+                return dtHtml;
+              }
+      },
+      { // Row Count
+        data: function(row, type) {
+                var rcHtml = '<div style="padding-right:10px; text-align:right;">'
+                             + row.rowCount
+                           + '</div>';
+                return rcHtml;
+              }
+      },
+      { // In Memory Size
+        data: function(row, type) {
+                var tableInMemorySize = convertSizeToHumanReadable(row.sizeInMemory);
+                var msHtml = '<div style="padding-right:10px; text-align:right;">'
+                             + tableInMemorySize[0] + ' ' + tableInMemorySize[1]
+                           + '</div>';
+                return msHtml;
+              }
+      },
+      { // Total Size
+        data: function(row, type) {
+                var tableTotalSize = convertSizeToHumanReadable(row.totalSize);
+                var tsHtml = '<div style="padding-right:10px; text-align:right;">'
+                             + tableTotalSize[0] + ' ' + tableTotalSize[1]
+                           + '</div>';
+                return tsHtml;
+              }
+      },
+      { // Bucket Count
+        data: function(row, type) {
+                var bcHtml = '<div style="padding-right:10px; text-align:right;">'
+                             + row.bucketCount
+                           + '</div>';
+                return bcHtml;
+              }
+      }
+    ]
+  }
 
-  var x = setInterval(function() {
-    /*
-    // todo: need to provision when to stop and start update feature
-    if (i > 5) {
-      clearInterval(x);
+  // Tables Grid Data Table
+  var tableStatsGrid = $('#tableStatsGrid').DataTable( tableStatsGridConf );
+
+  // External Tables Grid Data Table Configurations
+    var extTableStatsGridConf = {
+      "ajax": {
+        "url": "/snappy-api/services/allexternaltables",
+        "dataSrc": ""
+      },
+      "columns": [
+        { // Name
+          data: function(row, type) {
+                  var nameHtml = '<div style="width:100%; padding-left:10px;">'
+                                 + row.tableName
+                               + '</div>';
+                  return nameHtml;
+                }
+        },
+        { // Provider
+          data: function(row, type) {
+                  var providerHtml = '<div style="width:100%; text-align:center;">'
+                                     + row.provider
+                                   + '</span>';
+                  return providerHtml;
+                }
+        },
+        { // Source
+          data: function(row, type) {
+                  var sourceHtml = '<div style="padding-right:10px; text-align:left;">'
+                                   + row.source
+                                 + '</span>';
+                  return sourceHtml;
+                }
+        }
+      ]
     }
-    */
+
+    // External Tables Grid Data Table
+    var extTableStatsGrid = $('#extTableStatsGrid').DataTable( extTableStatsGridConf );
+
+  // Members stats are updated after every 30 seconds
+  var memberStatsUpdateInterval = setInterval(function() {
+    // todo: need to provision when to stop and start update feature
+    // clearInterval(x);
+
     $('#memberStatsGrid').DataTable().ajax.reload();
   }, 5000);
+
+  // Tables stats are updated after every 30 seconds
+  var tableStatsUpdateInterval = setInterval(function() {
+      // todo: need to provision when to stop and start update feature
+      // clearInterval(x);
+
+      $('#tableStatsGrid').DataTable().ajax.reload();
+      $('#extTableStatsGrid').DataTable().ajax.reload();
+    }, 30000);
 
 });
