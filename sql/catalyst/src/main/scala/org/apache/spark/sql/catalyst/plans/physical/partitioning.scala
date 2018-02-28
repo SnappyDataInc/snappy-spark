@@ -255,7 +255,11 @@ case object SinglePartition extends Partitioning {
 case class HashPartitioning(expressions: Seq[Expression], numPartitions: Int)
     extends Expression with Partitioning with Unevaluable {
 
-  private[sql] var numBuckets: Int = 0
+  private[sql] var buckets: Int = 0
+
+  def numBuckets(): Int = {
+    buckets
+  }
 
   override def children: Seq[Expression] = expressions
   override def nullable: Boolean = false
@@ -292,7 +296,7 @@ object HashPartitioning {
   def apply(expressions: Seq[Expression], numPartitions: Int,
       numBuckets: Int): HashPartitioning = {
     val partitioning = HashPartitioning(expressions, numPartitions)
-    partitioning.numBuckets = numBuckets
+    partitioning.buckets = numBuckets
     partitioning
   }
 }
