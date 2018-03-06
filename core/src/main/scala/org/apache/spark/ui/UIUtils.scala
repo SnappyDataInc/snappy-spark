@@ -178,8 +178,9 @@ private[spark] object UIUtils extends Logging {
       <link rel="stylesheet" href={prependBaseUri("/static/snappydata/snappy-dashboard.css")}
             type="text/css"/>
       <script src={prependBaseUri("/static/snappydata/d3.js")}></script>
+      <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
       <script src={prependBaseUri("/static/snappydata/liquidFillGauge.js")}></script>
-          <script src={prependBaseUri("/static/snappydata/snappy-commons.js")}></script>
+      <script src={prependBaseUri("/static/snappydata/snappy-commons.js")}></script>
       <script src={prependBaseUri("/static/snappydata/snappy-dashboard.js")}></script>
       <script src={prependBaseUri("/static/snappydata/snappy-memberdetails.js")}></script>
   }

@@ -170,6 +170,12 @@ function getMemberStatsGridConf() {
       "url": "/snappy-api/services/allmembers",
       "dataSrc": ""
     },
+    "drawCallback": function( settings ) {
+      var api = this.api();
+      // var membersData = api.rows().data();
+      // Output the data for the visible rows to the browser's console
+      // updateClusterStats(membersData);
+    },
     "columns": [
       { // Status
         data: function(row, type) {
@@ -350,41 +356,84 @@ function getExternalTableStatsGridConf() {
   return extTableStatsGridConf;
 }
 
-function createStatusBlock() {
+function loadGoogleCharts(){
+  google.charts.load('current', {'packages':['corechart']});
+  // google.charts.setOnLoadCallback(updateUsageCharts);
+}
 
-  var cpuUsage = $( "div#cpuUsage" ).data( "value" );
-  var memoryUsage = $( "div#memoryUsage" ).data( "value" );
-  // var heapUsageGauge = $( "div#heapUsage" ).data( "value" );
-  // var offHeapUsageGauge = $( "div#offHeapUsage" ).data( "value" );
-  var jvmHeapUsageGauge = $( "div#jvmHeapUsage" ).data( "value" );
+function updateUsageCharts(){
+  var cpuChartData = new google.visualization.DataTable();
+  cpuChartData.addColumn('number', 'Min');
+  cpuChartData.addColumn('number', 'CPU');
 
-  var config = liquidFillGaugeDefaultSettings();
-  config.circleThickness = 0.15;
-  config.circleColor = "#3EC0FF";
-  config.textColor = "#3EC0FF";
-  config.waveTextColor = "#00B0FF";
-  config.waveColor = "#A0DFFF";
-  config.textVertPosition = 0.8;
-  config.waveAnimateTime = 1000;
-  config.waveHeight = 0.05;
-  config.waveAnimate = true;
-  config.waveRise = false;
-  config.waveHeightScaling = false;
-  config.waveOffset = 0.25;
-  config.textSize = 0.75;
-  config.waveCount = 2;
+  var heapChartData = new google.visualization.DataTable();
+  heapChartData.addColumn('number', 'Min');
+  heapChartData.addColumn('number', 'JVM');
+  heapChartData.addColumn('number', 'Storage');
+  heapChartData.addColumn('number', 'Execution');
 
-  var cpuGauge = loadLiquidFillGauge("cpuUsageGauge", cpuUsage, config);
-  var memoryGauge = loadLiquidFillGauge("memoryUsageGauge", memoryUsage, config);
-  // var heapGauge = loadLiquidFillGauge("heapUsageGauge", heapUsageGauge, config);
-  // var offHeapGauge = loadLiquidFillGauge("offHeapUsageGauge", offHeapUsageGauge, config);
-  var jvmGauge = loadLiquidFillGauge("jvmHeapUsageGauge", jvmHeapUsageGauge, config);
+  var offHeapChartData = new google.visualization.DataTable();
+  offHeapChartData.addColumn('number', 'Min');
+  offHeapChartData.addColumn('number', 'Storage');
+  offHeapChartData.addColumn('number', 'Execution');
 
+  var getsputsChartData = new google.visualization.DataTable();
+  getsputsChartData.addColumn('number', 'Min');
+  getsputsChartData.addColumn('number', 'Gets');
+  getsputsChartData.addColumn('number', 'Puts');
+
+  for(var i=0; i<180; i++){
+    cpuChartData.addRow([i, (Math.random()*100)]);
+    heapChartData.addRow([i, (Math.random()*100), (Math.random()*100), (Math.random()*100)]);
+    offHeapChartData.addRow([i, (Math.random()*100), (Math.random()*100)]);
+    getsputsChartData.addRow([i, (Math.random()*100), (Math.random()*50)]);
+  }
+
+  cpuChartOptions = {
+              title: 'CPU Usage',
+              curveType: 'function',
+              legend: { position: 'bottom' },
+              vAxis: {
+                minValue: 0
+              }
+            };
+
+  heapChartOptions = {
+            title: 'Heap Usage',
+            curveType: 'function',
+            legend: { position: 'bottom' }
+          };
+  offHeapChartOptions = {
+              title: 'Off-Heap Usage',
+              curveType: 'function',
+              legend: { position: 'bottom' }
+            };
+  getsputsChartOptions = {
+              title: 'Gets and Puts',
+              curveType: 'function',
+              legend: { position: 'bottom' }
+            };
+
+  cpuChart = new google.visualization.LineChart(
+                      document.getElementById('cpuUsageContainer'));
+  cpuChart.draw(cpuChartData, cpuChartOptions);
+
+  var heapChart = new google.visualization.LineChart(
+                      document.getElementById('heapUsageContainer'));
+  heapChart.draw(heapChartData, heapChartOptions);
+
+  var offHeapChart = new google.visualization.LineChart(
+                      document.getElementById('offheapUsageContainer'));
+  offHeapChart.draw(offHeapChartData, offHeapChartOptions);
+
+  var getsputsChart = new google.visualization.LineChart(
+                        document.getElementById('getsputsContainer'));
+    getsputsChart.draw(getsputsChartData, getsputsChartOptions);
 }
 
 $(document).ready(function() {
 
-  createStatusBlock()
+  loadGoogleCharts();
 
   $.ajaxSetup({
       cache : false
@@ -399,21 +448,34 @@ $(document).ready(function() {
   // External Tables Grid Data Table
   var extTableStatsGrid = $('#extTableStatsGrid').DataTable( getExternalTableStatsGridConf() );
 
+  var clusterStatsUpdateInterval = setInterval(function() {
+    // todo: need to provision when to stop and start update feature
+    // clearInterval(clusterStatsUpdateInterval);
+
+    $.getJSON("/snappy-api/services/clusterinfo",
+      function (response, status, jqXHR) {
+        // todo: refresh graph data and reload charts
+        // var cpuUsageTrend = response[0].cpuUsageTrend;
+        updateUsageCharts();
+
+      });
+  }, 5000);
+
   // Members stats are updated after every 30 seconds
   var memberStatsUpdateInterval = setInterval(function() {
     // todo: need to provision when to stop and start update feature
-    // clearInterval(x);
+    // clearInterval(memberStatsUpdateInterval);
 
     $('#memberStatsGrid').DataTable().ajax.reload();
   }, 5000);
 
-  // Tables stats are updated after every 30 seconds
+  // Tables stats are updated after every 10 seconds
   var tableStatsUpdateInterval = setInterval(function() {
       // todo: need to provision when to stop and start update feature
-      // clearInterval(x);
+      // clearInterval(tableStatsUpdateInterval);
 
       $('#tableStatsGrid').DataTable().ajax.reload();
       $('#extTableStatsGrid').DataTable().ajax.reload();
-    }, 30000);
+    }, 10000);
 
 });
