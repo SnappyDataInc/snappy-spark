@@ -77,7 +77,7 @@ final class ShuffleBlockFetcherIterator(
   private[this] var numBlocksProcessed = 0
 
   private[this] val startTime =
-    if (isDebugEnabled || isTraceEnabled) System.currentTimeMillis else 0L
+    if (log.isDebugEnabled || isTraceEnabled) System.currentTimeMillis else 0L
 
   /** Local blocks to fetch, excluding zero-sized blocks. */
   private[this] val localBlocks = new ArrayBuffer[BlockId]()
@@ -180,7 +180,7 @@ final class ShuffleBlockFetcherIterator(
               remainingBlocks -= blockId
               results.put(new SuccessFetchResult(BlockId(blockId), address, sizeMap(blockId), buf,
                 remainingBlocks.isEmpty))
-              if (isDebugEnabled) logDebug("remainingBlocks: " + remainingBlocks)
+              if (log.isDebugEnabled) logDebug("remainingBlocks: " + remainingBlocks)
             }
           }
           if (isTraceEnabled) logTrace("Got remote block " + blockId + " after " +
@@ -288,6 +288,7 @@ final class ShuffleBlockFetcherIterator(
     fetchUpToMaxBytes()
 
     val numFetches = remoteRequests.size - fetchRequests.size
+    val isDebugEnabled = log.isDebugEnabled
     if (isDebugEnabled) logDebug("Started " + numFetches + " remote fetches in" +
         Utils.getUsedTimeMs(startTime))
 
