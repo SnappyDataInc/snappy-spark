@@ -26,10 +26,11 @@ import org.json4s.JValue
 import org.apache.spark.deploy.DeployMessages.{KillDriverResponse, MasterStateResponse, RequestKillDriver, RequestMasterState}
 import org.apache.spark.deploy.JsonProtocol
 import org.apache.spark.deploy.master._
+import org.apache.spark.internal.Logging
 import org.apache.spark.ui.{UIUtils, WebUIPage}
 import org.apache.spark.util.Utils
 
-private[ui] class MasterPage(parent: MasterWebUI) extends WebUIPage("") {
+private[ui] class MasterPage(parent: MasterWebUI) extends WebUIPage("") with Logging {
   private val master = parent.masterEndpointRef
 
   def getMasterState: MasterStateResponse = {
@@ -43,6 +44,15 @@ private[ui] class MasterPage(parent: MasterWebUI) extends WebUIPage("") {
   def handleAppKillRequest(request: HttpServletRequest): Unit = {
     handleKillRequest(request, id => {
       parent.master.idToApp.get(id).foreach { app =>
+        parent.master.removeApplication(app, ApplicationState.KILLED)
+      }
+    })
+  }
+
+  def handleAppStopRequest(request: HttpServletRequest): Unit = {
+    logInfo(" Got stop request")
+    handleStopRequest(request, name => {
+      parent.master.nameToApp.get(name.toLowerCase).foreach { app =>
         parent.master.removeApplication(app, ApplicationState.KILLED)
       }
     })
@@ -63,6 +73,18 @@ private[ui] class MasterPage(parent: MasterWebUI) extends WebUIPage("") {
         action(id.get)
       }
 
+      Thread.sleep(100)
+    }
+  }
+
+  private def handleStopRequest(request: HttpServletRequest, action: String => Unit): Unit = {
+    if (parent.killEnabled &&
+        parent.master.securityMgr.checkModifyPermissions(request.getRemoteUser)) {
+      val name = Option(request.getParameter("name"))
+      if (name.isDefined) {
+        logInfo(" Got stop request "+name.get)
+        action(name.get)
+      }
       Thread.sleep(100)
     }
   }
