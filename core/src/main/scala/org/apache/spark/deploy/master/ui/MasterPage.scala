@@ -50,7 +50,6 @@ private[ui] class MasterPage(parent: MasterWebUI) extends WebUIPage("") with Log
   }
 
   def handleAppStopRequest(request: HttpServletRequest): Unit = {
-    logInfo(" Got stop request")
     handleStopRequest(request, name => {
       parent.master.nameToApp.get(name.toLowerCase).foreach { app =>
         parent.master.removeApplication(app, ApplicationState.KILLED)
@@ -82,7 +81,6 @@ private[ui] class MasterPage(parent: MasterWebUI) extends WebUIPage("") with Log
         parent.master.securityMgr.checkModifyPermissions(request.getRemoteUser)) {
       val name = Option(request.getParameter("name"))
       if (name.isDefined) {
-        logInfo(" Got stop request "+name.get)
         action(name.get)
       }
       Thread.sleep(100)
