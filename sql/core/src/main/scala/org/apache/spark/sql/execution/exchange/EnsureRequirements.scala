@@ -47,11 +47,10 @@ case class EnsureRequirements(conf: SQLConf) extends Rule[SparkPlan] {
    */
   private def createPartitioning(
       requiredDistribution: Distribution,
-      numPartitions: Int, numBuckets: Int = 0): Partitioning = {
+      numPartitions: Int): Partitioning = {
     requiredDistribution match {
       case AllTuples => SinglePartition
-      case ClusteredDistribution(clustering) =>
-        HashPartitioning(clustering, numPartitions, numBuckets)
+      case ClusteredDistribution(clustering) => HashPartitioning(clustering, numPartitions)
       case OrderedDistribution(ordering) => RangePartitioning(ordering, numPartitions)
       case dist => sys.error(s"Do not know how to satisfy distribution $dist")
     }
@@ -188,15 +187,11 @@ case class EnsureRequirements(conf: SQLConf) extends Rule[SparkPlan] {
         case (child, false) => child.outputPartitioning.numPartitions
         case (child, true) => -child.outputPartitioning.numPartitions
       }.max)
-      val numBuckets = children.map(_.outputPartitioning match {
-        case p: HashPartitioning => p.numBuckets
-        case _ => 0
-      }).max
 
       val useExistingPartitioning = children.zip(requiredChildDistributions).forall {
         case (child, distribution) =>
           child.outputPartitioning.guarantees(
-            createPartitioning(distribution, maxChildrenNumPartitions, numBuckets))
+            createPartitioning(distribution, maxChildrenNumPartitions))
       }
 
       children = if (useExistingPartitioning) {

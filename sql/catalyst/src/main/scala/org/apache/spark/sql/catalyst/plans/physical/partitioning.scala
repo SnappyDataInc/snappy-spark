@@ -255,12 +255,6 @@ case object SinglePartition extends Partitioning {
 case class HashPartitioning(expressions: Seq[Expression], numPartitions: Int)
     extends Expression with Partitioning with Unevaluable {
 
-  private[sql] var buckets: Int = 0
-
-  def numBuckets(): Int = {
-    buckets
-  }
-
   override def children: Seq[Expression] = expressions
   override def nullable: Boolean = false
   override def dataType: DataType = IntegerType
@@ -273,14 +267,12 @@ case class HashPartitioning(expressions: Seq[Expression], numPartitions: Int)
   }
 
   override def compatibleWith(other: Partitioning): Boolean = other match {
-    case o: HashPartitioning =>
-      this.numBuckets == o.numBuckets && this.semanticEquals(o)
+    case o: HashPartitioning => this.semanticEquals(o)
     case _ => false
   }
 
   override def guarantees(other: Partitioning): Boolean = other match {
-    case o: HashPartitioning =>
-      this.numBuckets == o.numBuckets && this.semanticEquals(o)
+    case o: HashPartitioning => this.semanticEquals(o)
     case _ => false
   }
 
@@ -289,16 +281,6 @@ case class HashPartitioning(expressions: Seq[Expression], numPartitions: Int)
    * than numPartitions) based on hashing expressions.
    */
   def partitionIdExpression: Expression = Pmod(new Murmur3Hash(expressions), Literal(numPartitions))
-}
-
-object HashPartitioning {
-
-  def apply(expressions: Seq[Expression], numPartitions: Int,
-      numBuckets: Int): HashPartitioning = {
-    val partitioning = HashPartitioning(expressions, numPartitions)
-    partitioning.buckets = numBuckets
-    partitioning
-  }
 }
 
 /**
