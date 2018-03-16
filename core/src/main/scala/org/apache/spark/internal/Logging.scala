@@ -34,8 +34,6 @@ private[spark] trait Logging {
   // be serialized and used on another machine
   @transient private var log_ : Logger = null
 
-  @transient private[this] var levelFlags: Int = _
-
   // Method to get the logger name for this object
   protected def logName = {
     // Ignore trailing $'s in the class names for Scala objects
@@ -51,54 +49,17 @@ private[spark] trait Logging {
     log_
   }
 
-  private def setLevel(value: Boolean, enabled: Int, disabled: Int): Unit = {
-    if (value) levelFlags |= enabled else levelFlags |= disabled
-  }
-
-  protected final def isInfoEnabled: Boolean = {
-    val levelFlags = this.levelFlags
-    if ((levelFlags & Logging.INFO_ENABLED) != 0) true
-    else if ((levelFlags & Logging.INFO_DISABLED) != 0) false
-    else {
-      val value = log.isInfoEnabled
-      setLevel(value, Logging.INFO_ENABLED, Logging.INFO_DISABLED)
-      value
-    }
-  }
-
-  protected final def isDebugEnabled: Boolean = {
-    val levelFlags = this.levelFlags
-    if ((levelFlags & Logging.DEBUG_DISABLED) != 0) false
-    else if ((levelFlags & Logging.DEBUG_ENABLED) != 0) true
-    else {
-      val value = log.isDebugEnabled
-      setLevel(value, Logging.DEBUG_ENABLED, Logging.DEBUG_DISABLED)
-      value
-    }
-  }
-
-  protected final def isTraceEnabled: Boolean = {
-    val levelFlags = this.levelFlags
-    if ((levelFlags & Logging.TRACE_DISABLED) != 0) false
-    else if ((levelFlags & Logging.TRACE_ENABLED) != 0) true
-    else {
-      val value = log.isTraceEnabled
-      setLevel(value, Logging.TRACE_ENABLED, Logging.TRACE_DISABLED)
-      value
-    }
-  }
-
   // Log methods that take only a String
   protected def logInfo(msg: => String) {
-    if (isInfoEnabled) log.info(msg)
+    if (log.isInfoEnabled) log.info(msg)
   }
 
   protected def logDebug(msg: => String) {
-    if (isDebugEnabled) log.debug(msg)
+    if (log.isDebugEnabled) log.debug(msg)
   }
 
   protected def logTrace(msg: => String) {
-    if (isTraceEnabled) log.trace(msg)
+    if (log.isTraceEnabled) log.trace(msg)
   }
 
   protected def logWarning(msg: => String) {
@@ -111,15 +72,15 @@ private[spark] trait Logging {
 
   // Log methods that take Throwables (Exceptions/Errors) too
   protected def logInfo(msg: => String, throwable: Throwable) {
-    if (isInfoEnabled) log.info(msg, throwable)
+    if (log.isInfoEnabled) log.info(msg, throwable)
   }
 
   protected def logDebug(msg: => String, throwable: Throwable) {
-    if (isDebugEnabled) log.debug(msg, throwable)
+    if (log.isDebugEnabled) log.debug(msg, throwable)
   }
 
   protected def logTrace(msg: => String, throwable: Throwable) {
-    if (isTraceEnabled) log.trace(msg, throwable)
+    if (log.isTraceEnabled) log.trace(msg, throwable)
   }
 
   protected def logWarning(msg: => String, throwable: Throwable) {
@@ -128,6 +89,10 @@ private[spark] trait Logging {
 
   protected def logError(msg: => String, throwable: Throwable) {
     if (log.isErrorEnabled) log.error(msg, throwable)
+  }
+
+  protected def isTraceEnabled(): Boolean = {
+    log.isTraceEnabled
   }
 
   protected def initializeLogIfNecessary(isInterpreter: Boolean): Unit = {
@@ -171,7 +136,7 @@ private[spark] trait Logging {
         if (replLevel != rootLogger.getEffectiveLevel()) {
           System.err.printf("Setting default log level to \"%s\".\n", replLevel)
           System.err.println("To adjust logging level use sc.setLogLevel(newLevel). " +
-            "For SparkR, use setLogLevel(newLevel).")
+              "For SparkR, use setLogLevel(newLevel).")
           rootLogger.setLevel(replLevel)
         }
       }
@@ -186,14 +151,6 @@ private[spark] trait Logging {
 }
 
 private object Logging {
-
-  private val INFO_ENABLED = 0x1
-  private val INFO_DISABLED = 0x2
-  private val DEBUG_ENABLED = 0x4
-  private val DEBUG_DISABLED = 0x8
-  private val TRACE_ENABLED = 0x10
-  private val TRACE_DISABLED = 0x20
-
   @volatile private var initialized = false
   val initLock = new Object()
   try {

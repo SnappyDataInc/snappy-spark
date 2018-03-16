@@ -1022,8 +1022,8 @@ object CodeGenerator extends Logging {
   private lazy val cache = {
     val env = SparkEnv.get
     val cacheSize = if (env ne null) {
-      env.conf.getInt("spark.sql.codegen.cacheSize", 1000)
-    } else 1000
+      env.conf.getInt("spark.sql.codegen.cacheSize", 2000)
+    } else 2000
     CacheBuilder.newBuilder().maximumSize(cacheSize).build(
       new CacheLoader[CodeAndComment, GeneratedClass]() {
         override def load(code: CodeAndComment): GeneratedClass = {
