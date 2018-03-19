@@ -27,22 +27,22 @@ import org.apache.spark.sql.{SparkSession, SQLContext}
 
 
 /**
- * Helper trait for SQL test suites where all tests share a single [[TestSparkSession]].
+ * Helper trait for SQL test suites where all tests share a single [[SparkSession]].
  */
 trait SharedSQLContext extends SQLTestUtils with BeforeAndAfterEach with Eventually {
 
   protected val sparkConf = new SparkConf()
 
   /**
-   * The [[TestSparkSession]] to use for all tests in this suite.
+   * The [[SparkSession]] to use for all tests in this suite.
    *
    * By default, the underlying [[org.apache.spark.SparkContext]] will be run in local
    * mode with the default test configurations.
    */
-  private var _spark: TestSparkSession = null
+  private var _spark: SparkSession = null
 
   /**
-   * The [[TestSparkSession]] to use for all tests in this suite.
+   * The [[SparkSession]] to use for all tests in this suite.
    */
   protected implicit def spark: SparkSession = _spark
 
@@ -51,13 +51,13 @@ trait SharedSQLContext extends SQLTestUtils with BeforeAndAfterEach with Eventua
    */
   protected implicit def sqlContext: SQLContext = _spark.sqlContext
 
-  protected def createSparkSession: TestSparkSession = {
+  protected def createSparkSession: SparkSession = {
     new TestSparkSession(
       sparkConf.set("spark.hadoop.fs.file.impl", classOf[DebugFilesystem].getName))
   }
 
   /**
-   * Initialize the [[TestSparkSession]].
+   * Initialize the [[SparkSession]].
    */
   protected override def beforeAll(): Unit = {
     SparkSession.sqlListener.set(null)
