@@ -51,7 +51,7 @@ class MasterWebUI(
     attachHandler(createRedirectHandler(
       "/app/kill", "/", masterPage.handleAppKillRequest, httpMethods = Set("POST")))
     attachHandler(createRedirectHandler(
-      "/app/stop", "/", masterPage.handleAppStopRequest, httpMethods = Set("POST")))
+      "/app/killByName", "/", masterPage.handleAppKillByNameRequest, httpMethods = Set("POST")))
     attachHandler(createRedirectHandler(
       "/driver/kill", "/", masterPage.handleDriverKillRequest, httpMethods = Set("POST")))
   }

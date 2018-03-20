@@ -74,7 +74,7 @@ class MasterWebUISuite extends SparkFunSuite with BeforeAndAfterAll {
     verify(master, times(1)).removeApplication(activeApp, ApplicationState.KILLED)
   }
 
-  test("Stop application") {
+  test("Kill application by name") {
     val appDesc = createAppDesc()
     // use new start date so it isn't filtered by UI
     val activeApp = new ApplicationInfo(
@@ -83,8 +83,8 @@ class MasterWebUISuite extends SparkFunSuite with BeforeAndAfterAll {
     when(master.nameToApp).thenReturn(HashMap[String,
         ApplicationInfo]((activeApp.desc.name, activeApp)))
 
-    val url = s"http://localhost:${masterWebUI.boundPort}/app/stop/"
-    val body = convPostDataToString(Map(("name", activeApp.desc.name)))
+    val url = s"http://localhost:${masterWebUI.boundPort}/app/killByName/"
+    val body = convPostDataToString(Map(("name", activeApp.desc.name), ("terminate", "true")))
     val conn = sendHttpRequest(url, "POST", body)
     conn.getResponseCode
 

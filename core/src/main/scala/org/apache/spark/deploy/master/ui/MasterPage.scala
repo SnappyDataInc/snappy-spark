@@ -49,12 +49,12 @@ private[ui] class MasterPage(parent: MasterWebUI) extends WebUIPage("") with Log
     })
   }
 
-  def handleAppStopRequest(request: HttpServletRequest): Unit = {
-    handleStopRequest(request, name => {
+  def handleAppKillByNameRequest(request: HttpServletRequest): Unit = {
+    handleKillRequest(request, name => {
       parent.master.nameToApp.get(name.toLowerCase).foreach { app =>
         parent.master.removeApplication(app, ApplicationState.KILLED)
       }
-    })
+    }, killByName = true)
   }
 
   def handleDriverKillRequest(request: HttpServletRequest): Unit = {
@@ -63,26 +63,21 @@ private[ui] class MasterPage(parent: MasterWebUI) extends WebUIPage("") with Log
     })
   }
 
-  private def handleKillRequest(request: HttpServletRequest, action: String => Unit): Unit = {
+  private def handleKillRequest(request: HttpServletRequest,
+      action: String => Unit,
+      killByName: Boolean = false): Unit = {
     if (parent.killEnabled &&
         parent.master.securityMgr.checkModifyPermissions(request.getRemoteUser)) {
       val killFlag = Option(request.getParameter("terminate")).getOrElse("false").toBoolean
-      val id = Option(request.getParameter("id"))
-      if (id.isDefined && killFlag) {
-        action(id.get)
+      val idOrName = if (!killByName) {
+        Option(request.getParameter("id"))
+      } else {
+        Option(request.getParameter("name"))
+      }
+      if (idOrName.isDefined && killFlag) {
+        action(idOrName.get)
       }
 
-      Thread.sleep(100)
-    }
-  }
-
-  private def handleStopRequest(request: HttpServletRequest, action: String => Unit): Unit = {
-    if (parent.killEnabled &&
-        parent.master.securityMgr.checkModifyPermissions(request.getRemoteUser)) {
-      val name = Option(request.getParameter("name"))
-      if (name.isDefined) {
-        action(name.get)
-      }
       Thread.sleep(100)
     }
   }
