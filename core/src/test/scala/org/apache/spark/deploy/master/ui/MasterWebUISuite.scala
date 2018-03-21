@@ -74,6 +74,24 @@ class MasterWebUISuite extends SparkFunSuite with BeforeAndAfterAll {
     verify(master, times(1)).removeApplication(activeApp, ApplicationState.KILLED)
   }
 
+  test("Kill application by name") {
+    val appDesc = createAppDesc()
+    // use new start date so it isn't filtered by UI
+    val activeApp = new ApplicationInfo(
+      new Date().getTime, "app-0", appDesc, new Date(), null, Int.MaxValue)
+
+    when(master.nameToApp).thenReturn(HashMap[String,
+        ApplicationInfo]((activeApp.desc.name, activeApp)))
+
+    val url = s"http://localhost:${masterWebUI.boundPort}/app/killByName/"
+    val body = convPostDataToString(Map(("name", activeApp.desc.name), ("terminate", "true")))
+    val conn = sendHttpRequest(url, "POST", body)
+    conn.getResponseCode
+
+    // Verify the master was called to remove the active app
+    verify(master, times(1)).removeApplication(activeApp, ApplicationState.KILLED)
+  }
+
   test("kill driver") {
     val activeDriverId = "driver-0"
     val url = s"http://localhost:${masterWebUI.boundPort}/driver/kill/"

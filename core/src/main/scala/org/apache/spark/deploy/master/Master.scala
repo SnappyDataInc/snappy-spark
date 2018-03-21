@@ -63,6 +63,7 @@ private[deploy] class Master(
 
   val workers = new HashSet[WorkerInfo]
   val idToApp = new HashMap[String, ApplicationInfo]
+  val nameToApp = new HashMap[String, ApplicationInfo]
   private val waitingApps = new ArrayBuffer[ApplicationInfo]
   val apps = new HashSet[ApplicationInfo]
 
@@ -271,11 +272,18 @@ private[deploy] class Master(
       } else {
         logInfo("Registering app " + description.name)
         val app = createApplication(description, driver)
-        registerApplication(app)
-        logInfo("Registered app " + description.name + " with ID " + app.id)
-        persistenceEngine.addApplication(app)
-        driver.send(RegisteredApplication(app.id, self))
-        schedule()
+        if (nameToApp.get(app.desc.name.toLowerCase).isDefined) {
+          val msg = s"An application with name ${app.desc.name} is already running" +
+              s" with app id ${app.id}"
+          logError(msg)
+          driver.send(ApplicationRemoved(msg))
+        } else {
+          registerApplication(app)
+          logInfo("Registered app " + description.name + " with ID " + app.id)
+          persistenceEngine.addApplication(app)
+          driver.send(RegisteredApplication(app.id, self))
+          schedule()
+        }
       }
 
     case ExecutorStateChanged(appId, execId, state, message, exitStatus) =>
@@ -851,6 +859,7 @@ private[deploy] class Master(
     applicationMetricsSystem.registerSource(app.appSource)
     apps += app
     idToApp(app.id) = app
+    nameToApp(app.desc.name.toLowerCase) = app
     endpointToApp(app.driver) = app
     addressToApp(appAddress) = app
     waitingApps += app
@@ -862,9 +871,10 @@ private[deploy] class Master(
 
   def removeApplication(app: ApplicationInfo, state: ApplicationState.Value) {
     if (apps.contains(app)) {
-      logInfo("Removing app " + app.id)
+      logInfo(s"Removing application ${app.desc.name} with app.id=${app.id} ")
       apps -= app
       idToApp -= app.id
+      nameToApp -= app.desc.name.toLowerCase
       endpointToApp -= app.driver
       addressToApp -= app.driver.address
 
