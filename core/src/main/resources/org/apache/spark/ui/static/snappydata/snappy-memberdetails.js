@@ -146,7 +146,146 @@ function createStatusBlock() {
 
 }
 
+function loadGoogleCharts(){
+  google.charts.load('current', {'packages':['corechart']});
+  // google.charts.setOnLoadCallback(updateUsageCharts);
+}
+
+function updateUsageCharts(memberData){
+  var cpuChartData = new google.visualization.DataTable();
+  cpuChartData.addColumn('datetime', 'Time of Day');
+  cpuChartData.addColumn('number', 'CPU');
+
+  var heapChartData = new google.visualization.DataTable();
+  heapChartData.addColumn('datetime', 'Time of Day');
+  heapChartData.addColumn('number', 'JVM');
+  heapChartData.addColumn('number', 'Storage');
+  heapChartData.addColumn('number', 'Execution');
+
+  var offHeapChartData = new google.visualization.DataTable();
+  offHeapChartData.addColumn('datetime', 'Time of Day');
+  offHeapChartData.addColumn('number', 'Storage');
+  offHeapChartData.addColumn('number', 'Execution');
+
+  var getsputsChartData = new google.visualization.DataTable();
+  getsputsChartData.addColumn('datetime', 'Time of Day');
+  getsputsChartData.addColumn('number', 'Gets');
+  getsputsChartData.addColumn('number', 'Puts');
+
+  var timeLine = memberData.timeLine;
+  var cpuUsageTrend = memberData.cpuUsageTrend;
+
+  var jvmUsageTrend = memberData.jvmUsageTrend;
+  var heapStorageUsageTrend = memberData.heapStorageUsageTrend;
+  var heapExecutionUsageTrend = memberData.heapExecutionUsageTrend;
+
+  var offHeapStorageUsageTrend = memberData.offHeapStorageUsageTrend;
+  var offHeapExecutionUsageTrend = memberData.offHeapExecutionUsageTrend;
+
+  for(var i=0; i<timeLine.length; i++){
+    var timeX = new Date(timeLine[i]);
+
+    cpuChartData.addRow([timeX, cpuUsageTrend[i]]);
+    heapChartData.addRow([timeX,
+                          jvmUsageTrend[i],
+                          heapStorageUsageTrend[i],
+                          heapExecutionUsageTrend[i]]);
+    offHeapChartData.addRow([timeX,
+                          offHeapStorageUsageTrend[i],
+                          offHeapExecutionUsageTrend[i]]);
+    getsputsChartData.addRow([timeX, (Math.random()*100), (Math.random()*50)]);
+  }
+
+  cpuChartOptions = {
+              title: 'CPU Usage',
+              curveType: 'function',
+              legend: { position: 'bottom' },
+              colors:['#2139EC'],
+              hAxis: {
+                format: 'HH:mm'
+              },
+              vAxis: {
+                minValue: 0
+              }
+            };
+  heapChartOptions = {
+            title: 'Heap Usage',
+            curveType: 'function',
+            legend: { position: 'bottom' },
+            colors:['#6C3483', '#2139EC', '#E67E22'],
+            hAxis: {
+              format: 'HH:mm'
+            }
+          };
+  offHeapChartOptions = {
+              title: 'Off-Heap Usage',
+              curveType: 'function',
+              legend: { position: 'bottom' },
+              colors:['#2139EC', '#E67E22'],
+              hAxis: {
+                format: 'HH:mm'
+              }
+            };
+  getsputsChartOptions = {
+              title: 'Gets and Puts',
+              curveType: 'function',
+              legend: { position: 'bottom' },
+              colors:['#2139EC', '#E67E22'],
+              hAxis: {
+                format: 'HH:mm'
+              }
+            };
+
+  cpuChart = new google.visualization.LineChart(
+                      document.getElementById('cpuUsageContainer'));
+  cpuChart.draw(cpuChartData, cpuChartOptions);
+
+  var heapChart = new google.visualization.LineChart(
+                      document.getElementById('heapUsageContainer'));
+  heapChart.draw(heapChartData, heapChartOptions);
+
+  var offHeapChart = new google.visualization.LineChart(
+                      document.getElementById('offheapUsageContainer'));
+  offHeapChart.draw(offHeapChartData, offHeapChartOptions);
+
+  var getsputsChart = new google.visualization.LineChart(
+                        document.getElementById('getsputsContainer'));
+    getsputsChart.draw(getsputsChartData, getsputsChartOptions);
+}
+
+// Member to be loaded
+var memberId = "";
+function setMemberId(memId) {
+  memberId = memId;
+}
+
+// Resource URI to get Members Details
+function getMemberDetailsURI(memberId) {
+  return "/snappy-api/services/memberdetails/" + memberId;
+}
+
 $(document).ready(function() {
   // todo : to be removed
-  createStatusBlock();
+  // createStatusBlock();
+
+  loadGoogleCharts();
+
+  $.ajaxSetup({
+      cache : false
+    });
+
+  var memberStatsUpdateInterval = setInterval(function() {
+      // todo: need to provision when to stop and start update feature
+      // clearInterval(memberStatsUpdateInterval);
+
+      $.getJSON(getMemberDetailsURI(memberId),
+        function (response, status, jqXHR) {
+          // todo: refresh graph data and reload charts
+          var memberData = response[0];
+
+          updateUsageCharts(memberData);
+
+        });
+    }, 5000);
+
 });

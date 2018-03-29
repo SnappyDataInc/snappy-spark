@@ -181,8 +181,6 @@ private[spark] object UIUtils extends Logging {
       <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
       <script src={prependBaseUri("/static/snappydata/liquidFillGauge.js")}></script>
       <script src={prependBaseUri("/static/snappydata/snappy-commons.js")}></script>
-      <script src={prependBaseUri("/static/snappydata/snappy-dashboard.js")}></script>
-      <script src={prependBaseUri("/static/snappydata/snappy-memberdetails.js")}></script>
   }
 
   def vizHeaderNodes: Seq[Node] = {
