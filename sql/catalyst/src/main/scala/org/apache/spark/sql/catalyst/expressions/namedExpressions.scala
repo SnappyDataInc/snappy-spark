@@ -63,7 +63,9 @@ object NamedExpression {
 case class ExprId(id: Long, jvmId: UUID)
 
 object ExprId {
-  def apply(id: Long): ExprId = ExprId(id, NamedExpression.jvmId)
+  private val INVALID = apply(-1, NamedExpression.jvmId)
+
+  def apply(id: Long): ExprId = if (id == -1) INVALID else ExprId(id, NamedExpression.jvmId)
 }
 
 /**

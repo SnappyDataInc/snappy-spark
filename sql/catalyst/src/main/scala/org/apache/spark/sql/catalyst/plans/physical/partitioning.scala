@@ -250,59 +250,10 @@ case object SinglePartition extends Partitioning {
 /**
  * Represents a partitioning where rows are split up across partitions based on the hash
  * of `expressions`.  All rows where `expressions` evaluate to the same values are guaranteed to be
- * in the same partition. Moreover while evaluating expressions if they are given in different order
- * than this partitioning then also it is considered equal.
- */
-case class OrderlessHashPartitioning(expressions: Seq[Expression],
-    aliases: Seq[Seq[Attribute]], numPartitions: Int, numBuckets: Int, tableBuckets: Int)
-    extends Expression with Partitioning with Unevaluable {
-
-  override def children: Seq[Expression] = expressions
-  override def nullable: Boolean = false
-  override def dataType: DataType = IntegerType
-
-  private def matchExpressions(otherExpression: Seq[Expression]): Boolean = {
-    expressions.length == otherExpression.length &&
-        expressions.zipWithIndex.forall { case (a, i) =>
-          otherExpression.exists(e => e.semanticEquals(a) ||
-              (aliases.nonEmpty && aliases(i).exists(a2 => e.semanticEquals(a2))))
-        }
-  }
-
-  override def satisfies(required: Distribution): Boolean = required match {
-    case UnspecifiedDistribution => true
-    case ClusteredDistribution(requiredClustering) =>
-      matchExpressions(requiredClustering)
-    case _ => false
-  }
-
-  private def anyOrderEquals(other: HashPartitioning) : Boolean = {
-    other.numBuckets == this.numBuckets &&
-    other.numPartitions == this.numPartitions &&
-        matchExpressions(other.expressions)
-  }
-
-  override def compatibleWith(other: Partitioning): Boolean = other match {
-    case p: HashPartitioning => anyOrderEquals(p)
-    case _ => false
-  }
-
-  override def guarantees(other: Partitioning): Boolean = other match {
-    case p: HashPartitioning => anyOrderEquals(p)
-    case _ => false
-  }
-
-}
-
-/**
- * Represents a partitioning where rows are split up across partitions based on the hash
- * of `expressions`.  All rows where `expressions` evaluate to the same values are guaranteed to be
  * in the same partition.
  */
 case class HashPartitioning(expressions: Seq[Expression], numPartitions: Int)
     extends Expression with Partitioning with Unevaluable {
-
-  private[sql] var numBuckets: Int = 0
 
   override def children: Seq[Expression] = expressions
   override def nullable: Boolean = false
@@ -316,14 +267,12 @@ case class HashPartitioning(expressions: Seq[Expression], numPartitions: Int)
   }
 
   override def compatibleWith(other: Partitioning): Boolean = other match {
-    case o: HashPartitioning =>
-      this.numBuckets == o.numBuckets && this.semanticEquals(o)
+    case o: HashPartitioning => this.semanticEquals(o)
     case _ => false
   }
 
   override def guarantees(other: Partitioning): Boolean = other match {
-    case o: HashPartitioning =>
-      this.numBuckets == o.numBuckets && this.semanticEquals(o)
+    case o: HashPartitioning => this.semanticEquals(o)
     case _ => false
   }
 
@@ -332,16 +281,6 @@ case class HashPartitioning(expressions: Seq[Expression], numPartitions: Int)
    * than numPartitions) based on hashing expressions.
    */
   def partitionIdExpression: Expression = Pmod(new Murmur3Hash(expressions), Literal(numPartitions))
-}
-
-object HashPartitioning {
-
-  def apply(expressions: Seq[Expression], numPartitions: Int,
-      numBuckets: Int): HashPartitioning = {
-    val partitioning = HashPartitioning(expressions, numPartitions)
-    partitioning.numBuckets = numBuckets
-    partitioning
-  }
 }
 
 /**

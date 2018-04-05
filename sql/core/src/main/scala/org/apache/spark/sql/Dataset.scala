@@ -205,8 +205,11 @@ class Dataset[T] private[sql](
    * custom objects, e.g. collect.  Here we resolve and bind the encoder so that we can call its
    * `fromRow` method later.
    */
-  private val boundEnc =
+  private lazy val boundEnc =
     exprEnc.resolveAndBind(logicalPlan.output, sparkSession.sessionState.analyzer)
+
+  // materialize boundEnc immediately if T is not a Row to throw any analysis exception
+  if (!classTag.runtimeClass.isAssignableFrom(classOf[Row])) boundEnc
 
   private implicit def classTag = exprEnc.clsTag
 
