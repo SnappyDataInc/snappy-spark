@@ -113,45 +113,7 @@ function initLogPage(params, logLen, start, end, totLogLen, defaultLen) {
   }
 }
 
-// todo: to be removed
-function createStatusBlock() {
-
-  var cpuUsage = $( "div#cpuUsage" ).data( "value" );
-  var memoryUsage = $( "div#memoryUsage" ).data( "value" );
-  // var heapUsageGauge = $( "div#heapUsage" ).data( "value" );
-  // var offHeapUsageGauge = $( "div#offHeapUsage" ).data( "value" );
-  var jvmHeapUsageGauge = $( "div#jvmHeapUsage" ).data( "value" );
-
-  var config = liquidFillGaugeDefaultSettings();
-  config.circleThickness = 0.15;
-  config.circleColor = "#3EC0FF";
-  config.textColor = "#3EC0FF";
-  config.waveTextColor = "#00B0FF";
-  config.waveColor = "#A0DFFF";
-  config.textVertPosition = 0.8;
-  config.waveAnimateTime = 1000;
-  config.waveHeight = 0.05;
-  config.waveAnimate = true;
-  config.waveRise = false;
-  config.waveHeightScaling = false;
-  config.waveOffset = 0.25;
-  config.textSize = 0.75;
-  config.waveCount = 2;
-
-  var cpuGauge = loadLiquidFillGauge("cpuUsageGauge", cpuUsage, config);
-  var memoryGauge = loadLiquidFillGauge("memoryUsageGauge", memoryUsage, config);
-  // var heapGauge = loadLiquidFillGauge("heapUsageGauge", heapUsageGauge, config);
-  // var offHeapGauge = loadLiquidFillGauge("offHeapUsageGauge", offHeapUsageGauge, config);
-  var jvmGauge = loadLiquidFillGauge("jvmHeapUsageGauge", jvmHeapUsageGauge, config);
-
-}
-
-function loadGoogleCharts(){
-  google.charts.load('current', {'packages':['corechart']});
-  // google.charts.setOnLoadCallback(updateUsageCharts);
-}
-
-function updateUsageCharts(memberData){
+function updateUsageCharts(statsData){
   var cpuChartData = new google.visualization.DataTable();
   cpuChartData.addColumn('datetime', 'Time of Day');
   cpuChartData.addColumn('number', 'CPU');
@@ -172,15 +134,15 @@ function updateUsageCharts(memberData){
   getsputsChartData.addColumn('number', 'Gets');
   getsputsChartData.addColumn('number', 'Puts');
 
-  var timeLine = memberData.timeLine;
-  var cpuUsageTrend = memberData.cpuUsageTrend;
+  var timeLine = statsData.timeLine;
+  var cpuUsageTrend = statsData.cpuUsageTrend;
 
-  var jvmUsageTrend = memberData.jvmUsageTrend;
-  var heapStorageUsageTrend = memberData.heapStorageUsageTrend;
-  var heapExecutionUsageTrend = memberData.heapExecutionUsageTrend;
+  var jvmUsageTrend = statsData.jvmUsageTrend;
+  var heapStorageUsageTrend = statsData.heapStorageUsageTrend;
+  var heapExecutionUsageTrend = statsData.heapExecutionUsageTrend;
 
-  var offHeapStorageUsageTrend = memberData.offHeapStorageUsageTrend;
-  var offHeapExecutionUsageTrend = memberData.offHeapExecutionUsageTrend;
+  var offHeapStorageUsageTrend = statsData.offHeapStorageUsageTrend;
+  var offHeapExecutionUsageTrend = statsData.offHeapExecutionUsageTrend;
 
   for(var i=0; i<timeLine.length; i++){
     var timeX = new Date(timeLine[i]);
@@ -197,44 +159,44 @@ function updateUsageCharts(memberData){
   }
 
   cpuChartOptions = {
-              title: 'CPU Usage',
-              curveType: 'function',
-              legend: { position: 'bottom' },
-              colors:['#2139EC'],
-              hAxis: {
-                format: 'HH:mm'
-              },
-              vAxis: {
-                minValue: 0
-              }
-            };
+    title: 'CPU Usage',
+    curveType: 'function',
+    legend: { position: 'bottom' },
+    colors:['#2139EC'],
+    hAxis: {
+      format: 'HH:mm'
+    },
+    vAxis: {
+      minValue: 0
+    }
+  };
   heapChartOptions = {
-            title: 'Heap Usage',
-            curveType: 'function',
-            legend: { position: 'bottom' },
-            colors:['#6C3483', '#2139EC', '#E67E22'],
-            hAxis: {
-              format: 'HH:mm'
-            }
-          };
+    title: 'Heap Usage',
+    curveType: 'function',
+    legend: { position: 'bottom' },
+    colors:['#6C3483', '#2139EC', '#E67E22'],
+    hAxis: {
+      format: 'HH:mm'
+    }
+  };
   offHeapChartOptions = {
-              title: 'Off-Heap Usage',
-              curveType: 'function',
-              legend: { position: 'bottom' },
-              colors:['#2139EC', '#E67E22'],
-              hAxis: {
-                format: 'HH:mm'
-              }
-            };
+    title: 'Off-Heap Usage',
+    curveType: 'function',
+    legend: { position: 'bottom' },
+    colors:['#2139EC', '#E67E22'],
+    hAxis: {
+      format: 'HH:mm'
+    }
+  };
   getsputsChartOptions = {
-              title: 'Gets and Puts',
-              curveType: 'function',
-              legend: { position: 'bottom' },
-              colors:['#2139EC', '#E67E22'],
-              hAxis: {
-                format: 'HH:mm'
-              }
-            };
+    title: 'Gets and Puts',
+    curveType: 'function',
+    legend: { position: 'bottom' },
+    colors:['#2139EC', '#E67E22'],
+    hAxis: {
+      format: 'HH:mm'
+    }
+  };
 
   cpuChart = new google.visualization.LineChart(
                       document.getElementById('cpuUsageContainer'));
@@ -253,6 +215,24 @@ function updateUsageCharts(memberData){
     getsputsChart.draw(getsputsChartData, getsputsChartOptions);
 }
 
+function loadGoogleCharts(){
+  google.charts.load('current', {'packages':['corechart']});
+  google.charts.setOnLoadCallback(googleChartsLoaded);
+}
+
+function googleChartsLoaded(){
+  loadMemberInfo();
+}
+
+function loadMemberInfo() {
+  $.getJSON(getMemberDetailsURI(memberId),
+    function (response, status, jqXHR) {
+      var memberData = response[0];
+      updateUsageCharts(memberData);
+
+    });
+}
+
 // Member to be loaded
 var memberId = "";
 function setMemberId(memId) {
@@ -265,8 +245,6 @@ function getMemberDetailsURI(memberId) {
 }
 
 $(document).ready(function() {
-  // todo : to be removed
-  // createStatusBlock();
 
   loadGoogleCharts();
 
@@ -278,14 +256,7 @@ $(document).ready(function() {
       // todo: need to provision when to stop and start update feature
       // clearInterval(memberStatsUpdateInterval);
 
-      $.getJSON(getMemberDetailsURI(memberId),
-        function (response, status, jqXHR) {
-          // todo: refresh graph data and reload charts
-          var memberData = response[0];
-
-          updateUsageCharts(memberData);
-
-        });
+      loadMemberInfo();
     }, 5000);
 
 });

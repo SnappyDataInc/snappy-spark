@@ -356,63 +356,90 @@ function getExternalTableStatsGridConf() {
   return extTableStatsGridConf;
 }
 
-function loadGoogleCharts(){
-  google.charts.load('current', {'packages':['corechart']});
-  // google.charts.setOnLoadCallback(updateUsageCharts);
-}
-
-function updateUsageCharts(){
+function updateUsageCharts(statsData){
   var cpuChartData = new google.visualization.DataTable();
-  cpuChartData.addColumn('number', 'Min');
+  cpuChartData.addColumn('datetime', 'Time of Day');
   cpuChartData.addColumn('number', 'CPU');
 
   var heapChartData = new google.visualization.DataTable();
-  heapChartData.addColumn('number', 'Min');
+  heapChartData.addColumn('datetime', 'Time of Day');
   heapChartData.addColumn('number', 'JVM');
   heapChartData.addColumn('number', 'Storage');
   heapChartData.addColumn('number', 'Execution');
 
   var offHeapChartData = new google.visualization.DataTable();
-  offHeapChartData.addColumn('number', 'Min');
+  offHeapChartData.addColumn('datetime', 'Time of Day');
   offHeapChartData.addColumn('number', 'Storage');
   offHeapChartData.addColumn('number', 'Execution');
 
   var getsputsChartData = new google.visualization.DataTable();
-  getsputsChartData.addColumn('number', 'Min');
+  getsputsChartData.addColumn('datetime', 'Time of Day');
   getsputsChartData.addColumn('number', 'Gets');
   getsputsChartData.addColumn('number', 'Puts');
 
-  for(var i=0; i<180; i++){
-    cpuChartData.addRow([i, (Math.random()*100)]);
-    heapChartData.addRow([i, (Math.random()*100), (Math.random()*100), (Math.random()*100)]);
-    offHeapChartData.addRow([i, (Math.random()*100), (Math.random()*100)]);
-    getsputsChartData.addRow([i, (Math.random()*100), (Math.random()*50)]);
+  var timeLine = statsData.timeLine;
+  var cpuUsageTrend = statsData.cpuUsageTrend;
+
+  var jvmUsageTrend = statsData.jvmUsageTrend;
+  var heapStorageUsageTrend = statsData.heapStorageUsageTrend;
+  var heapExecutionUsageTrend = statsData.heapExecutionUsageTrend;
+
+  var offHeapStorageUsageTrend = statsData.offHeapStorageUsageTrend;
+  var offHeapExecutionUsageTrend = statsData.offHeapExecutionUsageTrend;
+
+  for(var i=0; i<timeLine.length; i++){
+    var timeX = new Date(timeLine[i]);
+
+    cpuChartData.addRow([timeX, cpuUsageTrend[i]]);
+    heapChartData.addRow([timeX,
+                          jvmUsageTrend[i],
+                          heapStorageUsageTrend[i],
+                          heapExecutionUsageTrend[i]]);
+    offHeapChartData.addRow([timeX,
+                          offHeapStorageUsageTrend[i],
+                          offHeapExecutionUsageTrend[i]]);
+    getsputsChartData.addRow([timeX, (Math.random()*100), (Math.random()*50)]);
   }
 
   cpuChartOptions = {
-              title: 'CPU Usage',
-              curveType: 'function',
-              legend: { position: 'bottom' },
-              vAxis: {
-                minValue: 0
-              }
-            };
-
+    title: 'CPU Usage',
+    curveType: 'function',
+    legend: { position: 'bottom' },
+    colors:['#2139EC'],
+    hAxis: {
+      format: 'HH:mm'
+    },
+    vAxis: {
+      minValue: 0
+    }
+  };
   heapChartOptions = {
-            title: 'Heap Usage',
-            curveType: 'function',
-            legend: { position: 'bottom' }
-          };
+    title: 'Heap Usage',
+    curveType: 'function',
+    legend: { position: 'bottom' },
+    colors:['#6C3483', '#2139EC', '#E67E22'],
+    hAxis: {
+      format: 'HH:mm'
+    }
+  };
   offHeapChartOptions = {
-              title: 'Off-Heap Usage',
-              curveType: 'function',
-              legend: { position: 'bottom' }
-            };
+    title: 'Off-Heap Usage',
+    curveType: 'function',
+    legend: { position: 'bottom' },
+    colors:['#2139EC', '#E67E22'],
+    hAxis: {
+      format: 'HH:mm'
+    }
+  };
   getsputsChartOptions = {
-              title: 'Gets and Puts',
-              curveType: 'function',
-              legend: { position: 'bottom' }
-            };
+    title: 'Gets and Puts',
+    curveType: 'function',
+    legend: { position: 'bottom' },
+    colors:['#2139EC', '#E67E22'],
+    hAxis: {
+      format: 'HH:mm'
+    }
+  };
 
   cpuChart = new google.visualization.LineChart(
                       document.getElementById('cpuUsageContainer'));
@@ -429,6 +456,23 @@ function updateUsageCharts(){
   var getsputsChart = new google.visualization.LineChart(
                         document.getElementById('getsputsContainer'));
     getsputsChart.draw(getsputsChartData, getsputsChartOptions);
+}
+
+function loadGoogleCharts(){
+  google.charts.load('current', {'packages':['corechart']});
+  google.charts.setOnLoadCallback(googleChartsLoaded);
+}
+
+function googleChartsLoaded(){
+  loadClusterInfo();
+}
+
+function loadClusterInfo() {
+  $.getJSON("/snappy-api/services/clusterinfo",
+    function (response, status, jqXHR) {
+      var clusterInfo = response[0].clusterInfo;
+      updateUsageCharts(clusterInfo);
+    });
 }
 
 $(document).ready(function() {
@@ -452,13 +496,8 @@ $(document).ready(function() {
     // todo: need to provision when to stop and start update feature
     // clearInterval(clusterStatsUpdateInterval);
 
-    $.getJSON("/snappy-api/services/clusterinfo",
-      function (response, status, jqXHR) {
-        // todo: refresh graph data and reload charts
-        // var cpuUsageTrend = response[0].cpuUsageTrend;
-        updateUsageCharts();
+    loadClusterInfo();
 
-      });
   }, 5000);
 
   // Members stats are updated after every 30 seconds
