@@ -129,10 +129,9 @@ function updateUsageCharts(statsData){
   offHeapChartData.addColumn('number', 'Storage');
   offHeapChartData.addColumn('number', 'Execution');
 
-  var getsputsChartData = new google.visualization.DataTable();
-  getsputsChartData.addColumn('datetime', 'Time of Day');
-  getsputsChartData.addColumn('number', 'Gets');
-  getsputsChartData.addColumn('number', 'Puts');
+  var memoryUsageChartData = new google.visualization.DataTable();
+  memoryUsageChartData.addColumn('datetime', 'Time of Day');
+  memoryUsageChartData.addColumn('number', 'Memory');
 
   var timeLine = statsData.timeLine;
   var cpuUsageTrend = statsData.cpuUsageTrend;
@@ -143,6 +142,8 @@ function updateUsageCharts(statsData){
 
   var offHeapStorageUsageTrend = statsData.offHeapStorageUsageTrend;
   var offHeapExecutionUsageTrend = statsData.offHeapExecutionUsageTrend;
+
+  var aggrMemoryUsageTrend = statsData.aggrMemoryUsageTrend;
 
   for(var i=0; i<timeLine.length; i++){
     var timeX = new Date(timeLine[i]);
@@ -155,7 +156,7 @@ function updateUsageCharts(statsData){
     offHeapChartData.addRow([timeX,
                           offHeapStorageUsageTrend[i],
                           offHeapExecutionUsageTrend[i]]);
-    getsputsChartData.addRow([timeX, (Math.random()*100), (Math.random()*50)]);
+    memoryUsageChartData.addRow([timeX, aggrMemoryUsageTrend[i]]);
   }
 
   cpuChartOptions = {
@@ -188,8 +189,8 @@ function updateUsageCharts(statsData){
       format: 'HH:mm'
     }
   };
-  getsputsChartOptions = {
-    title: 'Gets and Puts',
+  memoryUsageChartOptions = {
+    title: 'Memory Usage',
     curveType: 'function',
     legend: { position: 'bottom' },
     colors:['#2139EC', '#E67E22'],
@@ -210,9 +211,9 @@ function updateUsageCharts(statsData){
                       document.getElementById('offheapUsageContainer'));
   offHeapChart.draw(offHeapChartData, offHeapChartOptions);
 
-  var getsputsChart = new google.visualization.LineChart(
-                        document.getElementById('getsputsContainer'));
-    getsputsChart.draw(getsputsChartData, getsputsChartOptions);
+  var memoryUsageChart = new google.visualization.LineChart(
+                        document.getElementById('memoryUsageContainer'));
+    memoryUsageChart.draw(memoryUsageChartData, memoryUsageChartOptions);
 }
 
 function loadGoogleCharts(){
