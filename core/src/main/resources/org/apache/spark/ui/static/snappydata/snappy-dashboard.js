@@ -166,16 +166,7 @@ function generateOffHeapCellHtml(row){
 function getMemberStatsGridConf() {
   // Members Grid Data Table Configurations
   var memberStatsGridConf = {
-    "ajax": {
-      "url": "/snappy-api/services/allmembers",
-      "dataSrc": ""
-    },
-    "drawCallback": function( settings ) {
-      var api = this.api();
-      // var membersData = api.rows().data();
-      // Output the data for the visible rows to the browser's console
-      // updateClusterStats(membersData);
-    },
+    data: memberStatsGridData,
     "columns": [
       { // Status
         data: function(row, type) {
@@ -249,10 +240,7 @@ function getMemberStatsGridConf() {
 function getTableStatsGridConf() {
   // Tables Grid Data Table Configurations
   var tableStatsGridConf = {
-    "ajax": {
-      "url": "/snappy-api/services/alltables",
-      "dataSrc": ""
-    },
+    data: tableStatsGridData,
     "columns": [
       { // Name
         data: function(row, type) {
@@ -321,10 +309,7 @@ function getTableStatsGridConf() {
 function getExternalTableStatsGridConf() {
   // External Tables Grid Data Table Configurations
   var extTableStatsGridConf = {
-    "ajax": {
-      "url": "/snappy-api/services/allexternaltables",
-      "dataSrc": ""
-    },
+    data: extTableStatsGridData,
     "columns": [
       { // Name
         data: function(row, type) {
@@ -473,8 +458,27 @@ function loadClusterInfo() {
     function (response, status, jqXHR) {
       var clusterInfo = response[0].clusterInfo;
       updateUsageCharts(clusterInfo);
+
+      memberStatsGridData = response[0].membersInfo;
+      membersStatsGrid.clear().rows.add(memberStatsGridData).draw();
+
+      tableStatsGridData = response[0].tablesInfo;
+      tableStatsGrid.clear().rows.add(tableStatsGridData).draw();
+
+      extTableStatsGridData = response[0].externalTablesInfo;
+      extTableStatsGrid.clear().rows.add(extTableStatsGridData).draw();
+
     });
 }
+
+var memberStatsGridData = [];
+var membersStatsGrid;
+
+var tableStatsGridData = [];
+var tableStatsGrid;
+
+var extTableStatsGridData = [];
+var extTableStatsGrid;
 
 $(document).ready(function() {
 
@@ -485,13 +489,13 @@ $(document).ready(function() {
     });
 
   // Members Grid Data Table
-  var membersStatsGrid = $('#memberStatsGrid').DataTable( getMemberStatsGridConf() );
+  membersStatsGrid = $('#memberStatsGrid').DataTable( getMemberStatsGridConf() );
 
   // Tables Grid Data Table
-  var tableStatsGrid = $('#tableStatsGrid').DataTable( getTableStatsGridConf() );
+  tableStatsGrid = $('#tableStatsGrid').DataTable( getTableStatsGridConf() );
 
   // External Tables Grid Data Table
-  var extTableStatsGrid = $('#extTableStatsGrid').DataTable( getExternalTableStatsGridConf() );
+  extTableStatsGrid = $('#extTableStatsGrid').DataTable( getExternalTableStatsGridConf() );
 
   var clusterStatsUpdateInterval = setInterval(function() {
     // todo: need to provision when to stop and start update feature
@@ -500,22 +504,5 @@ $(document).ready(function() {
     loadClusterInfo();
 
   }, 5000);
-
-  // Members stats are updated after every 30 seconds
-  var memberStatsUpdateInterval = setInterval(function() {
-    // todo: need to provision when to stop and start update feature
-    // clearInterval(memberStatsUpdateInterval);
-
-    $('#memberStatsGrid').DataTable().ajax.reload();
-  }, 5000);
-
-  // Tables stats are updated after every 10 seconds
-  var tableStatsUpdateInterval = setInterval(function() {
-      // todo: need to provision when to stop and start update feature
-      // clearInterval(tableStatsUpdateInterval);
-
-      $('#tableStatsGrid').DataTable().ajax.reload();
-      $('#extTableStatsGrid').DataTable().ajax.reload();
-    }, 10000);
 
 });
