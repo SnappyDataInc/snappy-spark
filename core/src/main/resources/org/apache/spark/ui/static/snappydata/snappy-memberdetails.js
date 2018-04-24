@@ -113,6 +113,46 @@ function initLogPage(params, logLen, start, end, totLogLen, defaultLen) {
   }
 }
 
+function updateBasicMemoryStats(statsData){
+
+  if(statsData.isLocator){
+    return;
+  }
+
+  var currHeapStoragePoolUsed = convertSizeToHumanReadable(statsData.heapStoragePoolUsed);
+  var currHeapStoragePoolSize = convertSizeToHumanReadable(statsData.heapStoragePoolSize);
+  var currHeapExecutionPoolUsed = convertSizeToHumanReadable(statsData.heapExecutionPoolUsed);
+  var currHeapExecutionPoolSize = convertSizeToHumanReadable(statsData.heapExecutionPoolSize);
+  var currHeapMemoryUsed = convertSizeToHumanReadable(statsData.heapMemoryUsed);
+  var currHeapMemorySize = convertSizeToHumanReadable(statsData.heapMemorySize);
+
+  var currOffHeapStoragePoolUsed = convertSizeToHumanReadable(statsData.offHeapStoragePoolUsed);
+  var currOffHeapStoragePoolSize = convertSizeToHumanReadable(statsData.offHeapStoragePoolSize);
+  var currOffHeapExecutionPoolUsed = convertSizeToHumanReadable(statsData.offHeapExecutionPoolUsed);
+  var currOffHeapExecutionPoolSize = convertSizeToHumanReadable(statsData.offHeapExecutionPoolSize);
+  var currOffHeapMemoryUsed = convertSizeToHumanReadable(statsData.offHeapMemoryUsed);
+  var currOffHeapMemorySize = convertSizeToHumanReadable(statsData.offHeapMemorySize);
+
+  $("#currHeapStoragePool").text(
+    currHeapStoragePoolUsed[0] + " " + currHeapStoragePoolUsed[1] + " / "
+      + currHeapStoragePoolSize[0] + " " + currHeapStoragePoolSize[1] );
+  $("#currHeapExecutionPool").text(
+    currHeapExecutionPoolUsed[0] + " " + currHeapExecutionPoolUsed[1] + " / "
+      + currHeapExecutionPoolSize[0] + " " + currHeapExecutionPoolSize[1]);
+  $("#currHeapMemory").text(
+    currHeapMemoryUsed[0] + " " + currHeapMemoryUsed[1] + " / "
+      + currHeapMemorySize[0] + " " + currHeapMemorySize[1]);
+  $("#currOffHeapStoragePool").text(
+    currOffHeapStoragePoolUsed[0] + " " + currOffHeapStoragePoolUsed[1] + " / "
+      + currOffHeapStoragePoolSize[0] + " " + currOffHeapStoragePoolSize[1]);
+  $("#currOffHeapExecutionPool").text(
+    currOffHeapExecutionPoolUsed[0] + " " + currOffHeapExecutionPoolUsed[1] + " / "
+      + currOffHeapExecutionPoolSize[0] + " " + currOffHeapExecutionPoolSize[1]);
+  $("#currOffHeapMemory").text(
+    currOffHeapMemoryUsed[0] + " " + currOffHeapMemoryUsed[1] + " / "
+      + currOffHeapMemorySize[0] + " " + currOffHeapMemorySize[1]);
+}
+
 function updateUsageCharts(statsData){
   var cpuChartData = new google.visualization.DataTable();
   cpuChartData.addColumn('datetime', 'Time of Day');
@@ -160,10 +200,11 @@ function updateUsageCharts(statsData){
   }
 
   cpuChartOptions = {
-    title: 'CPU Usage',
+    title: 'CPU Usage (%)',
     curveType: 'function',
     legend: { position: 'bottom' },
     colors:['#2139EC'],
+    crosshair: { trigger: 'focus' },
     hAxis: {
       format: 'HH:mm'
     },
@@ -172,28 +213,31 @@ function updateUsageCharts(statsData){
     }
   };
   heapChartOptions = {
-    title: 'Heap Usage',
+    title: 'Heap Usage (%)',
     curveType: 'function',
     legend: { position: 'bottom' },
     colors:['#6C3483', '#2139EC', '#E67E22'],
+    crosshair: { trigger: 'focus' },
     hAxis: {
       format: 'HH:mm'
     }
   };
   offHeapChartOptions = {
-    title: 'Off-Heap Usage',
+    title: 'Off-Heap Usage (%)',
     curveType: 'function',
     legend: { position: 'bottom' },
     colors:['#2139EC', '#E67E22'],
+    crosshair: { trigger: 'focus' },
     hAxis: {
       format: 'HH:mm'
     }
   };
   memoryUsageChartOptions = {
-    title: 'Memory Usage',
+    title: 'Memory Usage (%)',
     curveType: 'function',
     legend: { position: 'bottom' },
     colors:['#2139EC', '#E67E22'],
+    crosshair: { trigger: 'focus' },
     hAxis: {
       format: 'HH:mm'
     }
@@ -229,8 +273,8 @@ function loadMemberInfo() {
   $.getJSON(getMemberDetailsURI(memberId),
     function (response, status, jqXHR) {
       var memberData = response[0];
+      updateBasicMemoryStats(memberData);
       updateUsageCharts(memberData);
-
     });
 }
 

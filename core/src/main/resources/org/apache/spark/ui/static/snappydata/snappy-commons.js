@@ -64,7 +64,7 @@ function applyNotApplicableCheck(value){
 }
 
 /*
- * Utility function to convert given value in Bytes to KB or MB or GB
+ * Utility function to convert given value in Bytes to KB or MB or GB or TB
  *
  */
 function convertSizeToHumanReadable(value){
@@ -72,29 +72,34 @@ function convertSizeToHumanReadable(value){
   var ONE_KB = 1024;
   var ONE_MB = 1024 * 1024;
   var ONE_GB = 1024 * 1024 * 1024;
+  var ONE_TB = 1024 * 1024 * 1024 * 1024;
 
   var convertedValue = new Array();
-  var valueInMBorGB = value;
-  var isBorKBorMBorGB = "B";
+  var newValue = value;
+  var newUnit = "B";
 
-  if (valueInMBorGB >= ONE_KB && valueInMBorGB < ONE_MB) {
-    // Convert to KBs
-    valueInMBorGB = (valueInMBorGB / ONE_KB);
-    isBorKBorMBorGB = "KB";
-  }else if(valueInMBorGB >= ONE_MB && valueInMBorGB < ONE_GB){
-    // Convert to MBs
-    valueInMBorGB = (valueInMBorGB / ONE_MB);
-    isBorKBorMBorGB = "MB";
-  }else if(valueInMBorGB >= ONE_GB ){
+  if (value >= ONE_TB) {
+    // Convert to TBs
+    newValue = (value / ONE_TB);
+    newUnit = "TB";
+  } else if(value >= ONE_GB){
     // Convert to GBs
-    valueInMBorGB = (valueInMBorGB / ONE_GB);
-    isBorKBorMBorGB = "GB";
+    newValue = (value / ONE_GB);
+    newUnit = "GB";
+  } else if(value >= ONE_MB){
+    // Convert to MBs
+    newValue = (value / ONE_MB);
+    newUnit = "MB";
+  } else if(value >= ONE_KB){
+    // Convert to KBs
+    newValue = (value / ONE_KB);
+    newUnit = "KB";
   }
 
   // converted value
-  convertedValue.push(valueInMBorGB.toFixed(2));
-  // B or KB or MB or GB
-  convertedValue.push(isBorKBorMBorGB);
+  convertedValue.push(newValue.toFixed(2));
+  // B or KB or MB or GB or TB
+  convertedValue.push(newUnit);
 
   return convertedValue;
 }

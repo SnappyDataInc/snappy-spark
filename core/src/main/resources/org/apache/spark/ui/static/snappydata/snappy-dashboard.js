@@ -388,10 +388,11 @@ function updateUsageCharts(statsData){
   }
 
   cpuChartOptions = {
-    title: 'CPU Usage',
+    title: 'CPU Usage (%)',
     curveType: 'function',
     legend: { position: 'bottom' },
     colors:['#2139EC'],
+    crosshair: { trigger: 'focus' },
     hAxis: {
       format: 'HH:mm'
     },
@@ -400,28 +401,31 @@ function updateUsageCharts(statsData){
     }
   };
   heapChartOptions = {
-    title: 'Heap Usage',
+    title: 'Heap Usage (%)',
     curveType: 'function',
     legend: { position: 'bottom' },
     colors:['#6C3483', '#2139EC', '#E67E22'],
+    crosshair: { trigger: 'focus' },
     hAxis: {
       format: 'HH:mm'
     }
   };
   offHeapChartOptions = {
-    title: 'Off-Heap Usage',
+    title: 'Off-Heap Usage (%)',
     curveType: 'function',
     legend: { position: 'bottom' },
     colors:['#2139EC', '#E67E22'],
+    crosshair: { trigger: 'focus' },
     hAxis: {
       format: 'HH:mm'
     }
   };
   memoryUsageChartOptions = {
-    title: 'Memory Usage',
+    title: 'Memory Usage (%)',
     curveType: 'function',
     legend: { position: 'bottom' },
     colors:['#2139EC', '#E67E22'],
+    crosshair: { trigger: 'focus' },
     hAxis: {
       format: 'HH:mm'
     }
