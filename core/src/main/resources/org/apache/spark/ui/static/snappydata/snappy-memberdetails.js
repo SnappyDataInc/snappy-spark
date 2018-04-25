@@ -270,12 +270,38 @@ function googleChartsLoaded(){
 }
 
 function loadMemberInfo() {
-  $.getJSON(getMemberDetailsURI(memberId),
-    function (response, status, jqXHR) {
+  $.ajax({
+    url: getMemberDetailsURI(memberId),
+    dataType: 'json',
+    success: function (response, status, jqXHR) {
+
+      // Hide error message, if displayed
+      $("#AutoUpdateErrorMsg").hide();
+
       var memberData = response[0];
       updateBasicMemoryStats(memberData);
       updateUsageCharts(memberData);
-    });
+
+    },
+    error: function (jqXHR, status, error) {
+      var displayMessage = "Could Not Fetch Members Stats Data. <br>Reason: ";
+      if (jqXHR.status == 401) {
+        displayMessage += "Unauthorized Access";
+      } else if (jqXHR.status == 404) {
+        displayMessage += "Server Not Found";
+      } else if (jqXHR.status == 408) {
+        displayMessage += "Request Timeout";
+      } else if (jqXHR.status == 500) {
+        displayMessage += "Internal Server Error";
+      } else if (jqXHR.status == 503) {
+        displayMessage += "Service Unavailable";
+      } else {
+        displayMessage += "Unable to Connect to Server"
+      }
+
+      $("#AutoUpdateErrorMsg").html(displayMessage).show();
+    }
+   });
 }
 
 // Member to be loaded

@@ -458,8 +458,14 @@ function googleChartsLoaded(){
 }
 
 function loadClusterInfo() {
-  $.getJSON("/snappy-api/services/clusterinfo",
-    function (response, status, jqXHR) {
+  $.ajax({
+    url:"/snappy-api/services/clusterinfo",
+    dataType: 'json',
+    success: function (response, status, jqXHR) {
+
+      // Hide error message, if displayed
+      $("#AutoUpdateErrorMsg").hide();
+
       var clusterInfo = response[0].clusterInfo;
       updateUsageCharts(clusterInfo);
 
@@ -472,7 +478,26 @@ function loadClusterInfo() {
       extTableStatsGridData = response[0].externalTablesInfo;
       extTableStatsGrid.clear().rows.add(extTableStatsGridData).draw();
 
-    });
+    },
+    error: function (jqXHR, status, error) {
+      var displayMessage = "Could Not Fetch Cluster Stats Data. <br>Reason: ";
+      if (jqXHR.status == 401) {
+        displayMessage += "Unauthorized Access";
+      } else if (jqXHR.status == 404) {
+        displayMessage += "Server Not Found";
+      } else if (jqXHR.status == 408) {
+        displayMessage += "Request Timeout";
+      } else if (jqXHR.status == 500) {
+        displayMessage += "Internal Server Error";
+      } else if (jqXHR.status == 503) {
+        displayMessage += "Service Unavailable";
+      } else {
+        displayMessage += "Unable to Connect to Server"
+      }
+
+      $("#AutoUpdateErrorMsg").html(displayMessage).show();
+    }
+   });
 }
 
 var memberStatsGridData = [];
