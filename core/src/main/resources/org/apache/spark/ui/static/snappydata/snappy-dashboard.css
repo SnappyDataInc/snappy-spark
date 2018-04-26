@@ -14,82 +14,32 @@
   color: #3CA881;
 }
 
-/*
-.keyStates {
+.basic-stats {
   float: left;
+  height:60px;
   padding: 5px;
-  margin: 5px 10px;
-  border: 1px solid #DCDCDC;
-  box-shadow: 0px 1px 10px rgba(0, 0, 0, 0.4);
-  background: white none repeat scroll 0% 0%;
-  overflow: visible;
-  width: 100%;
-  max-width: 223px;
-  min-height: 100px;
+  margin: 0px 5px;
+  text-align: left;
+  font-weight: bolder;
+  line-height: 25px;
 }
 
-.keyStatesLeft {
+.basic-stats-value {
+  font-size: large;
+}
+
+.basic-stats-separator {
+  height: 50px;
+  border: solid 1px darkgray;
+  margin: 5px 10px;
   float: left;
-  padding: 5px;
-  margin: 5px 10px;
-  border: 1px solid #DCDCDC;
-  box-shadow: 0px 1px 10px rgba(0, 0, 0, 0.4);
-  background: white none repeat scroll 0% 0%;
-  overflow: visible;
-  width: 100%;
-  max-width: 223px;
-  min-height: 100px;
 }
 
-.keyStatesRight {
-  float: left;
-  padding: 5px;
-  margin: 5px 10px;
-  border: 1px solid #DCDCDC;
-  box-shadow: 0px 1px 10px rgba(0, 0, 0, 0.4);
-  background: white none repeat scroll 0% 0%;
-  overflow: visible;
-  width: 100%;
-  max-width: 223px;
-  min-height: 100px;
-}
-
-.keyStatsValue {
-  padding-bottom: 10px;
-  font-weight: bolder;
-  vertical-align: middle;
-  text-align: center;
-  padding-top: 25px;
-  font-size: 24px;
-}
-
-.keyStatesText {
-  font-weight: bolder;
-  min-height: 25px;
-  text-align: center;
-  padding: 10px;
-} */
-
-.keyStates {
-  float:left;
-  height:150px;
-  width:150px;
-  margin: 0px 20px;
-}
-
-.keyStatsValue {
-  width:100%;
-  height:100px;
-  padding: 5px 0px;
-  background: white none repeat scroll 0% 0%;
-}
-
-.keyStatesText {
-  height:30px;
-  min-height: 25px;
-  padding: 5px;
-  text-align: center;
-  font-weight: bolder;
+.basic-stats-container {
+  margin: 10px 10px;
+  display: inline-block;
+  border: solid 1px darkgray;
+  box-shadow: 5px 5px 5px grey;
 }
 
 .clusterHealthImageBox {
@@ -134,44 +84,19 @@
   border: thin solid #3EC0FF;
   background: #A0DFFF none repeat scroll 0 0;
 }
+
 .completedProgress {
   float: left;
   border-radius: inherit;
   background: #3EC0FF none repeat scroll 0px 0px;
 }
-/*
-.remainingProgress {
-  float: left;
-  border-radius: inherit;
-  background: #A0DFFF none repeat scroll 0px 0px;
-}*/
+
 .progressValue {
   float:right;
   /* width:20%; */
   text-align:center;
 }
 
-.titleNodeCount {
-  font-weight: bold;
-  display: inline-block;
-  line-height: 20px;
-  margin: 10px 0;
-  font-size: 17.5px;
-}
-.titleNodeCount2 {
-  font-weight: bold;
-  display: inline-block;
-  line-height: 20px;
-  margin: 10px 0;
-  font-size: 17.5px;
-}
-.cellDetailsBox {
-  float: left;
-  padding: 0px 10px;
-  display: none;
-  border: 1px solid #dbd9cf;
-  margin: 5px auto 2px;
-}
 .caret-downward {
     display: inline-block;
     width: 0;
@@ -183,6 +108,7 @@
     border-bottom-color: transparent;
     border-left-color: transparent;
 }
+
 .caret-upward {
     display: inline-block;
     width: 0;
@@ -193,4 +119,50 @@
     border-right-color: transparent;
     border-top-color: transparent;
     border-left-color: transparent;
+}
+
+.title-node-h4 {
+  vertical-align: bottom;
+  display: inline-block;
+}
+
+.page-title-node-h3 {
+  vertical-align: bottom;
+  display: inline-block;
+}
+
+#AutoUpdateErrorMsgContainer {
+  position: absolute;
+  width: 100%;
+}
+
+#AutoUpdateErrorMsg {
+  width: 30%;
+  max-height: 60px;
+  background-color: rgba(210, 56, 56, 0.16);
+  border: 2px solid red;
+  border-radius: 10px;
+  z-index: 2;
+  position: relative;
+  margin: 5px auto;
+  padding: 0px 10px;
+  overflow: auto;
+  display: none;
+  text-align: center;
+  font-weight: bold;
+}
+
+.graph-container {
+  width: 400px;
+  height: 200px;
+  display: inline-block;
+  margin: 10px;
+  border: solid 1px darkgray;
+  box-shadow: 5px 5px 5px grey;
+}
+
+.table-th-col-heading {
+  text-align:center !important;
+  vertical-align: middle !important;
+  font-size: 17px;
 }
