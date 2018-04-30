@@ -213,7 +213,7 @@ function updateUsageCharts(statsData){
     }
   };
   heapChartOptions = {
-    title: 'Heap Usage (%)',
+    title: 'Heap Usage (GB)',
     curveType: 'function',
     legend: { position: 'bottom' },
     colors:['#6C3483', '#2139EC', '#E67E22'],
@@ -223,7 +223,7 @@ function updateUsageCharts(statsData){
     }
   };
   offHeapChartOptions = {
-    title: 'Off-Heap Usage (%)',
+    title: 'Off-Heap Usage (GB)',
     curveType: 'function',
     legend: { position: 'bottom' },
     colors:['#2139EC', '#E67E22'],
@@ -233,7 +233,7 @@ function updateUsageCharts(statsData){
     }
   };
   memoryUsageChartOptions = {
-    title: 'Memory Usage (%)',
+    title: 'Heap & Off-Heap Collective Usage (GB)',
     curveType: 'function',
     legend: { position: 'bottom' },
     colors:['#2139EC', '#E67E22'],
