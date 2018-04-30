@@ -87,7 +87,7 @@ case class RowDataSourceScanExec(
 
   override def simpleString: String = {
     val metadataEntries = for ((key, value) <- metadata.toSeq.sorted) yield {
-      key + ": " + StringUtils.abbreviate(value, 100)
+      key + ": " +  (if (key.equals("PushedFilters")) value else StringUtils.abbreviate(value, 100))
     }
 
     s"$nodeName${Utils.truncatedString(output, "[", ",", "]")}" +
