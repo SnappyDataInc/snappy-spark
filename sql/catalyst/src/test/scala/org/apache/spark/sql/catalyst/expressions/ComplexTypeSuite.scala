@@ -243,11 +243,13 @@ class ComplexTypeSuite extends SparkFunSuite with ExpressionEvalHelper {
     val b = AttributeReference("b", IntegerType)()
     checkMetadata(CreateStruct(Seq(a, b)))
     checkMetadata(CreateNamedStruct(Seq("a", a, "b", b)))
-    checkMetadata(CreateStructUnsafe(Seq(a, b)))
     checkMetadata(CreateNamedStructUnsafe(Seq("a", a, "b", b)))
   }
 
   test("StringToMap") {
+    val expectedDataType = MapType(StringType, StringType, valueContainsNull = true)
+    assert(new StringToMap("").dataType === expectedDataType)
+
     val s0 = Literal("a:1,b:2,c:3")
     val m0 = Map("a" -> "1", "b" -> "2", "c" -> "3")
     checkEvaluation(new StringToMap(s0), m0)
@@ -267,6 +269,10 @@ class ComplexTypeSuite extends SparkFunSuite with ExpressionEvalHelper {
     val s4 = Literal("a:1_b:2_c:3")
     val m4 = Map("a" -> "1", "b" -> "2", "c" -> "3")
     checkEvaluation(new StringToMap(s4, Literal("_")), m4)
+
+    val s5 = Literal("a")
+    val m5 = Map("a" -> null)
+    checkEvaluation(new StringToMap(s5), m5)
 
     // arguments checking
     assert(new StringToMap(Literal("a:1,b:2,c:3")).checkInputDataTypes().isSuccess)

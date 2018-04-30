@@ -264,8 +264,7 @@ private[spark] object JsonProtocol {
     ("Submission Time" -> submissionTime) ~
     ("Completion Time" -> completionTime) ~
     ("Failure Reason" -> failureReason) ~
-    ("Accumulables" -> JArray(
-      stageInfo.accumulables.values.map(accumulableInfoToJson).toList))
+    ("Accumulables" -> accumulablesToJson(stageInfo.accumulables.values))
   }
 
   def taskInfoToJson(taskInfo: TaskInfo): JValue = {
@@ -281,7 +280,15 @@ private[spark] object JsonProtocol {
     ("Finish Time" -> taskInfo.finishTime) ~
     ("Failed" -> taskInfo.failed) ~
     ("Killed" -> taskInfo.killed) ~
-    ("Accumulables" -> JArray(taskInfo.accumulables.map(accumulableInfoToJson).toList))
+    ("Accumulables" -> accumulablesToJson(taskInfo.accumulables))
+  }
+
+  private lazy val accumulableBlacklist = Set("internal.metrics.updatedBlockStatuses")
+
+  def accumulablesToJson(accumulables: Traversable[AccumulableInfo]): JArray = {
+    JArray(accumulables
+        .filterNot(_.name.exists(accumulableBlacklist.contains))
+        .toList.map(accumulableInfoToJson))
   }
 
   def accumulableInfoToJson(accumulableInfo: AccumulableInfo): JValue = {
@@ -309,12 +316,14 @@ private[spark] object JsonProtocol {
       value match {
         case v: Int => JInt(v)
         case v: Long => JInt(v)
-        // We only have 3 kind of internal accumulator types, so if it's not int or long, it must be
-        // the blocks accumulator, whose type is `Seq[(BlockId, BlockStatus)]`
+        case v: Double => JDouble(v)
+        // We only have 4 kinds of internal accumulator types, so if it's not int, long or double,
+        // it must be the blocks accumulator with type `java.util.List[(BlockId, BlockStatus)]`
         case v =>
-          JArray(v.asInstanceOf[Seq[(BlockId, BlockStatus)]].toList.map { case (id, status) =>
-            ("Block ID" -> id.toString) ~
-            ("Status" -> blockStatusToJson(status))
+          JArray(v.asInstanceOf[java.util.List[(BlockId, BlockStatus)]].asScala.toList.map {
+            case (id, status) =>
+              ("Block ID" -> id.toString) ~
+              ("Status" -> blockStatusToJson(status))
           })
       }
     } else {
@@ -347,7 +356,9 @@ private[spark] object JsonProtocol {
           ("Status" -> blockStatusToJson(status))
       })
     ("Executor Deserialize Time" -> taskMetrics.executorDeserializeTime) ~
+    ("Executor Deserialize CPU Time" -> taskMetrics.executorDeserializeCpuTime) ~
     ("Executor Run Time" -> taskMetrics.executorRunTime) ~
+    ("Executor CPU Time" -> taskMetrics.executorCpuTime) ~
     ("Result Size" -> taskMetrics.resultSize) ~
     ("JVM GC Time" -> taskMetrics.jvmGCTime) ~
     ("Result Serialization Time" -> taskMetrics.resultSerializationTime) ~
@@ -373,7 +384,7 @@ private[spark] object JsonProtocol {
         ("Message" -> fetchFailed.message)
       case exceptionFailure: ExceptionFailure =>
         val stackTrace = stackTraceToJson(exceptionFailure.stackTrace)
-        val accumUpdates = JArray(exceptionFailure.accumUpdates.map(accumulableInfoToJson).toList)
+        val accumUpdates = accumulablesToJson(exceptionFailure.accumUpdates)
         ("Class Name" -> exceptionFailure.className) ~
         ("Description" -> exceptionFailure.description) ~
         ("Stack Trace" -> stackTrace) ~
@@ -738,12 +749,13 @@ private[spark] object JsonProtocol {
     if (name.exists(_.startsWith(InternalAccumulator.METRICS_PREFIX))) {
       value match {
         case JInt(v) => v.toLong
+        case JDouble(v) => v
         case JArray(v) =>
           v.map { blockJson =>
             val id = BlockId((blockJson \ "Block ID").extract[String])
             val status = blockStatusFromJson(blockJson \ "Status")
             (id, status)
-          }
+          }.asJava
         case _ => throw new IllegalArgumentException(s"unexpected json value $value for " +
           "accumulator " + name.get)
       }
@@ -757,11 +769,19 @@ private[spark] object JsonProtocol {
     if (json == JNothing) {
       return metrics
     }
-    metrics.setExecutorDeserializeTime((json \ "Executor Deserialize Time").extract[Long])
-    metrics.setExecutorRunTime((json \ "Executor Run Time").extract[Long])
+    metrics.setExecutorDeserializeTime((json \ "Executor Deserialize Time").extract[Double])
+    metrics.setExecutorDeserializeCpuTime((json \ "Executor Deserialize CPU Time") match {
+      case JNothing => 0
+      case x => x.extract[Double]
+    })
+    metrics.setExecutorRunTime((json \ "Executor Run Time").extract[Double])
+    metrics.setExecutorCpuTime((json \ "Executor CPU Time") match {
+      case JNothing => 0
+      case x => x.extract[Double]
+    })
     metrics.setResultSize((json \ "Result Size").extract[Long])
     metrics.setJvmGCTime((json \ "JVM GC Time").extract[Long])
-    metrics.setResultSerializationTime((json \ "Result Serialization Time").extract[Long])
+    metrics.setResultSerializationTime((json \ "Result Serialization Time").extract[Double])
     metrics.incMemoryBytesSpilled((json \ "Memory Bytes Spilled").extract[Long])
     metrics.incDiskBytesSpilled((json \ "Disk Bytes Spilled").extract[Long])
 
@@ -772,7 +792,7 @@ private[spark] object JsonProtocol {
       readMetrics.incLocalBlocksFetched((readJson \ "Local Blocks Fetched").extract[Int])
       readMetrics.incRemoteBytesRead((readJson \ "Remote Bytes Read").extract[Long])
       readMetrics.incLocalBytesRead((readJson \ "Local Bytes Read").extractOpt[Long].getOrElse(0L))
-      readMetrics.incFetchWaitTime((readJson \ "Fetch Wait Time").extract[Long])
+      readMetrics.incFetchWaitTime((readJson \ "Fetch Wait Time").extract[Double])
       readMetrics.incRecordsRead((readJson \ "Total Records Read").extractOpt[Long].getOrElse(0L))
       metrics.mergeShuffleReadMetrics()
     }

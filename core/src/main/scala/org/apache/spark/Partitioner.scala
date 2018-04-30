@@ -55,14 +55,16 @@ object Partitioner {
    * We use two method parameters (rdd, others) to enforce callers passing at least 1 RDD.
    */
   def defaultPartitioner(rdd: RDD[_], others: RDD[_]*): Partitioner = {
-    val bySize = (Seq(rdd) ++ others).sortBy(_.partitions.length).reverse
-    for (r <- bySize if r.partitioner.isDefined && r.partitioner.get.numPartitions > 0) {
-      return r.partitioner.get
-    }
-    if (rdd.context.conf.contains("spark.default.parallelism")) {
-      new HashPartitioner(rdd.context.defaultParallelism)
+    val rdds = (Seq(rdd) ++ others)
+    val hasPartitioner = rdds.filter(_.partitioner.exists(_.numPartitions > 0))
+    if (hasPartitioner.nonEmpty) {
+      hasPartitioner.maxBy(_.partitions.length).partitioner.get
     } else {
-      new HashPartitioner(bySize.head.partitions.length)
+      if (rdd.context.conf.contains("spark.default.parallelism")) {
+        new HashPartitioner(rdd.context.defaultParallelism)
+      } else {
+        new HashPartitioner(rdds.map(_.partitions.length).max)
+      }
     }
   }
 }
@@ -75,10 +77,15 @@ object Partitioner {
  * so attempting to partition an RDD[Array[_]] or RDD[(Array[_], _)] using a HashPartitioner will
  * produce an unexpected or incorrect result.
  */
-class HashPartitioner(partitions: Int) extends Partitioner {
+class HashPartitioner(partitions: Int, buckets: Int) extends Partitioner {
   require(partitions >= 0, s"Number of partitions ($partitions) cannot be negative.")
+  require(buckets >= 0, s"Number of buckets ($buckets) cannot be negative.")
+
+  def this(partitions: Int) = this(partitions, 0)
 
   def numPartitions: Int = partitions
+
+  def numBuckets: Int = buckets
 
   def getPartition(key: Any): Int = key match {
     case null => 0
@@ -99,7 +106,7 @@ class HashPartitioner(partitions: Int) extends Partitioner {
  * A [[org.apache.spark.Partitioner]] that partitions sortable records by range into roughly
  * equal ranges. The ranges are determined by sampling the content of the RDD passed in.
  *
- * Note that the actual number of partitions created by the RangePartitioner might not be the same
+ * @note The actual number of partitions created by the RangePartitioner might not be the same
  * as the `partitions` parameter, in the case where the number of sampled records is less than
  * the value of `partitions`.
  */

@@ -24,11 +24,12 @@ import java.util.{ArrayList => JArrayList, List => JList, Map => JMap, Set => JS
 import java.util.concurrent.TimeUnit
 
 import scala.collection.JavaConverters._
+import scala.util.Try
 import scala.util.control.NonFatal
 
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.hive.conf.HiveConf
-import org.apache.hadoop.hive.metastore.api.{Function => HiveFunction, FunctionType, NoSuchObjectException, PrincipalType, ResourceType, ResourceUri}
+import org.apache.hadoop.hive.metastore.api.{Function => HiveFunction, FunctionType, MetaException, PrincipalType, ResourceType, ResourceUri}
 import org.apache.hadoop.hive.ql.Driver
 import org.apache.hadoop.hive.ql.metadata.{Hive, HiveException, Partition, Table}
 import org.apache.hadoop.hive.ql.plan.AddPartitionDesc
@@ -42,6 +43,7 @@ import org.apache.spark.sql.catalyst.FunctionIdentifier
 import org.apache.spark.sql.catalyst.analysis.NoSuchPermanentFunctionException
 import org.apache.spark.sql.catalyst.catalog.{CatalogFunction, CatalogTablePartition, FunctionResource, FunctionResourceType}
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{IntegralType, StringType}
 import org.apache.spark.util.Utils
 
@@ -266,7 +268,9 @@ private[client] class Shim_v0_12 extends Shim with Logging {
       ignoreIfExists: Boolean): Unit = {
     val table = hive.getTable(database, tableName)
     parts.foreach { s =>
-      val location = s.storage.locationUri.map(new Path(table.getPath, _)).orNull
+      val location = s.storage.locationUri.map(
+        uri => new Path(table.getPath, new Path(new URI(uri)))).orNull
+      val params = if (s.parameters.nonEmpty) s.parameters.asJava else null
       val spec = s.spec.asJava
       if (hive.getPartition(table, spec, false) != null && ignoreIfExists) {
         // Ignore this partition since it already exists and ignoreIfExists == true
@@ -280,7 +284,7 @@ private[client] class Shim_v0_12 extends Shim with Logging {
           table,
           spec,
           location,
-          null, // partParams
+          params, // partParams
           null, // inputFormat
           null, // outputFormat
           -1: JInteger, // numBuckets
@@ -459,8 +463,12 @@ private[client] class Shim_v0_13 extends Shim_v0_12 {
       parts: Seq[CatalogTablePartition],
       ignoreIfExists: Boolean): Unit = {
     val addPartitionDesc = new AddPartitionDesc(db, table, ignoreIfExists)
-    parts.foreach { s =>
-      addPartitionDesc.addPartition(s.spec.asJava, s.storage.locationUri.orNull)
+    parts.zipWithIndex.foreach { case (s, i) =>
+      addPartitionDesc.addPartition(
+        s.spec.asJava, s.storage.locationUri.map(u => new Path(new URI(u)).toString).orNull)
+      if (s.parameters.nonEmpty) {
+        addPartitionDesc.getPartition(i).setPartParams(s.parameters.asJava)
+      }
     }
     hive.createPartitions(addPartitionDesc)
   }
@@ -561,11 +569,22 @@ private[client] class Shim_v0_13 extends Shim_v0_12 {
         s"$v ${op.symbol} ${a.name}"
       case op @ BinaryComparison(a: Attribute, Literal(v, _: StringType))
           if !varcharKeys.contains(a.name) =>
-        s"""${a.name} ${op.symbol} "$v""""
+        s"""${a.name} ${op.symbol} ${quoteStringLiteral(v.toString)}"""
       case op @ BinaryComparison(Literal(v, _: StringType), a: Attribute)
           if !varcharKeys.contains(a.name) =>
-        s""""$v" ${op.symbol} ${a.name}"""
+        s"""${quoteStringLiteral(v.toString)} ${op.symbol} ${a.name}"""
     }.mkString(" and ")
+  }
+
+  private def quoteStringLiteral(str: String): String = {
+    if (!str.contains("\"")) {
+      s""""$str""""
+    } else if (!str.contains("'")) {
+      s"""'$str'"""
+    } else {
+      throw new UnsupportedOperationException(
+        """Partition filter cannot have both `"` and `'` characters""")
+    }
   }
 
   override def getPartitionsByFilter(
@@ -576,12 +595,41 @@ private[client] class Shim_v0_13 extends Shim_v0_12 {
     // Hive getPartitionsByFilter() takes a string that represents partition
     // predicates like "str_key=\"value\" and int_key=1 ..."
     val filter = convertFilters(table, predicates)
+
     val partitions =
       if (filter.isEmpty) {
         getAllPartitionsMethod.invoke(hive, table).asInstanceOf[JSet[Partition]]
       } else {
         logDebug(s"Hive metastore filter is '$filter'.")
-        getPartitionsByFilterMethod.invoke(hive, table, filter).asInstanceOf[JArrayList[Partition]]
+        val tryDirectSqlConfVar = HiveConf.ConfVars.METASTORE_TRY_DIRECT_SQL
+        // We should get this config value from the metaStore. otherwise hit SPARK-18681.
+        // To be compatible with hive-0.12 and hive-0.13, In the future we can achieve this by:
+        // val tryDirectSql = hive.getMetaConf(tryDirectSqlConfVar.varname).toBoolean
+        val tryDirectSql = hive.getMSC.getConfigValue(tryDirectSqlConfVar.varname,
+          tryDirectSqlConfVar.defaultBoolVal.toString).toBoolean
+        try {
+          // Hive may throw an exception when calling this method in some circumstances, such as
+          // when filtering on a non-string partition column when the hive config key
+          // hive.metastore.try.direct.sql is false
+          getPartitionsByFilterMethod.invoke(hive, table, filter)
+            .asInstanceOf[JArrayList[Partition]]
+        } catch {
+          case ex: InvocationTargetException if ex.getCause.isInstanceOf[MetaException] &&
+              !tryDirectSql =>
+            logWarning("Caught Hive MetaException attempting to get partition metadata by " +
+              "filter from Hive. Falling back to fetching all partition metadata, which will " +
+              "degrade performance. Modifying your Hive metastore configuration to set " +
+              s"${tryDirectSqlConfVar.varname} to true may resolve this problem.", ex)
+            // HiveShim clients are expected to handle a superset of the requested partitions
+            getAllPartitionsMethod.invoke(hive, table).asInstanceOf[JSet[Partition]]
+          case ex: InvocationTargetException if ex.getCause.isInstanceOf[MetaException] &&
+              tryDirectSql =>
+            throw new RuntimeException("Caught Hive MetaException attempting to get partition " +
+              "metadata by filter from Hive. You can set the Spark configuration setting " +
+              s"${SQLConf.HIVE_MANAGE_FILESOURCE_PARTITIONS.key} to false to work around this " +
+              "problem, however this will result in degraded performance. Please report a bug: " +
+              "https://issues.apache.org/jira/browse/SPARK", ex)
+        }
       }
 
     partitions.asScala.toSeq
@@ -701,12 +749,8 @@ private[client] class Shim_v0_14 extends Shim_v0_13 {
       deleteData: Boolean,
       ignoreIfNotExists: Boolean,
       purge: Boolean): Unit = {
-    try {
-      dropTableMethod.invoke(hive, dbName, tableName, deleteData: JBoolean,
-        ignoreIfNotExists: JBoolean, purge: JBoolean)
-    } catch {
-      case e: InvocationTargetException => throw e.getCause()
-    }
+    dropTableMethod.invoke(hive, dbName, tableName, deleteData: JBoolean,
+      ignoreIfNotExists: JBoolean, purge: JBoolean)
   }
 
   override def getMetastoreClientConnectRetryDelayMillis(conf: HiveConf): Long = {
@@ -799,11 +843,7 @@ private[client] class Shim_v1_2 extends Shim_v1_1 {
     val dropOptions = dropOptionsClass.newInstance().asInstanceOf[Object]
     dropOptionsDeleteData.setBoolean(dropOptions, deleteData)
     dropOptionsPurge.setBoolean(dropOptions, purge)
-    try {
-      dropPartitionMethod.invoke(hive, dbName, tableName, part, dropOptions)
-    } catch {
-      case e: InvocationTargetException => throw e.getCause()
-    }
+    dropPartitionMethod.invoke(hive, dbName, tableName, part, dropOptions)
   }
 
 }

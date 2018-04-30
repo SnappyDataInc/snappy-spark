@@ -30,8 +30,6 @@ import scala.language.existentials
 import scala.language.postfixOps
 import scala.util.control.NonFatal
 
-import org.apache.commons.lang3.SerializationUtils
-
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.executor.TaskMetrics
@@ -184,6 +182,8 @@ class DAGScheduler(
   // This is only safe because DAGScheduler runs in a single thread.
   private val closureSerializer = SparkEnv.get.closureSerializer.newInstance()
 
+  private lazy val maxRpcMessageSize = RpcUtils.maxMessageSizeBytes(sc.conf)
+
   /** If enabled, FetchFailed will not cause stage retry, in order to surface the problem. */
   private val disallowStageRetryForTest = sc.getConf.getBoolean("spark.test.noStageRetry", false)
 
@@ -239,8 +239,8 @@ class DAGScheduler(
   /**
    * Called by TaskScheduler implementation when an executor fails.
    */
-  def executorLost(execId: String): Unit = {
-    eventProcessLoop.post(ExecutorLost(execId))
+  def executorLost(execId: String, reason: ExecutorLossReason): Unit = {
+    eventProcessLoop.post(ExecutorLost(execId, reason))
   }
 
   /**
@@ -584,7 +584,7 @@ class DAGScheduler(
     val waiter = new JobWaiter(this, jobId, partitions.size, resultHandler)
     eventProcessLoop.post(JobSubmitted(
       jobId, rdd, func2, partitions.toArray, callSite, waiter,
-      SerializationUtils.clone(properties)))
+      Utils.cloneProperties(properties)))
     waiter
   }
 
@@ -654,7 +654,7 @@ class DAGScheduler(
     val partitions = (0 until rdd.partitions.length).toArray
     val jobId = nextJobId.getAndIncrement()
     eventProcessLoop.post(JobSubmitted(
-      jobId, rdd, func2, partitions, callSite, listener, SerializationUtils.clone(properties)))
+      jobId, rdd, func2, partitions, callSite, listener, Utils.cloneProperties(properties)))
     listener.awaitResult()    // Will throw an exception if the job fails
   }
 
@@ -689,7 +689,7 @@ class DAGScheduler(
     // the map output tracker and some node failures had caused the output statistics to be lost.
     val waiter = new JobWaiter(this, jobId, 1, (i: Int, r: MapOutputStatistics) => callback(r))
     eventProcessLoop.post(MapStageSubmitted(
-      jobId, dependency, callSite, waiter, SerializationUtils.clone(properties)))
+      jobId, dependency, callSite, waiter, Utils.cloneProperties(properties)))
     waiter
   }
 
@@ -772,7 +772,8 @@ class DAGScheduler(
   // That should take care of at least part of the priority inversion problem with
   // cross-job dependencies.
   private def activeJobForStage(stage: Stage): Option[Int] = {
-    val jobsThatUseStage: Array[Int] = stage.jobIds.toArray.sorted
+    val jobsThatUseStage: Array[Int] = stage.jobIds.toArray
+    java.util.Arrays.sort(jobsThatUseStage)
     jobsThatUseStage.find(jobIdToActiveJob.contains)
   }
 
@@ -981,19 +982,38 @@ class DAGScheduler(
     // task gets a different copy of the RDD. This provides stronger isolation between tasks that
     // might modify state of objects referenced in their closures. This is necessary in Hadoop
     // where the JobConf/Configuration object is not thread-safe.
-    var taskBinary: Broadcast[Array[Byte]] = null
+    var taskBinary: Option[Broadcast[Array[Byte]]] = None
+    var taskData: TaskData = TaskData.EMPTY
     try {
       // For ShuffleMapTask, serialize and broadcast (rdd, shuffleDep).
       // For ResultTask, serialize and broadcast (rdd, func).
-      val taskBinaryBytes: Array[Byte] = stage match {
+      val bytes = stage.taskBinaryBytes
+      val taskBinaryBytes: Array[Byte] = if (bytes != null) bytes else stage match {
         case stage: ShuffleMapStage =>
           JavaUtils.bufferToArray(
             closureSerializer.serialize((stage.rdd, stage.shuffleDep): AnyRef))
         case stage: ResultStage =>
           JavaUtils.bufferToArray(closureSerializer.serialize((stage.rdd, stage.func): AnyRef))
       }
+      if (bytes == null) stage.taskBinaryBytes = taskBinaryBytes
 
-      taskBinary = sc.broadcast(taskBinaryBytes)
+      // use direct byte shipping for small size or if number of partitions is small
+      val taskBytesLen = taskBinaryBytes.length
+      if (taskBytesLen <= DAGScheduler.TASK_INLINE_LIMIT ||
+        partitionsToCompute.length == 1 ||
+        (taskBytesLen < math.min(maxRpcMessageSize, DAGScheduler.TASK_INLINE_UPPER_LIMIT) &&
+          partitionsToCompute.length <= DAGScheduler.TASK_INLINE_PARTITION_LIMIT)) {
+        if (stage.taskData.uncompressedLen > 0) {
+          taskData = stage.taskData
+        } else {
+          // compress inline task data (broadcast compresses as per conf)
+          taskData = new TaskData(env.createCompressionCodec.compress(
+            taskBinaryBytes, taskBytesLen), taskBytesLen)
+          stage.taskData = taskData
+        }
+      } else {
+        taskBinary = Some(sc.broadcast(taskBinaryBytes))
+      }
     } catch {
       // In the case of a failure during serialization, abort the stage.
       case e: NotSerializableException =>
@@ -1014,8 +1034,9 @@ class DAGScheduler(
           partitionsToCompute.map { id =>
             val locs = taskIdToLocations(id)
             val part = stage.rdd.partitions(id)
-            new ShuffleMapTask(stage.id, stage.latestInfo.attemptId,
-              taskBinary, part, locs, stage.latestInfo.taskMetrics, properties)
+            new ShuffleMapTask(stage.id, stage.latestInfo.attemptId, taskData,
+              taskBinary, part, locs, stage.latestInfo.taskMetrics, properties,
+              jobId, Option(sc.applicationId), Option(sc.applicationId))
           }
 
         case stage: ResultStage =>
@@ -1023,8 +1044,9 @@ class DAGScheduler(
             val p: Int = stage.partitions(id)
             val part = stage.rdd.partitions(p)
             val locs = taskIdToLocations(id)
-            new ResultTask(stage.id, stage.latestInfo.attemptId,
-              taskBinary, part, locs, id, properties, stage.latestInfo.taskMetrics)
+            new ResultTask(stage.id, stage.latestInfo.attemptId, taskData,
+              taskBinary, part, locs, id, properties, stage.latestInfo.taskMetrics,
+              jobId, Option(sc.applicationId), Option(sc.applicationId))
           }
       }
     } catch {
@@ -1261,18 +1283,20 @@ class DAGScheduler(
               s"has failed the maximum allowable number of " +
               s"times: ${Stage.MAX_CONSECUTIVE_FETCH_FAILURES}. " +
               s"Most recent failure reason: ${failureMessage}", None)
-          } else if (failedStages.isEmpty) {
-            // Don't schedule an event to resubmit failed stages if failed isn't empty, because
-            // in that case the event will already have been scheduled.
-            // TODO: Cancel running tasks in the stage
-            logInfo(s"Resubmitting $mapStage (${mapStage.name}) and " +
-              s"$failedStage (${failedStage.name}) due to fetch failure")
-            messageScheduler.schedule(new Runnable {
-              override def run(): Unit = eventProcessLoop.post(ResubmitFailedStages)
-            }, DAGScheduler.RESUBMIT_TIMEOUT, TimeUnit.MILLISECONDS)
+          } else {
+            if (failedStages.isEmpty) {
+              // Don't schedule an event to resubmit failed stages if failed isn't empty, because
+              // in that case the event will already have been scheduled.
+              // TODO: Cancel running tasks in the stage
+              logInfo(s"Resubmitting $mapStage (${mapStage.name}) and " +
+                s"$failedStage (${failedStage.name}) due to fetch failure")
+              messageScheduler.schedule(new Runnable {
+                override def run(): Unit = eventProcessLoop.post(ResubmitFailedStages)
+              }, DAGScheduler.RESUBMIT_TIMEOUT, TimeUnit.MILLISECONDS)
+            }
+            failedStages += failedStage
+            failedStages += mapStage
           }
-          failedStages += failedStage
-          failedStages += mapStage
           // Mark the map whose fetch failed as broken in the map stage
           if (mapId != -1) {
             mapStage.removeOutputLoc(mapId, bmAddress)
@@ -1281,7 +1305,7 @@ class DAGScheduler(
 
           // TODO: mark the executor as failed only if there were lots of fetch failures on it
           if (bmAddress != null) {
-            handleExecutorLost(bmAddress.executorId, fetchFailed = true, Some(task.epoch))
+            handleExecutorLost(bmAddress.executorId, filesLost = true, Some(task.epoch))
           }
         }
 
@@ -1306,15 +1330,16 @@ class DAGScheduler(
    * modify the scheduler's internal state. Use executorLost() to post a loss event from outside.
    *
    * We will also assume that we've lost all shuffle blocks associated with the executor if the
-   * executor serves its own blocks (i.e., we're not using external shuffle) OR a FetchFailed
-   * occurred, in which case we presume all shuffle data related to this executor to be lost.
+   * executor serves its own blocks (i.e., we're not using external shuffle), the entire slave
+   * is lost (likely including the shuffle service), or a FetchFailed occurred, in which case we
+   * presume all shuffle data related to this executor to be lost.
    *
    * Optionally the epoch during which the failure was caught can be passed to avoid allowing
    * stray fetch failures from possibly retriggering the detection of a node as lost.
    */
   private[scheduler] def handleExecutorLost(
       execId: String,
-      fetchFailed: Boolean,
+      filesLost: Boolean,
       maybeEpoch: Option[Long] = None) {
     val currentEpoch = maybeEpoch.getOrElse(mapOutputTracker.getEpoch)
     if (!failedEpoch.contains(execId) || failedEpoch(execId) < currentEpoch) {
@@ -1322,7 +1347,8 @@ class DAGScheduler(
       logInfo("Executor lost: %s (epoch %d)".format(execId, currentEpoch))
       blockManagerMaster.removeExecutor(execId)
 
-      if (!env.blockManager.externalShuffleServiceEnabled || fetchFailed) {
+      if (filesLost || !env.blockManager.externalShuffleServiceEnabled) {
+        logInfo("Shuffle files lost for executor: %s (epoch %d)".format(execId, currentEpoch))
         // TODO: This will be really slow if we keep accumulating shuffle map stages
         for ((shuffleId, stage) <- shuffleIdToMapStage) {
           stage.removeOutputsOnExecutor(execId)
@@ -1375,7 +1401,7 @@ class DAGScheduler(
    * Marks a stage as finished and removes it from the list of running stages.
    */
   private def markStageAsFinished(stage: Stage, errorMessage: Option[String] = None): Unit = {
-    val serviceTime = stage.latestInfo.submissionTime match {
+    val serviceTime = if (!log.isInfoEnabled) 0L else stage.latestInfo.submissionTime match {
       case Some(t) => "%.03f".format((clock.getTimeMillis() - t) / 1000.0)
       case _ => "Unknown"
     }
@@ -1624,8 +1650,12 @@ private[scheduler] class DAGSchedulerEventProcessLoop(dagScheduler: DAGScheduler
     case ExecutorAdded(execId, host) =>
       dagScheduler.handleExecutorAdded(execId, host)
 
-    case ExecutorLost(execId) =>
-      dagScheduler.handleExecutorLost(execId, fetchFailed = false)
+    case ExecutorLost(execId, reason) =>
+      val filesLost = reason match {
+        case SlaveLost(_, true) => true
+        case _ => false
+      }
+      dagScheduler.handleExecutorLost(execId, filesLost)
 
     case BeginEvent(task, taskInfo) =>
       dagScheduler.handleBeginEvent(task, taskInfo)
@@ -1650,7 +1680,7 @@ private[scheduler] class DAGSchedulerEventProcessLoop(dagScheduler: DAGScheduler
     } catch {
       case t: Throwable => logError("DAGScheduler failed to cancel all jobs.", t)
     }
-    dagScheduler.sc.stop()
+    dagScheduler.sc.stopInNewThread()
   }
 
   override def onStop(): Unit = {
@@ -1664,4 +1694,16 @@ private[spark] object DAGScheduler {
   // this is a simplistic way to avoid resubmitting tasks in the non-fetchable map stage one by one
   // as more failure events come in
   val RESUBMIT_TIMEOUT = 200
+
+  // The maximum size of uncompressed common task bytes (rdd, closure)
+  // that will be shipped with the task else will be broadcast separately.
+  val TASK_INLINE_LIMIT: Int = 128 * 1024
+
+  // Maximum size beyond which common task bytes will always be broadcast even if number
+  // of partitions is smaller than TASK_INLINE_PARTITION_LIMIT (except if it is 1)
+  val TASK_INLINE_UPPER_LIMIT: Int = 4 * 1024 * 1024
+
+  // The maximum number of partitions below which common task bytes will be
+  // shipped with the task else will be broadcast separately.
+  val TASK_INLINE_PARTITION_LIMIT = 8
 }

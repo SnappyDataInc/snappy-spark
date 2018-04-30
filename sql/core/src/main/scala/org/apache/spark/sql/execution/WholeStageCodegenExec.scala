@@ -14,11 +14,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.spark.sql.execution
 
-import org.apache.spark.{broadcast, TaskContext}
-import org.apache.spark.rdd.RDD
+import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
+import com.esotericsoftware.kryo.io.{Input, Output}
+import java.sql.SQLException
+
+import org.apache.spark.{broadcast, Partition, SparkContext, TaskContext}
+import org.apache.spark.rdd.{RDD, ZippedPartitionsBaseRDD, ZippedPartitionsPartition}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen._
@@ -26,9 +29,10 @@ import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution.aggregate.HashAggregateExec
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, SortMergeJoinExec}
-import org.apache.spark.sql.execution.metric.SQLMetrics
+import org.apache.spark.sql.execution.metric.{SQLMetric, SQLMetrics}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
+import org.apache.spark.storage.StorageLevel
 import org.apache.spark.util.Utils
 
 /**
@@ -218,7 +222,9 @@ trait CodegenSupport extends SparkPlan {
 case class InputAdapter(child: SparkPlan) extends UnaryExecNode with CodegenSupport {
 
   override def output: Seq[Attribute] = child.output
+
   override def outputPartitioning: Partitioning = child.outputPartitioning
+
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
   override def doExecute(): RDD[InternalRow] = {
@@ -239,7 +245,7 @@ case class InputAdapter(child: SparkPlan) extends UnaryExecNode with CodegenSupp
     ctx.addMutableState("scala.collection.Iterator", input, s"$input = inputs[0];")
     val row = ctx.freshName("row")
     s"""
-       | while ($input.hasNext()) {
+       | while ($input.hasNext() && !stopEarly()) {
        |   InternalRow $row = (InternalRow) $input.next();
        |   ${consume(ctx, null, row).trim}
        |   if (shouldStop()) return;
@@ -259,6 +265,7 @@ case class InputAdapter(child: SparkPlan) extends UnaryExecNode with CodegenSupp
 
 object WholeStageCodegenExec {
   val PIPELINE_DURATION_METRIC = "duration"
+  val dumpGenCodeForException = System.getProperty("spark.dumpGenCode", "true").toBoolean
 }
 
 /**
@@ -292,10 +299,12 @@ object WholeStageCodegenExec {
 case class WholeStageCodegenExec(child: SparkPlan) extends UnaryExecNode with CodegenSupport {
 
   override def output: Seq[Attribute] = child.output
+
   override def outputPartitioning: Partitioning = child.outputPartitioning
+
   override def outputOrdering: Seq[SortOrder] = child.outputOrdering
 
-  override private[sql] lazy val metrics = Map(
+  override lazy val metrics = Map(
     "pipelineTime" -> SQLMetrics.createTimingMetric(sparkContext,
       WholeStageCodegenExec.PIPELINE_DURATION_METRIC))
 
@@ -316,15 +325,18 @@ case class WholeStageCodegenExec(child: SparkPlan) extends UnaryExecNode with Co
       final class GeneratedIterator extends org.apache.spark.sql.execution.BufferedRowIterator {
 
         private Object[] references;
+        private scala.collection.Iterator[] inputs;
         ${ctx.declareMutableStates()}
 
         public GeneratedIterator(Object[] references) {
           this.references = references;
         }
 
-        public void init(int index, scala.collection.Iterator inputs[]) {
+        public void init(int index, scala.collection.Iterator[] inputs) {
           partitionIndex = index;
+          this.inputs = inputs;
           ${ctx.initMutableStates()}
+          ${ctx.initPartition()}
         }
 
         ${ctx.declareAddedFunctions()}
@@ -359,38 +371,8 @@ case class WholeStageCodegenExec(child: SparkPlan) extends UnaryExecNode with Co
     val durationMs = longMetric("pipelineTime")
 
     val rdds = child.asInstanceOf[CodegenSupport].inputRDDs()
-    assert(rdds.size <= 2, "Up to two input RDDs can be supported")
-    if (rdds.length == 1) {
-      rdds.head.mapPartitionsWithIndex { (index, iter) =>
-        val clazz = CodeGenerator.compile(cleanedSource)
-        val buffer = clazz.generate(references).asInstanceOf[BufferedRowIterator]
-        buffer.init(index, Array(iter))
-        new Iterator[InternalRow] {
-          override def hasNext: Boolean = {
-            val v = buffer.hasNext
-            if (!v) durationMs += buffer.durationMs()
-            v
-          }
-          override def next: InternalRow = buffer.next()
-        }
-      }
-    } else {
-      // Right now, we support up to two input RDDs.
-      rdds.head.zipPartitions(rdds(1)) { (leftIter, rightIter) =>
-        val partitionIndex = TaskContext.getPartitionId()
-        val clazz = CodeGenerator.compile(cleanedSource)
-        val buffer = clazz.generate(references).asInstanceOf[BufferedRowIterator]
-        buffer.init(partitionIndex, Array(leftIter, rightIter))
-        new Iterator[InternalRow] {
-          override def hasNext: Boolean = {
-            val v = buffer.hasNext
-            if (!v) durationMs += buffer.durationMs()
-            v
-          }
-          override def next: InternalRow = buffer.next()
-        }
-      }
-    }
+    WholeStageCodegenRDD(sqlContext.sparkContext, cleanedSource,
+      references, durationMs, rdds)
   }
 
   override def inputRDDs(): Seq[RDD[InternalRow]] = {
@@ -477,10 +459,14 @@ case class CollapseCodegenStages(conf: SQLConf) extends Rule[SparkPlan] {
   private def insertWholeStageCodegen(plan: SparkPlan): SparkPlan = plan match {
     // For operators that will output domain object, do not insert WholeStageCodegen for it as
     // domain object can not be written into unsafe row.
-    case plan if plan.output.length == 1 && plan.output.head.dataType.isInstanceOf[ObjectType] =>
+    case plan if plan.output.length == 1 &&
+      plan.output.head.dataType.isInstanceOf[ObjectType] =>
       plan.withNewChildren(plan.children.map(insertWholeStageCodegen))
-    case plan: CodegenSupport if supportCodegen(plan) =>
+    case plan: CodegenSupport => if (supportCodegen(plan)) {
       WholeStageCodegenExec(insertInputAdapter(plan))
+    } else {
+      plan.withNewChildren(plan.children.map(insertInputAdapter))
+    }
     case other =>
       other.withNewChildren(other.children.map(insertWholeStageCodegen))
   }
@@ -491,5 +477,174 @@ case class CollapseCodegenStages(conf: SQLConf) extends Rule[SparkPlan] {
     } else {
       plan
     }
+  }
+}
+
+case class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAndComment,
+    var references: Array[Any], var durationMs: SQLMetric,
+    inputRDDs: Seq[RDD[InternalRow]])
+    extends ZippedPartitionsBaseRDD[InternalRow](sc, inputRDDs)
+        with Serializable with KryoSerializable {
+  // PooledKryoSerializer.serializer refers this class using productIterator
+  // Any change to this class should be reflected there.
+
+  override def getPartitions: Array[Partition] = {
+    if (rdds.length == 1) rdds.head.partitions
+    else super.getPartitions
+  }
+
+  override def getPreferredLocations(s: Partition): Seq[String] = {
+    if (rdds.length == 1) rdds.head.preferredLocations(s)
+    else s.asInstanceOf[ZippedPartitionsPartition].preferredLocations
+  }
+
+  override def compute(split: Partition,
+      context: TaskContext): Iterator[InternalRow] = {
+    new Iterator[InternalRow] {
+      private[this] var iter = computeInternal(split, context)
+
+      override def hasNext: Boolean = try {
+        try {
+          iter.hasNext
+        } catch {
+          case _: ClassCastException =>
+            logInfo(s"ClassCastException, hence recompiling")
+            CodeGenerator.invalidate(source)
+            iter = computeInternal(split, context)
+            iter.hasNext
+        }
+      } catch {
+        case e: Throwable =>
+          if (WholeStageCodegenExec.dumpGenCodeForException) {
+            logFormattedError(e, s"\n${CodeFormatter.format(source)}")
+          }
+          throw e
+      }
+
+      override def next(): InternalRow = try {
+        iter.next()
+      } catch {
+        case e: Throwable =>
+          if (WholeStageCodegenExec.dumpGenCodeForException) {
+            logFormattedError(e, s"\n${CodeFormatter.format(source)}")
+          }
+          throw e
+      }
+    }
+  }
+
+  def logFormattedError(e: Throwable, source: String): Unit = {
+    var cause = e
+    while (cause ne null) {
+      // Don't log the code when the exception is out of memory
+      cause match {
+        case e: SQLException if e.getSQLState == "XCL54.T" =>
+          return
+        case e: RuntimeException if e.getClass.getName.contains("LowMemoryException") =>
+          return
+        case _ =>
+      }
+      cause = cause.getCause
+    }
+    logError(s"\nFailed with exception $e:$source")
+  }
+
+  def computeInternal(split: Partition,
+      context: TaskContext): Iterator[InternalRow] = {
+    val clazz = CodeGenerator.compile(source)
+    val buffer = clazz.generate(references).asInstanceOf[BufferedRowIterator]
+    if (rdds.length == 1) {
+      buffer.init(split.index, Array(rdds.head.iterator(split, context)
+          .asInstanceOf[Iterator[InternalRow]]))
+    } else {
+      val zippedPartition = split.asInstanceOf[ZippedPartitionsPartition]
+      val partitions = zippedPartition.partitions
+      val iterators = new Array[Iterator[InternalRow]](partitions.length)
+      for (i <- partitions.indices) {
+        iterators(i) = rdds(i).iterator(partitions(i), context)
+            .asInstanceOf[Iterator[InternalRow]]
+      }
+      buffer.init(zippedPartition.index, iterators)
+    }
+    new Iterator[InternalRow] {
+      override def hasNext: Boolean = {
+        val v = buffer.hasNext
+        if (!v) durationMs += buffer.durationMs()
+        v
+      }
+      override def next: InternalRow = buffer.next()
+    }
+  }
+
+  override def write(kryo: Kryo, output: Output): Unit = {
+    // PooledKryoSerializer.serializer refers this class using productIterator
+    // Any change to this class should be reflected there.
+
+    output.writeInt(_id)
+
+    // write CodeAndComment
+    output.writeInt(source.hashCode())
+    output.writeString(source.body)
+    val comment = source.comment
+    output.writeInt(comment.size)
+    for ((k, v) <- comment) {
+      output.writeString(k)
+      output.writeString(v)
+    }
+
+    val refsLen = if (references != null) references.length else 0
+    output.writeVarInt(refsLen, true)
+    var i = 0
+    while (i < refsLen) {
+      kryo.writeClassAndObject(output, references(i))
+      i += 1
+    }
+    durationMs.write(kryo, output)
+
+    output.writeVarInt(rdds.length, true)
+    for (rdd <- rdds) {
+      kryo.writeClassAndObject(output, rdd)
+    }
+  }
+
+  override def read(kryo: Kryo, input: Input): Unit = {
+    _id = input.readInt()
+    storageLevel = StorageLevel.NONE
+    checkpointData = None
+
+    val hash = input.readInt()
+    val body = input.readString()
+    var commentSize = input.readInt()
+    val comment = new scala.collection.mutable.HashMap[String, String]()
+    while (commentSize > 0) {
+      val k = input.readString()
+      val v = input.readString()
+      comment.put(k, v)
+      commentSize -= 1
+    }
+    source = new CodeAndComment(body, comment)
+    source.hash = hash
+
+    val refsLen = input.readVarInt(true)
+    if (refsLen > 0) {
+      references = new Array[Any](refsLen)
+      var i = 0
+      while (i < refsLen) {
+        references(i) = kryo.readClassAndObject(input)
+        i += 1
+      }
+    } else {
+      references = null
+    }
+    durationMs = new SQLMetric(null)
+    durationMs.read(kryo, input)
+
+    val rddsBuilder = IndexedSeq.newBuilder[RDD[InternalRow]]
+    var rddsLen = input.readVarInt(true)
+    while (rddsLen > 0) {
+      rddsBuilder += kryo.readClassAndObject(input).asInstanceOf[RDD[InternalRow]]
+      rddsLen -= 1
+    }
+    rdds = rddsBuilder.result()
   }
 }

@@ -46,14 +46,14 @@ class HDFSMetadataLogSuite extends SparkFunSuite with SharedSQLContext {
   test("FileManager: FileContextManager") {
     withTempDir { temp =>
       val path = new Path(temp.getAbsolutePath)
-      testManager(path, new FileContextManager(path, new Configuration))
+      testFileManager(path, new FileContextManager(path, new Configuration))
     }
   }
 
   test("FileManager: FileSystemManager") {
     withTempDir { temp =>
       val path = new Path(temp.getAbsolutePath)
-      testManager(path, new FileSystemManager(path, new Configuration))
+      testFileManager(path, new FileSystemManager(path, new Configuration))
     }
   }
 
@@ -100,6 +100,58 @@ class HDFSMetadataLogSuite extends SparkFunSuite with SharedSQLContext {
       assert(metadataLog2.getLatest() === Some(0 -> "batch0"))
       assert(metadataLog2.get(None, Some(0)) === Array(0 -> "batch0"))
 
+    }
+  }
+
+  testWithUninterruptibleThread("HDFSMetadataLog: purge") {
+    withTempDir { temp =>
+      val metadataLog = new HDFSMetadataLog[String](spark, temp.getAbsolutePath)
+      assert(metadataLog.add(0, "batch0"))
+      assert(metadataLog.add(1, "batch1"))
+      assert(metadataLog.add(2, "batch2"))
+      assert(metadataLog.get(0).isDefined)
+      assert(metadataLog.get(1).isDefined)
+      assert(metadataLog.get(2).isDefined)
+      assert(metadataLog.getLatest().get._1 == 2)
+
+      metadataLog.purge(2)
+      assert(metadataLog.get(0).isEmpty)
+      assert(metadataLog.get(1).isEmpty)
+      assert(metadataLog.get(2).isDefined)
+      assert(metadataLog.getLatest().get._1 == 2)
+
+      // There should be exactly one file, called "2", in the metadata directory.
+      // This check also tests for regressions of SPARK-17475
+      val allFiles = new File(metadataLog.metadataPath.toString).listFiles().toSeq
+      assert(allFiles.size == 1)
+      assert(allFiles(0).getName() == "2")
+    }
+  }
+
+  test("HDFSMetadataLog: parseVersion") {
+    withTempDir { dir =>
+      val metadataLog = new HDFSMetadataLog[String](spark, dir.getAbsolutePath)
+      def assertLogFileMalformed(func: => Int): Unit = {
+        val e = intercept[IllegalStateException] { func }
+        assert(e.getMessage.contains(s"Log file was malformed: failed to read correct log version"))
+      }
+      assertLogFileMalformed { metadataLog.parseVersion("", 100) }
+      assertLogFileMalformed { metadataLog.parseVersion("xyz", 100) }
+      assertLogFileMalformed { metadataLog.parseVersion("v10.x", 100) }
+      assertLogFileMalformed { metadataLog.parseVersion("10", 100) }
+      assertLogFileMalformed { metadataLog.parseVersion("v0", 100) }
+      assertLogFileMalformed { metadataLog.parseVersion("v-10", 100) }
+
+      assert(metadataLog.parseVersion("v10", 10) === 10)
+      assert(metadataLog.parseVersion("v10", 100) === 10)
+
+      val e = intercept[IllegalStateException] { metadataLog.parseVersion("v200", 100) }
+      Seq(
+        "maximum supported log version is v100, but encountered v200",
+        "produced by a newer version of Spark and cannot be read by this version"
+      ).foreach { message =>
+        assert(e.getMessage.contains(message))
+      }
     }
   }
 
@@ -155,8 +207,8 @@ class HDFSMetadataLogSuite extends SparkFunSuite with SharedSQLContext {
     }
   }
 
-
-  def testManager(basePath: Path, fm: FileManager): Unit = {
+  /** Basic test case for [[FileManager]] implementation. */
+  private def testFileManager(basePath: Path, fm: FileManager): Unit = {
     // Mkdirs
     val dir = new Path(s"$basePath/dir/subdir/subsubdir")
     assert(!fm.exists(dir))
@@ -184,13 +236,14 @@ class HDFSMetadataLogSuite extends SparkFunSuite with SharedSQLContext {
     }
 
     // Open and delete
-    fm.open(path)
+    val f1 = fm.open(path)
     fm.delete(path)
     assert(!fm.exists(path))
     intercept[IOException] {
       fm.open(path)
     }
     fm.delete(path)  // should not throw exception
+    f1.close()
 
     // Rename
     val path1 = new Path(s"$dir/file1")

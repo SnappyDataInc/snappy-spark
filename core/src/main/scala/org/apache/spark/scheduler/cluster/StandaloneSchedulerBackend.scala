@@ -18,6 +18,9 @@
 package org.apache.spark.scheduler.cluster
 
 import java.util.concurrent.Semaphore
+import java.util.concurrent.atomic.AtomicBoolean
+
+import scala.concurrent.Future
 
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.deploy.{ApplicationDescription, Command}
@@ -40,7 +43,7 @@ private[spark] class StandaloneSchedulerBackend(
   with Logging {
 
   private var client: StandaloneAppClient = null
-  private var stopping = false
+  private val stopping = new AtomicBoolean(false)
   private val launcherBackend = new LauncherBackend() {
     override protected def onStopRequest(): Unit = stop(SparkAppHandle.State.KILLED)
   }
@@ -110,7 +113,7 @@ private[spark] class StandaloneSchedulerBackend(
     launcherBackend.setState(SparkAppHandle.State.RUNNING)
   }
 
-  override def stop(): Unit = synchronized {
+  override def stop(): Unit = {
     stop(SparkAppHandle.State.FINISHED)
   }
 
@@ -123,21 +126,21 @@ private[spark] class StandaloneSchedulerBackend(
 
   override def disconnected() {
     notifyContext()
-    if (!stopping) {
+    if (!stopping.get) {
       logWarning("Disconnected from Spark cluster! Waiting for reconnection...")
     }
   }
 
   override def dead(reason: String) {
     notifyContext()
-    if (!stopping) {
+    if (!stopping.get) {
       launcherBackend.setState(SparkAppHandle.State.KILLED)
       logError("Application has been killed. Reason: " + reason)
       try {
         scheduler.error(reason)
       } finally {
         // Ensure the application terminates, as we can no longer run jobs.
-        sc.stop()
+        sc.stopInNewThread()
       }
     }
   }
@@ -148,10 +151,11 @@ private[spark] class StandaloneSchedulerBackend(
       fullId, hostPort, cores, Utils.megabytesToString(memory)))
   }
 
-  override def executorRemoved(fullId: String, message: String, exitStatus: Option[Int]) {
+  override def executorRemoved(
+      fullId: String, message: String, exitStatus: Option[Int], workerLost: Boolean) {
     val reason: ExecutorLossReason = exitStatus match {
       case Some(code) => ExecutorExited(code, exitCausedByApp = true, message)
-      case None => SlaveLost(message)
+      case None => SlaveLost(message, workerLost = workerLost)
     }
     logInfo("Executor %s removed: %s".format(fullId, message))
     removeExecutor(fullId.split("/")(1), reason)
@@ -173,12 +177,12 @@ private[spark] class StandaloneSchedulerBackend(
    *
    * @return whether the request is acknowledged.
    */
-  protected override def doRequestTotalExecutors(requestedTotal: Int): Boolean = {
+  protected override def doRequestTotalExecutors(requestedTotal: Int): Future[Boolean] = {
     Option(client) match {
       case Some(c) => c.requestTotalExecutors(requestedTotal)
       case None =>
         logWarning("Attempted to request executors before driver fully initialized.")
-        false
+        Future.successful(false)
     }
   }
 
@@ -186,12 +190,12 @@ private[spark] class StandaloneSchedulerBackend(
    * Kill the given list of executors through the Master.
    * @return whether the kill request is acknowledged.
    */
-  protected override def doKillExecutors(executorIds: Seq[String]): Boolean = {
+  protected override def doKillExecutors(executorIds: Seq[String]): Future[Boolean] = {
     Option(client) match {
       case Some(c) => c.killExecutors(executorIds)
       case None =>
         logWarning("Attempted to kill executors before driver fully initialized.")
-        false
+        Future.successful(false)
     }
   }
 
@@ -203,20 +207,20 @@ private[spark] class StandaloneSchedulerBackend(
     registrationBarrier.release()
   }
 
-  private def stop(finalState: SparkAppHandle.State): Unit = synchronized {
-    try {
-      stopping = true
+  private def stop(finalState: SparkAppHandle.State): Unit = {
+    if (stopping.compareAndSet(false, true)) {
+      try {
+        super.stop()
+        client.stop()
 
-      super.stop()
-      client.stop()
-
-      val callback = shutdownCallback
-      if (callback != null) {
-        callback(this)
+        val callback = shutdownCallback
+        if (callback != null) {
+          callback(this)
+        }
+      } finally {
+        launcherBackend.setState(finalState)
+        launcherBackend.close()
       }
-    } finally {
-      launcherBackend.setState(finalState)
-      launcherBackend.close()
     }
   }
 

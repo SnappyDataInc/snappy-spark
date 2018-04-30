@@ -58,6 +58,7 @@ else:
     from StringIO import StringIO
 
 
+from pyspark import keyword_only
 from pyspark.conf import SparkConf
 from pyspark.context import SparkContext
 from pyspark.rdd import RDD
@@ -390,6 +391,23 @@ class CheckpointTests(ReusedPySparkTestCase):
         self.assertEqual([1, 2, 3, 4], recovered.collect())
 
 
+class LocalCheckpointTests(ReusedPySparkTestCase):
+
+    def test_basic_localcheckpointing(self):
+        parCollection = self.sc.parallelize([1, 2, 3, 4])
+        flatMappedRDD = parCollection.flatMap(lambda x: range(1, x + 1))
+
+        self.assertFalse(flatMappedRDD.isCheckpointed())
+        self.assertFalse(flatMappedRDD.isLocallyCheckpointed())
+
+        flatMappedRDD.localCheckpoint()
+        result = flatMappedRDD.collect()
+        time.sleep(1)  # 1 second
+        self.assertTrue(flatMappedRDD.isCheckpointed())
+        self.assertTrue(flatMappedRDD.isLocallyCheckpointed())
+        self.assertEqual(flatMappedRDD.collect(), result)
+
+
 class AddFileTests(PySparkTestCase):
 
     def test_add_py_file(self):
@@ -409,12 +427,22 @@ class AddFileTests(PySparkTestCase):
         self.assertEqual("Hello World!", res)
 
     def test_add_file_locally(self):
-        path = os.path.join(SPARK_HOME, "python/test_support/hello.txt")
+        path = os.path.join(SPARK_HOME, "python/test_support/hello/hello.txt")
         self.sc.addFile(path)
         download_path = SparkFiles.get("hello.txt")
         self.assertNotEqual(path, download_path)
         with open(download_path) as test_file:
             self.assertEqual("Hello World!\n", test_file.readline())
+
+    def test_add_file_recursively_locally(self):
+        path = os.path.join(SPARK_HOME, "python/test_support/hello")
+        self.sc.addFile(path, True)
+        download_path = SparkFiles.get("hello")
+        self.assertNotEqual(path, download_path)
+        with open(download_path + "/hello.txt") as test_file:
+            self.assertEqual("Hello World!\n", test_file.readline())
+        with open(download_path + "/sub_hello/sub_hello.txt") as test_file:
+            self.assertEqual("Sub Hello World!\n", test_file.readline())
 
     def test_add_py_file_locally(self):
         # To ensure that we're actually testing addPyFile's effects, check that
@@ -475,6 +503,18 @@ class RDDTests(ReusedPySparkTestCase):
         self.assertEqual(0, self.sc.emptyRDD().sum())
         self.assertEqual(6, self.sc.parallelize([1, 2, 3]).sum())
 
+    def test_to_localiterator(self):
+        from time import sleep
+        rdd = self.sc.parallelize([1, 2, 3])
+        it = rdd.toLocalIterator()
+        sleep(5)
+        self.assertEqual([1, 2, 3], sorted(it))
+
+        rdd2 = rdd.repartition(1000)
+        it2 = rdd2.toLocalIterator()
+        sleep(5)
+        self.assertEqual([1, 2, 3], sorted(it2))
+
     def test_save_as_textfile_with_unicode(self):
         # Regression test for SPARK-970
         x = u"\u00A1Hola, mundo!"
@@ -514,12 +554,30 @@ class RDDTests(ReusedPySparkTestCase):
 
     def test_cartesian_on_textfile(self):
         # Regression test for
-        path = os.path.join(SPARK_HOME, "python/test_support/hello.txt")
+        path = os.path.join(SPARK_HOME, "python/test_support/hello/hello.txt")
         a = self.sc.textFile(path)
         result = a.cartesian(a).collect()
         (x, y) = result[0]
         self.assertEqual(u"Hello World!", x.strip())
         self.assertEqual(u"Hello World!", y.strip())
+
+    def test_cartesian_chaining(self):
+        # Tests for SPARK-16589
+        rdd = self.sc.parallelize(range(10), 2)
+        self.assertSetEqual(
+            set(rdd.cartesian(rdd).cartesian(rdd).collect()),
+            set([((x, y), z) for x in range(10) for y in range(10) for z in range(10)])
+        )
+
+        self.assertSetEqual(
+            set(rdd.cartesian(rdd.cartesian(rdd)).collect()),
+            set([(x, (y, z)) for x in range(10) for y in range(10) for z in range(10)])
+        )
+
+        self.assertSetEqual(
+            set(rdd.cartesian(rdd.zip(rdd)).collect()),
+            set([(x, (y, y)) for x in range(10) for y in range(10)])
+        )
 
     def test_deleting_input_files(self):
         # Regression test for SPARK-1025
@@ -751,7 +809,7 @@ class RDDTests(ReusedPySparkTestCase):
         b = b._reserialize(MarshalSerializer())
         self.assertEqual(a.zip(b).collect(), [(0, 100), (1, 101), (2, 102), (3, 103), (4, 104)])
         # regression test for SPARK-4841
-        path = os.path.join(SPARK_HOME, "python/test_support/hello.txt")
+        path = os.path.join(SPARK_HOME, "python/test_support/hello/hello.txt")
         t = self.sc.textFile(path)
         cnt = t.count()
         self.assertEqual(cnt, t.zip(t).count())
@@ -903,6 +961,22 @@ class RDDTests(ReusedPySparkTestCase):
         partitions = repartitioned.glom().collect()
         self.assertEqual(partitions[0], [(0, 5), (0, 8), (2, 6)])
         self.assertEqual(partitions[1], [(1, 3), (3, 8), (3, 8)])
+
+    def test_repartition_no_skewed(self):
+        num_partitions = 20
+        a = self.sc.parallelize(range(int(1000)), 2)
+        l = a.repartition(num_partitions).glom().map(len).collect()
+        zeros = len([x for x in l if x == 0])
+        self.assertTrue(zeros == 0)
+        l = a.coalesce(num_partitions, True).glom().map(len).collect()
+        zeros = len([x for x in l if x == 0])
+        self.assertTrue(zeros == 0)
+
+    def test_repartition_on_textfile(self):
+        path = os.path.join(SPARK_HOME, "python/test_support/hello/hello.txt")
+        rdd = self.sc.textFile(path)
+        result = rdd.repartition(1).collect()
+        self.assertEqual(u"Hello World!", result[0])
 
     def test_distinct(self):
         rdd = self.sc.parallelize((1, 2, 3)*10, 10)
@@ -1214,7 +1288,7 @@ class InputFormatTests(ReusedPySparkTestCase):
         ei = [(1, u'aa'), (1, u'aa'), (2, u'aa'), (2, u'bb'), (2, u'bb'), (3, u'cc')]
         self.assertEqual(ints, ei)
 
-        hellopath = os.path.join(SPARK_HOME, "python/test_support/hello.txt")
+        hellopath = os.path.join(SPARK_HOME, "python/test_support/hello/hello.txt")
         oldconf = {"mapred.input.dir": hellopath}
         hello = self.sc.hadoopRDD("org.apache.hadoop.mapred.TextInputFormat",
                                   "org.apache.hadoop.io.LongWritable",
@@ -1233,7 +1307,7 @@ class InputFormatTests(ReusedPySparkTestCase):
         ei = [(1, u'aa'), (1, u'aa'), (2, u'aa'), (2, u'bb'), (2, u'bb'), (3, u'cc')]
         self.assertEqual(ints, ei)
 
-        hellopath = os.path.join(SPARK_HOME, "python/test_support/hello.txt")
+        hellopath = os.path.join(SPARK_HOME, "python/test_support/hello/hello.txt")
         newconf = {"mapred.input.dir": hellopath}
         hello = self.sc.newAPIHadoopRDD("org.apache.hadoop.mapreduce.lib.input.TextInputFormat",
                                         "org.apache.hadoop.io.LongWritable",
@@ -1903,6 +1977,26 @@ class SparkSubmitTests(unittest.TestCase):
         self.assertEqual(0, proc.returncode)
         self.assertIn("[2, 4, 6]", out.decode('utf-8'))
 
+    def test_user_configuration(self):
+        """Make sure user configuration is respected (SPARK-19307)"""
+        script = self.createTempFile("test.py", """
+            |from pyspark import SparkConf, SparkContext
+            |
+            |conf = SparkConf().set("spark.test_config", "1")
+            |sc = SparkContext(conf = conf)
+            |try:
+            |    if sc._conf.get("spark.test_config") != "1":
+            |        raise Exception("Cannot find spark.test_config in SparkContext's conf.")
+            |finally:
+            |    sc.stop()
+            """)
+        proc = subprocess.Popen(
+            [self.sparkSubmit, "--master", "local", script],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT)
+        out, err = proc.communicate()
+        self.assertEqual(0, proc.returncode, msg="Process failed with error:\n {0}".format(out))
+
 
 class ContextTests(unittest.TestCase):
 
@@ -2006,6 +2100,44 @@ class ConfTests(unittest.TestCase):
             rdd = sc.parallelize(l, 4)
             self.assertEqual(sorted(l), rdd.sortBy(lambda x: x).collect())
             sc.stop()
+
+
+class KeywordOnlyTests(unittest.TestCase):
+    class Wrapped(object):
+        @keyword_only
+        def set(self, x=None, y=None):
+            if "x" in self._input_kwargs:
+                self._x = self._input_kwargs["x"]
+            if "y" in self._input_kwargs:
+                self._y = self._input_kwargs["y"]
+            return x, y
+
+    def test_keywords(self):
+        w = self.Wrapped()
+        x, y = w.set(y=1)
+        self.assertEqual(y, 1)
+        self.assertEqual(y, w._y)
+        self.assertIsNone(x)
+        self.assertFalse(hasattr(w, "_x"))
+
+    def test_non_keywords(self):
+        w = self.Wrapped()
+        self.assertRaises(TypeError, lambda: w.set(0, y=1))
+
+    def test_kwarg_ownership(self):
+        # test _input_kwargs is owned by each class instance and not a shared static variable
+        class Setter(object):
+            @keyword_only
+            def set(self, x=None, other=None, other_x=None):
+                if "other" in self._input_kwargs:
+                    self._input_kwargs["other"].set(x=self._input_kwargs["other_x"])
+                self._x = self._input_kwargs["x"]
+
+        a = Setter()
+        b = Setter()
+        a.set(x=1, other=b, other_x=2)
+        self.assertEqual(a._x, 1)
+        self.assertEqual(b._x, 2)
 
 
 @unittest.skipIf(not _have_scipy, "SciPy not installed")

@@ -114,8 +114,12 @@ object Cast {
 
 /** Cast the child expression to the target data type. */
 @ExpressionDescription(
-  usage = " - Cast value v to the target data type.",
-  extended = "> SELECT _FUNC_('10' as int);\n 10")
+  usage = "_FUNC_(expr AS type) - Casts the value `expr` to the target data type `type`.",
+  extended = """
+    Examples:
+      > SELECT _FUNC_('10' as int);
+       10
+  """)
 case class Cast(child: Expression, dataType: DataType) extends UnaryExpression with NullIntolerant {
 
   override def toString: String = s"cast($child as ${dataType.simpleString})"
@@ -243,7 +247,7 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression w
   // LongConverter
   private[this] def castToLong(from: DataType): Any => Any = from match {
     case StringType =>
-      buildCast[UTF8String](_, s => try s.toString.toLong catch {
+      buildCast[UTF8String](_, s => try s.toLong catch {
         case _: NumberFormatException => null
       })
     case BooleanType =>
@@ -259,7 +263,7 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression w
   // IntConverter
   private[this] def castToInt(from: DataType): Any => Any = from match {
     case StringType =>
-      buildCast[UTF8String](_, s => try s.toString.toInt catch {
+      buildCast[UTF8String](_, s => try s.toInt catch {
         case _: NumberFormatException => null
       })
     case BooleanType =>
@@ -275,7 +279,7 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression w
   // ShortConverter
   private[this] def castToShort(from: DataType): Any => Any = from match {
     case StringType =>
-      buildCast[UTF8String](_, s => try s.toString.toShort catch {
+      buildCast[UTF8String](_, s => try s.toShort catch {
         case _: NumberFormatException => null
       })
     case BooleanType =>
@@ -291,7 +295,7 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression w
   // ByteConverter
   private[this] def castToByte(from: DataType): Any => Any = from match {
     case StringType =>
-      buildCast[UTF8String](_, s => try s.toString.toByte catch {
+      buildCast[UTF8String](_, s => try s.toByte catch {
         case _: NumberFormatException => null
       })
     case BooleanType =>
@@ -403,7 +407,7 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression w
       case (fromField, toField) => cast(fromField.dataType, toField.dataType)
     }
     // TODO: Could be faster?
-    val newRow = new GenericMutableRow(from.fields.length)
+    val newRow = new GenericInternalRow(from.fields.length)
     buildCast[InternalRow](_, row => {
       var i = 0
       while (i < row.numFields) {
@@ -416,7 +420,7 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression w
   }
 
   private[this] def cast(from: DataType, to: DataType): Any => Any = to match {
-    case dt if dt == child.dataType => identity[Any]
+    case dt if dt == from => identity[Any]
     case StringType => castToString(from)
     case BinaryType => castToBinary(from)
     case DateType => castToDate(from)
@@ -494,7 +498,7 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression w
     s"""
       boolean $resultNull = $childNull;
       ${ctx.javaType(resultType)} $resultPrim = ${ctx.defaultValue(resultType)};
-      if (!${childNull}) {
+      if (!$childNull) {
         ${cast(childPrim, resultPrim, resultNull)}
       }
     """
@@ -657,7 +661,12 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression w
   private[this] def castToIntervalCode(from: DataType): CastFunction = from match {
     case StringType =>
       (c, evPrim, evNull) =>
-        s"$evPrim = CalendarInterval.fromString($c.toString());"
+        s"""$evPrim = CalendarInterval.fromString($c.toString());
+           if(${evPrim} == null) {
+             ${evNull} = true;
+           }
+         """.stripMargin
+
   }
 
   private[this] def decimalToTimestampCode(d: String): String =
@@ -696,7 +705,7 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression w
       (c, evPrim, evNull) =>
         s"""
           try {
-            $evPrim = Byte.valueOf($c.toString());
+            $evPrim = $c.toByte();
           } catch (java.lang.NumberFormatException e) {
             $evNull = true;
           }
@@ -718,7 +727,7 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression w
       (c, evPrim, evNull) =>
         s"""
           try {
-            $evPrim = Short.valueOf($c.toString());
+            $evPrim = $c.toShort();
           } catch (java.lang.NumberFormatException e) {
             $evNull = true;
           }
@@ -740,7 +749,7 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression w
       (c, evPrim, evNull) =>
         s"""
           try {
-            $evPrim = Integer.valueOf($c.toString());
+            $evPrim = $c.toInt();
           } catch (java.lang.NumberFormatException e) {
             $evNull = true;
           }
@@ -762,7 +771,7 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression w
       (c, evPrim, evNull) =>
         s"""
           try {
-            $evPrim = Long.valueOf($c.toString());
+            $evPrim = $c.toLong();
           } catch (java.lang.NumberFormatException e) {
             $evNull = true;
           }
@@ -892,7 +901,7 @@ case class Cast(child: Expression, dataType: DataType) extends UnaryExpression w
     val fieldsCasts = from.fields.zip(to.fields).map {
       case (fromField, toField) => nullSafeCastFunction(fromField.dataType, toField.dataType, ctx)
     }
-    val rowClass = classOf[GenericMutableRow].getName
+    val rowClass = classOf[GenericInternalRow].getName
     val result = ctx.freshName("result")
     val tmpRow = ctx.freshName("tmpRow")
 

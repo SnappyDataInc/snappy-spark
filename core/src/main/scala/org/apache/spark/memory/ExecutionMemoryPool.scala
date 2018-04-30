@@ -56,14 +56,14 @@ private[memory] class ExecutionMemoryPool(
   private val memoryForTask = new mutable.HashMap[Long, Long]()
 
   override def memoryUsed: Long = lock.synchronized {
-    memoryForTask.values.sum
+    return memoryForTask.values.sum
   }
 
   /**
    * Returns the memory consumption, in bytes, for the given task.
    */
   def getMemoryUsageForTask(taskAttemptId: Long): Long = lock.synchronized {
-    memoryForTask.getOrElse(taskAttemptId, 0L)
+    return memoryForTask.getOrElse(taskAttemptId, 0L)
   }
 
   /**
@@ -99,10 +99,12 @@ private[memory] class ExecutionMemoryPool(
 
     // Add this task to the taskMemory map just so we can keep an accurate count of the number
     // of active tasks, to let other tasks ramp down their memory in calls to `acquireMemory`
-    if (!memoryForTask.contains(taskAttemptId)) {
-      memoryForTask(taskAttemptId) = 0L
-      // This will later cause waiting tasks to wake up and check numTasks again
-      lock.notifyAll()
+    var curMem = memoryForTask.get(taskAttemptId) match {
+      case Some(m) => m
+      case _ => memoryForTask(taskAttemptId) = 0L
+        // This will later cause waiting tasks to wake up and check numTasks again
+        lock.notifyAll()
+        0L
     }
 
     // Keep looping until we're either sure that we don't want to grant this request (because this
@@ -111,7 +113,6 @@ private[memory] class ExecutionMemoryPool(
     // TODO: simplify this to limit each task to its own slot
     while (true) {
       val numActiveTasks = memoryForTask.keys.size
-      val curMem = memoryForTask(taskAttemptId)
 
       // In every iteration of this loop, we should first try to reclaim any borrowed execution
       // space from storage. This is necessary because of the potential race condition where new
@@ -138,30 +139,38 @@ private[memory] class ExecutionMemoryPool(
       if (toGrant < numBytes && curMem + toGrant < minMemoryPerTask) {
         logInfo(s"TID $taskAttemptId waiting for at least 1/2N of $poolName pool to be free")
         lock.wait()
+        curMem = memoryForTask(taskAttemptId)
       } else {
         memoryForTask(taskAttemptId) += toGrant
         return toGrant
       }
     }
-    0L  // Never reached
+    return 0L // Never reached
   }
 
   /**
    * Release `numBytes` of memory acquired by the given task.
    */
   def releaseMemory(numBytes: Long, taskAttemptId: Long): Unit = lock.synchronized {
-    val curMem = memoryForTask.getOrElse(taskAttemptId, 0L)
+    val curMemOpt = memoryForTask.get(taskAttemptId)
+    var curMem = curMemOpt match {
+      case Some(m) => m
+      case _ => 0L
+    }
     var memoryToFree = if (curMem < numBytes) {
+      val mem = curMem
       logWarning(
-        s"Internal error: release called on $numBytes bytes but task only has $curMem bytes " +
+        s"Internal error: release called on $numBytes bytes but task only has $mem bytes " +
           s"of memory from the $poolName pool")
       curMem
     } else {
       numBytes
     }
-    if (memoryForTask.contains(taskAttemptId)) {
-      memoryForTask(taskAttemptId) -= memoryToFree
-      if (memoryForTask(taskAttemptId) <= 0) {
+    if (curMemOpt.isDefined) {
+      curMem -= memoryToFree
+      if (curMem > 0) {
+        memoryForTask(taskAttemptId) = curMem
+      } else {
         memoryForTask.remove(taskAttemptId)
       }
     }
@@ -175,7 +184,7 @@ private[memory] class ExecutionMemoryPool(
   def releaseAllMemoryForTask(taskAttemptId: Long): Long = lock.synchronized {
     val numBytesToFree = getMemoryUsageForTask(taskAttemptId)
     releaseMemory(numBytesToFree, taskAttemptId)
-    numBytesToFree
+    return numBytesToFree
   }
 
 }

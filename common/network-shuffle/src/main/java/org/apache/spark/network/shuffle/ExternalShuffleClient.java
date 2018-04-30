@@ -44,7 +44,7 @@ import org.apache.spark.network.util.TransportConf;
  * executors.
  */
 public class ExternalShuffleClient extends ShuffleClient {
-  private final Logger logger = LoggerFactory.getLogger(ExternalShuffleClient.class);
+  private static final Logger logger = LoggerFactory.getLogger(ExternalShuffleClient.class);
 
   private final TransportConf conf;
   private final boolean saslEnabled;
@@ -101,7 +101,7 @@ public class ExternalShuffleClient extends ShuffleClient {
         new RetryingBlockFetcher.BlockFetchStarter() {
           @Override
           public void createAndStart(String[] blockIds, BlockFetchingListener listener)
-              throws IOException {
+              throws IOException, InterruptedException {
             TransportClient client = clientFactory.createClient(host, port);
             new OneForOneBlockFetcher(client, appId, execId, blockIds, listener).start();
           }
@@ -136,7 +136,7 @@ public class ExternalShuffleClient extends ShuffleClient {
       String host,
       int port,
       String execId,
-      ExecutorShuffleInfo executorInfo) throws IOException {
+      ExecutorShuffleInfo executorInfo) throws IOException, InterruptedException {
     checkInit();
     TransportClient client = clientFactory.createUnmanagedClient(host, port);
     try {

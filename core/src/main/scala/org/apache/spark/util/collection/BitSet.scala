@@ -17,14 +17,19 @@
 
 package org.apache.spark.util.collection
 
+import java.util.Arrays
+
+import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
+import com.esotericsoftware.kryo.io.{Input, Output}
+
 /**
  * A simple, fixed-size bit set implementation. This implementation is fast because it avoids
  * safety/bound checking.
  */
-class BitSet(numBits: Int) extends Serializable {
+class BitSet(numBits: Int) extends Serializable with KryoSerializable {
 
-  private val words = new Array[Long](bit2words(numBits))
-  private val numWords = words.length
+  private var words = new Array[Long](bit2words(numBits))
+  private var numWords = words.length
 
   /**
    * Compute the capacity (number of bits) that can be represented
@@ -35,25 +40,31 @@ class BitSet(numBits: Int) extends Serializable {
   /**
    * Clear all set bits.
    */
-  def clear(): Unit = {
-    var i = 0
-    while (i < numWords) {
-      words(i) = 0L
-      i += 1
-    }
-  }
+  def clear(): Unit = Arrays.fill(words, 0)
 
   /**
    * Set all the bits up to a given index
    */
-  def setUntil(bitIndex: Int) {
+  def setUntil(bitIndex: Int): Unit = {
     val wordIndex = bitIndex >> 6 // divide by 64
-    var i = 0
-    while(i < wordIndex) { words(i) = -1; i += 1 }
+    Arrays.fill(words, 0, wordIndex, -1)
     if(wordIndex < words.length) {
       // Set the remaining bits (note that the mask could still be zero)
       val mask = ~(-1L << (bitIndex & 0x3f))
       words(wordIndex) |= mask
+    }
+  }
+
+  /**
+   * Clear all the bits up to a given index
+   */
+  def clearUntil(bitIndex: Int): Unit = {
+    val wordIndex = bitIndex >> 6 // divide by 64
+    Arrays.fill(words, 0, wordIndex, 0)
+    if(wordIndex < words.length) {
+      // Clear the remaining bits
+      val mask = -1L << (bitIndex & 0x3f)
+      words(wordIndex) &= mask
     }
   }
 
@@ -230,4 +241,27 @@ class BitSet(numBits: Int) extends Serializable {
 
   /** Return the number of longs it would take to hold numBits. */
   private def bit2words(numBits: Int) = ((numBits - 1) >> 6) + 1
+
+  override def write(kryo: Kryo, output: Output): Unit = {
+    val words = this.words
+    val numWords = this.numWords
+    output.writeVarInt(numWords, true)
+    var i = 0
+    while (i < numWords) {
+      output.writeLong(words(i))
+      i += 1
+    }
+  }
+
+  override def read(kryo: Kryo, input: Input): Unit = {
+    val numWords = input.readVarInt(true)
+    val words = new Array[Long](numWords)
+    var i = 0
+    while (i < numWords) {
+      words(i) = input.readLong()
+      i += 1
+    }
+    this.words = words
+    this.numWords = numWords
+  }
 }

@@ -20,6 +20,7 @@ package org.apache.spark.sql.execution
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.plans.physical.Partitioning
 import org.apache.spark.sql.execution.metric.SQLMetrics
 
 /**
@@ -44,21 +45,32 @@ private[execution] sealed case class LazyIterator(func: () => TraversableOnce[In
  *              it.
  * @param outer when true, each input row will be output at least once, even if the output of the
  *              given `generator` is empty. `outer` has no effect when `join` is false.
- * @param output the output attributes of this node, which constructed in analysis phase,
- *               and we can not change it, as the parent node bound with it already.
+ * @param generatorOutput the qualified output attributes of the generator of this node, which
+ *                        constructed in analysis phase, and we can not change it, as the
+ *                        parent node bound with it already.
  */
 case class GenerateExec(
     generator: Generator,
     join: Boolean,
     outer: Boolean,
-    output: Seq[Attribute],
+    generatorOutput: Seq[Attribute],
     child: SparkPlan)
   extends UnaryExecNode {
 
-  private[sql] override lazy val metrics = Map(
+  override def output: Seq[Attribute] = {
+    if (join) {
+      child.output ++ generatorOutput
+    } else {
+      generatorOutput
+    }
+  }
+
+  override lazy val metrics = Map(
     "numOutputRows" -> SQLMetrics.createMetric(sparkContext, "number of output rows"))
 
   override def producedAttributes: AttributeSet = AttributeSet(output)
+
+  override def outputPartitioning: Partitioning = child.outputPartitioning
 
   val boundGenerator = BindReferences.bindReference(generator, child.output)
 
@@ -91,8 +103,9 @@ case class GenerateExec(
     }
 
     val numOutputRows = longMetric("numOutputRows")
-    rows.mapPartitionsInternal { iter =>
+    rows.mapPartitionsWithIndexInternal { (index, iter) =>
       val proj = UnsafeProjection.create(output, output)
+      proj.initialize(index)
       iter.map { r =>
         numOutputRows += 1
         proj(r)

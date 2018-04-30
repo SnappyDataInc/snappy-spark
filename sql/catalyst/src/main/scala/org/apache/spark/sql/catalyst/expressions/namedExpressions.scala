@@ -14,6 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for SnappyData data platform.
+ *
+ * Portions Copyright (c) 2017 SnappyData, Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark.sql.catalyst.expressions
 
@@ -22,6 +40,7 @@ import java.util.{Objects, UUID}
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.analysis.UnresolvedAttribute
 import org.apache.spark.sql.catalyst.expressions.codegen._
+import org.apache.spark.sql.catalyst.plans.logical.EventTimeWatermark
 import org.apache.spark.sql.catalyst.util.quoteIdentifier
 import org.apache.spark.sql.types._
 
@@ -30,6 +49,8 @@ object NamedExpression {
   private[expressions] val jvmId = UUID.randomUUID()
   def newExprId: ExprId = ExprId(curId.getAndIncrement(), jvmId)
   def unapply(expr: NamedExpression): Option[(String, DataType)] = Some(expr.name, expr.dataType)
+  def allocateExprID(quota: Int): ExprId = ExprId(curId.getAndAdd(quota), jvmId)
+
 }
 
 /**
@@ -42,7 +63,9 @@ object NamedExpression {
 case class ExprId(id: Long, jvmId: UUID)
 
 object ExprId {
-  def apply(id: Long): ExprId = ExprId(id, NamedExpression.jvmId)
+  private val INVALID = apply(-1, NamedExpression.jvmId)
+
+  def apply(id: Long): ExprId = if (id == -1) INVALID else ExprId(id, NamedExpression.jvmId)
 }
 
 /**
@@ -104,6 +127,7 @@ abstract class Attribute extends LeafExpression with NamedExpression with NullIn
   def withNullability(newNullability: Boolean): Attribute
   def withQualifier(newQualifier: Option[String]): Attribute
   def withName(newName: String): Attribute
+  def withMetadata(newMetadata: Metadata): Attribute
 
   override def toAttribute: Attribute = this
   def newInstance(): Attribute
@@ -292,11 +316,22 @@ case class AttributeReference(
     }
   }
 
+  override def withMetadata(newMetadata: Metadata): Attribute = {
+    AttributeReference(name, dataType, nullable, newMetadata)(exprId, qualifier, isGenerated)
+  }
+
   override protected final def otherCopyArgs: Seq[AnyRef] = {
     exprId :: qualifier :: isGenerated :: Nil
   }
 
-  override def toString: String = s"$name#${exprId.id}$typeSuffix"
+  /** Used to signal the column used to calculate an eventTime watermark (e.g. a#1-T{delayMs}) */
+  private def delaySuffix = if (metadata.contains(EventTimeWatermark.delayKey)) {
+    s"-T${metadata.getLong(EventTimeWatermark.delayKey)}ms"
+  } else {
+    ""
+  }
+
+  override def toString: String = s"$name#${exprId.id}$typeSuffix$delaySuffix"
 
   // Since the expression id is not in the first constructor it is missing from the default
   // tree string.
@@ -332,6 +367,8 @@ case class PrettyAttribute(
   override def withQualifier(newQualifier: Option[String]): Attribute =
     throw new UnsupportedOperationException
   override def withName(newName: String): Attribute = throw new UnsupportedOperationException
+  override def withMetadata(newMetadata: Metadata): Attribute =
+    throw new UnsupportedOperationException
   override def qualifier: Option[String] = throw new UnsupportedOperationException
   override def exprId: ExprId = throw new UnsupportedOperationException
   override def nullable: Boolean = true
@@ -341,10 +378,17 @@ case class PrettyAttribute(
  * A place holder used to hold a reference that has been resolved to a field outside of the current
  * plan. This is used for correlated subqueries.
  */
-case class OuterReference(e: NamedExpression) extends LeafExpression with Unevaluable {
+case class OuterReference(e: NamedExpression)
+  extends LeafExpression with NamedExpression with Unevaluable {
   override def dataType: DataType = e.dataType
   override def nullable: Boolean = e.nullable
   override def prettyName: String = "outer"
+
+  override def name: String = e.name
+  override def qualifier: Option[String] = e.qualifier
+  override def exprId: ExprId = e.exprId
+  override def toAttribute: Attribute = e.toAttribute
+  override def newInstance(): NamedExpression = OuterReference(e.newInstance())
 }
 
 object VirtualColumn {

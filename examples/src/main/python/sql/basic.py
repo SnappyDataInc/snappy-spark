@@ -114,6 +114,31 @@ def basic_df_example(spark):
     # +----+-------+
     # $example off:run_sql$
 
+    # $example on:global_temp_view$
+    # Register the DataFrame as a global temporary view
+    df.createGlobalTempView("people")
+
+    # Global temporary view is tied to a system preserved database `global_temp`
+    spark.sql("SELECT * FROM global_temp.people").show()
+    # +----+-------+
+    # | age|   name|
+    # +----+-------+
+    # |null|Michael|
+    # |  30|   Andy|
+    # |  19| Justin|
+    # +----+-------+
+
+    # Global temporary view is cross-session
+    spark.newSession().sql("SELECT * FROM global_temp.people").show()
+    # +----+-------+
+    # | age|   name|
+    # +----+-------+
+    # |null|Michael|
+    # |  30|   Andy|
+    # |  19| Justin|
+    # +----+-------+
+    # $example off:global_temp_view$
+
 
 def schema_inference_example(spark):
     # $example on:schema_inferring$
@@ -162,9 +187,6 @@ def programmatic_schema_example(spark):
     # Creates a temporary view using the DataFrame
     schemaPeople.createOrReplaceTempView("people")
 
-    # Creates a temporary view using the DataFrame
-    schemaPeople.createOrReplaceTempView("people")
-
     # SQL can be run over DataFrames that have been registered as a table.
     results = spark.sql("SELECT name FROM people")
 
@@ -182,7 +204,7 @@ if __name__ == "__main__":
     # $example on:init_session$
     spark = SparkSession \
         .builder \
-        .appName("PythonSQL") \
+        .appName("Python Spark SQL basic example") \
         .config("spark.some.config.option", "some-value") \
         .getOrCreate()
     # $example off:init_session$
