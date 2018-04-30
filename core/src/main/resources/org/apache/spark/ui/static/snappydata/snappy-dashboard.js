@@ -171,12 +171,16 @@ function getMemberStatsGridConf() {
       { // Status
         data: function(row, type) {
                 var statusImgUri = "";
+                var statusText = "";
                 if (row.status.toUpperCase() == "RUNNING") {
-                  statusImgUri = "/static/snappydata/running-status-icon-20x19.png"
+                  statusImgUri = "/static/snappydata/running-status-icon-20x19.png";
+                  statusText = '<span style="display:none;">running</span>';
                 } else {
-                  statusImgUri = "/static/snappydata/stopped-status-icon-20x19.png"
+                  statusImgUri = "/static/snappydata/stopped-status-icon-20x19.png";
+                  statusText = '<span style="display:none;">stopped</span>';
                 }
-                var statusHtml = '<div style="float: left; height: 24px; padding: 0 20px;" >'
+                var statusHtml = statusText
+                                  + '<div style="float: left; height: 24px; padding: 0 20px;" >'
                                   + '<img src="' + statusImgUri +'" data-toggle="tooltip" '
                                   + ' title="" data-original-title="'+ row.status +'" />'
                                + '</div>';
@@ -224,12 +228,14 @@ function getMemberStatsGridConf() {
       { // Heap Usage
         data: function(row, type) {
                 return generateHeapCellHtml(row);
-              }
+              },
+        "orderable": false
       },
       { // Off-Heap Usage
         data: function(row, type) {
                 return generateOffHeapCellHtml(row);
-              }
+              },
+        "orderable": false
       }
     ]
   }
