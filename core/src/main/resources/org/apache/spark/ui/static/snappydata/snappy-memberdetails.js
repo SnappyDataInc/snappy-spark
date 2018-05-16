@@ -133,6 +133,8 @@ function updateBasicMemoryStats(statsData){
   var currOffHeapMemoryUsed = convertSizeToHumanReadable(statsData.offHeapMemoryUsed);
   var currOffHeapMemorySize = convertSizeToHumanReadable(statsData.offHeapMemorySize);
 
+  var currDiskStoreDiskSpace = convertSizeToHumanReadable(statsData.diskStoreDiskSpace);
+
   $("#currHeapStoragePool").text(
     currHeapStoragePoolUsed[0] + " " + currHeapStoragePoolUsed[1] + " / "
       + currHeapStoragePoolSize[0] + " " + currHeapStoragePoolSize[1] );
@@ -151,6 +153,7 @@ function updateBasicMemoryStats(statsData){
   $("#currOffHeapMemory").text(
     currOffHeapMemoryUsed[0] + " " + currOffHeapMemoryUsed[1] + " / "
       + currOffHeapMemorySize[0] + " " + currOffHeapMemorySize[1]);
+  $("#currDiskSpace").text(currDiskStoreDiskSpace[0] + " " + currDiskStoreDiskSpace[1]);
 }
 
 function updateUsageCharts(statsData){
@@ -169,9 +172,9 @@ function updateUsageCharts(statsData){
   offHeapChartData.addColumn('number', 'Storage');
   offHeapChartData.addColumn('number', 'Execution');
 
-  var memoryUsageChartData = new google.visualization.DataTable();
-  memoryUsageChartData.addColumn('datetime', 'Time of Day');
-  memoryUsageChartData.addColumn('number', 'Memory');
+  var diskSpaceUsageChartData = new google.visualization.DataTable();
+  diskSpaceUsageChartData.addColumn('datetime', 'Time of Day');
+  diskSpaceUsageChartData.addColumn('number', 'Disk');
 
   var timeLine = statsData.timeLine;
   var cpuUsageTrend = statsData.cpuUsageTrend;
@@ -183,7 +186,7 @@ function updateUsageCharts(statsData){
   var offHeapStorageUsageTrend = statsData.offHeapStorageUsageTrend;
   var offHeapExecutionUsageTrend = statsData.offHeapExecutionUsageTrend;
 
-  var aggrMemoryUsageTrend = statsData.aggrMemoryUsageTrend;
+  var diskStoreDiskSpaceTrend = statsData.diskStoreDiskSpaceTrend;
 
   for(var i=0; i<timeLine.length; i++){
     var timeX = new Date(timeLine[i]);
@@ -196,7 +199,7 @@ function updateUsageCharts(statsData){
     offHeapChartData.addRow([timeX,
                           offHeapStorageUsageTrend[i],
                           offHeapExecutionUsageTrend[i]]);
-    memoryUsageChartData.addRow([timeX, aggrMemoryUsageTrend[i]]);
+    diskSpaceUsageChartData.addRow([timeX, diskStoreDiskSpaceTrend[i]]);
   }
 
   cpuChartOptions = {
@@ -232,8 +235,8 @@ function updateUsageCharts(statsData){
       format: 'HH:mm'
     }
   };
-  memoryUsageChartOptions = {
-    title: 'Heap & Off-Heap Collective Usage (GB)',
+  diskSpaceUsageChartOptions = {
+    title: 'Disk Space Usage (GB)',
     curveType: 'function',
     legend: { position: 'bottom' },
     colors:['#2139EC', '#E67E22'],
@@ -255,9 +258,9 @@ function updateUsageCharts(statsData){
                       document.getElementById('offheapUsageContainer'));
   offHeapChart.draw(offHeapChartData, offHeapChartOptions);
 
-  var memoryUsageChart = new google.visualization.LineChart(
-                        document.getElementById('memoryUsageContainer'));
-    memoryUsageChart.draw(memoryUsageChartData, memoryUsageChartOptions);
+  var diskSpaceUsageChart = new google.visualization.LineChart(
+                        document.getElementById('diskSpaceUsageContainer'));
+  diskSpaceUsageChart.draw(diskSpaceUsageChartData, diskSpaceUsageChartOptions);
 }
 
 function loadGoogleCharts(){
