@@ -57,11 +57,11 @@ class TaskDescriptionSuite extends SparkFunSuite {
     val taskBuffer = ByteBuffer.wrap(Array[Byte](1, 2, 3, 4))
 
     val originalTaskDescription = new TaskDescription(
-      taskId = 1520589,
-      attemptNumber = 2,
-      executorId = "testExecutor",
-      name = "task for test",
-      index = 19,
+      _taskId = 1520589,
+      _attemptNumber = 2,
+      _executorId = "testExecutor",
+      _name = "task for test",
+      _index = 19,
       originalFiles,
       originalJars,
       originalProperties,

@@ -22,10 +22,12 @@ import java.nio.ByteBuffer
 import java.nio.charset.StandardCharsets
 import java.util.Properties
 
+import com.esotericsoftware.kryo.io.{Input, Output}
+import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
+import org.apache.spark.util.{ByteBufferInputStream, ByteBufferOutputStream, SerializableBuffer, Utils}
+
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{HashMap, Map}
-
-import org.apache.spark.util.{ByteBufferInputStream, ByteBufferOutputStream, Utils}
 
 /**
  * Description of a task that gets passed onto executors to be executed, usually created by
@@ -45,17 +47,93 @@ import org.apache.spark.util.{ByteBufferInputStream, ByteBufferOutputStream, Uti
  *         (which can introduce significant overhead when the maps are small).
  */
 private[spark] class TaskDescription(
-    val taskId: Long,
-    val attemptNumber: Int,
-    val executorId: String,
-    val name: String,
-    val index: Int,    // Index within this task's TaskSet
+    private var _taskId: Long,
+    private var _attemptNumber: Int,
+    private var _executorId: String,
+    private var _name: String,
+    private var _index: Int,    // Index within this task's TaskSet
     val addedFiles: Map[String, Long],
     val addedJars: Map[String, Long],
     val properties: Properties,
-    val serializedTask: ByteBuffer) {
+    @transient private var _serializedTask: ByteBuffer,
+    private[spark] var taskData: TaskData = TaskData.EMPTY)
+  extends Serializable with KryoSerializable {
 
-  override def toString: String = "TaskDescription(TID=%d, index=%d)".format(taskId, index)
+  def taskId: Long = _taskId
+  def attemptNumber: Int = _attemptNumber
+  def executorId: String = _executorId
+  def name: String = _name
+  def index: Int = _index
+
+  // Because ByteBuffers are not serializable, wrap the task in a SerializableBuffer
+  private val buffer =
+    if (_serializedTask ne null) new SerializableBuffer(_serializedTask) else null
+
+  def serializedTask: ByteBuffer =
+    if (_serializedTask ne null) _serializedTask else buffer.value
+
+  override def write(kryo: Kryo, output: Output): Unit = {
+    output.writeLong(_taskId)
+    output.writeVarInt(_attemptNumber, true)
+    output.writeString(_executorId)
+    output.writeString(_name)
+    output.writeInt(_index)
+    output.writeInt(addedFiles.size)
+    // Write files.
+    for ((key, value) <- addedFiles) {
+      output.writeString(key)
+      output.writeLong(value)
+    }
+    // Write jars.
+    output.writeInt(addedJars.size)
+    for ((key, value) <- addedJars) {
+      output.writeString(key)
+      output.writeLong(value)
+    }
+    // Write properties.
+    output.writeInt(properties.size())
+    properties.asScala.foreach { case (key, value) =>
+      output.writeString(key)
+      // SPARK-19796 -- writeUTF doesn't work for long strings, which can happen for property values
+      val bytes = value.getBytes(StandardCharsets.UTF_8)
+      output.writeInt(bytes.length)
+      output.write(bytes)
+    }
+    output.writeInt(_serializedTask.remaining())
+    Utils.writeByteBuffer(_serializedTask, output)
+    TaskData.write(taskData, output)
+  }
+
+  override def read(kryo: Kryo, input: Input): Unit = {
+    _taskId = input.readLong()
+    _attemptNumber = input.readVarInt(true)
+    _executorId = input.readString()
+    _name = input.readString()
+    _index = input.readInt()
+    // Read files.
+    val fileSize = input.readInt()
+    for (_ <- 0 until fileSize) {
+      addedFiles(input.readString()) = input.readLong()
+    }
+    // Read jars.
+    val jarSize = input.readInt()
+    for (_ <- 0 until jarSize) {
+      addedJars(input.readString()) = input.readLong()
+    }
+    // Read properties.
+    val properties = new Properties()
+    val numProperties = input.readInt()
+    for (_ <- 0 until numProperties) {
+      val key = input.readString()
+      val valueLength = input.readInt()
+      val valueBytes = new Array[Byte](valueLength)
+      input.read(valueBytes)
+      properties.setProperty(key, new String(valueBytes, StandardCharsets.UTF_8))
+    }
+    val len = input.readInt()
+    _serializedTask = ByteBuffer.wrap(input.readBytes(len))
+    taskData = TaskData.read(input)
+  }
 }
 
 private[spark] object TaskDescription {

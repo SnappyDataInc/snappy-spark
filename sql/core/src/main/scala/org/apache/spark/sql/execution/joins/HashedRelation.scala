@@ -140,10 +140,17 @@ private[joins] class UnsafeHashedRelation(
   // re-used in get()/getValue()
   var resultRow = new UnsafeRow(numFields)
 
+  private var mapLoc = initMapLoc()
+
+  private def initMapLoc(): BytesToBytesMap#Location = {
+    val map = binaryMap
+    new map.Location
+  }
+
   override def get(key: InternalRow): Iterator[InternalRow] = {
     val unsafeKey = key.asInstanceOf[UnsafeRow]
     val map = binaryMap  // avoid the compiler error
-    val loc = new map.Location  // this could be allocated in stack
+    val loc = mapLoc
     binaryMap.safeLookup(unsafeKey.getBaseObject, unsafeKey.getBaseOffset,
       unsafeKey.getSizeInBytes, loc, unsafeKey.hashCode())
     if (loc.isDefined) {
@@ -164,7 +171,7 @@ private[joins] class UnsafeHashedRelation(
   def getValue(key: InternalRow): InternalRow = {
     val unsafeKey = key.asInstanceOf[UnsafeRow]
     val map = binaryMap  // avoid the compiler error
-    val loc = new map.Location  // this could be allocated in stack
+    val loc = mapLoc
     binaryMap.safeLookup(unsafeKey.getBaseObject, unsafeKey.getBaseOffset,
       unsafeKey.getSizeInBytes, loc, unsafeKey.hashCode())
     if (loc.isDefined) {
@@ -782,7 +789,8 @@ private[execution] final class LongToUnsafeRowMap(val mm: TaskMemoryManager, cap
 
 private[joins] class LongHashedRelation(
     private var nFields: Int,
-    private var map: LongToUnsafeRowMap) extends HashedRelation with Externalizable {
+    private var map: LongToUnsafeRowMap) extends HashedRelation
+    with Externalizable with KryoSerializable {
 
   private var resultRow: UnsafeRow = new UnsafeRow(nFields)
 
@@ -824,6 +832,11 @@ private[joins] class LongHashedRelation(
     out.writeObject(map)
   }
 
+  override def write(kryo: Kryo, output: Output): Unit = {
+    output.writeInt(nFields)
+    kryo.writeClassAndObject(output, map)
+  }
+
   override def readExternal(in: ObjectInput): Unit = {
     nFields = in.readInt()
     resultRow = new UnsafeRow(nFields)
@@ -831,6 +844,12 @@ private[joins] class LongHashedRelation(
   }
 
   override def getAverageProbesPerLookup: Double = map.getAverageProbesPerLookup
+
+  override def read(kryo: Kryo, input: Input): Unit = {
+    nFields = input.readInt()
+    resultRow = new UnsafeRow(nFields)
+    map = kryo.readClassAndObject(input).asInstanceOf[LongToUnsafeRowMap]
+  }
 }
 
 /**

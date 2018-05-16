@@ -111,7 +111,6 @@ object GenerateUnsafeProjection extends CodeGenerator[Seq[Expression], UnsafePro
             s"""
               // Remember the current cursor so that we can calculate how many bytes are
               // written later.
-              final int $tmpCursor = $bufferHolder.cursor;
               ${writeStructToBuffer(ctx, input.value, t.map(_.dataType), bufferHolder)}
               $rowWriter.setOffsetAndSize($index, $tmpCursor, $bufferHolder.cursor - $tmpCursor);
             """

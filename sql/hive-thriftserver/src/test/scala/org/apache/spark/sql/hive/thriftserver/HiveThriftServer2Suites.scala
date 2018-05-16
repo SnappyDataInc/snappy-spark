@@ -14,6 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for SnappyData data platform.
+ *
+ * Portions Copyright (c) 2017 SnappyData, Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark.sql.hive.thriftserver
 
@@ -557,8 +575,11 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
   test("SPARK-11595 ADD JAR with input path having URL scheme") {
     withJdbcStatement("test_udtf") { statement =>
       try {
-        val jarPath = "../hive/src/test/resources/TestUDTF.jar"
-        val jarURL = s"file://${System.getProperty("user.dir")}/$jarPath"
+        val jarPath = sys.props.get("spark.project.home") match {
+          case Some(h) => s"$h/sql/hive/src/test/resources/TestUDTF.jar"
+          case _ => s"${System.getProperty("user.dir")}/../hive/src/test/resources/TestUDTF.jar"
+        }
+        val jarURL = s"file://$jarPath"
 
         Seq(
           s"ADD JAR $jarURL",
@@ -580,7 +601,10 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
         assert(rs1.next())
         assert(rs1.getString(1) === "Usage: N/A.")
 
-        val dataPath = "../hive/src/test/resources/data/files/kv1.txt"
+        val dataPath = sys.props.get("spark.project.home") match {
+          case Some(h) => s"$h/sql/hive/src/test/resources/data/files/kv1.txt"
+          case _ => "../hive/src/test/resources/data/files/kv1.txt"
+        }
 
         Seq(
           "CREATE TABLE test_udtf(key INT, value STRING)",
@@ -624,8 +648,11 @@ class SingleSessionSuite extends HiveThriftJdbcTest {
   test("share the temporary functions across JDBC connections") {
     withMultipleConnectionJdbcStatement()(
       { statement =>
-        val jarPath = "../hive/src/test/resources/TestUDTF.jar"
-        val jarURL = s"file://${System.getProperty("user.dir")}/$jarPath"
+        val jarPath = sys.props.get("spark.project.home") match {
+          case Some(h) => s"$h/sql/hive/src/test/resources/TestUDTF.jar"
+          case _ => s"${System.getProperty("user.dir")}/../hive/src/test/resources/TestUDTF.jar"
+        }
+        val jarURL = s"file://$jarPath"
 
         // Configurations and temporary functions added in this session should be visible to all
         // the other sessions.

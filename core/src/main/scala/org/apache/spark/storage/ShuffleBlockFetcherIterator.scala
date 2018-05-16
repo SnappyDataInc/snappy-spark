@@ -87,7 +87,8 @@ final class ShuffleBlockFetcherIterator(
    */
   private[this] var numBlocksProcessed = 0
 
-  private[this] val startTime = System.currentTimeMillis
+  private[this] val startTime =
+    if (log.isDebugEnabled || isTraceEnabled) System.currentTimeMillis else 0L
 
   /** Local blocks to fetch, excluding zero-sized blocks. */
   private[this] val localBlocks = new ArrayBuffer[BlockId]()
@@ -231,8 +232,12 @@ final class ShuffleBlockFetcherIterator(
             remainingBlocks -= blockId
             results.put(new SuccessFetchResult(BlockId(blockId), address, sizeMap(blockId), buf,
               remainingBlocks.isEmpty))
-            logDebug("remainingBlocks: " + remainingBlocks)
+            if (log.isDebugEnabled) {
+              logDebug("remainingBlocks: " + remainingBlocks)
+            }
           }
+          if (isTraceEnabled) logTrace("Got remote block " + blockId + " after " +
+              Utils.getUsedTimeMs(startTime))
         }
         logTrace("Got remote block " + blockId + " after " + Utils.getUsedTimeMs(startTime))
       }
@@ -351,11 +356,13 @@ final class ShuffleBlockFetcherIterator(
     fetchUpToMaxBytes()
 
     val numFetches = remoteRequests.size - fetchRequests.size
-    logInfo("Started " + numFetches + " remote fetches in" + Utils.getUsedTimeMs(startTime))
+    val isDebugEnabled = log.isDebugEnabled
+    if (isDebugEnabled) logDebug("Started " + numFetches + " remote fetches in" +
+        Utils.getUsedTimeMs(startTime))
 
     // Get Local Blocks
     fetchLocalBlocks()
-    logDebug("Got local blocks in " + Utils.getUsedTimeMs(startTime))
+    if (isDebugEnabled) logDebug("Got local blocks in " + Utils.getUsedTimeMs(startTime))
   }
 
   override def hasNext: Boolean = numBlocksProcessed < numBlocksToFetch
@@ -374,7 +381,6 @@ final class ShuffleBlockFetcherIterator(
     }
 
     numBlocksProcessed += 1
-
     var result: FetchResult = null
     var input: InputStream = null
     // Take the next fetched result and try to decompress it to detect data corruption,
@@ -382,10 +388,10 @@ final class ShuffleBlockFetcherIterator(
     // is also corrupt, so the previous stage could be retried.
     // For local shuffle block, throw FailureFetchResult for the first IOException.
     while (result == null) {
-      val startFetchWait = System.currentTimeMillis()
+      val startFetchWait = System.nanoTime()
       result = results.take()
-      val stopFetchWait = System.currentTimeMillis()
-      shuffleMetrics.incFetchWaitTime(stopFetchWait - startFetchWait)
+      val stopFetchWait = System.nanoTime()
+      shuffleMetrics.incFetchWaitTime(math.max(stopFetchWait - startFetchWait, 0L) / 1000000.0)
 
       result match {
         case r @ SuccessFetchResult(blockId, address, size, buf, isNetworkReqDone) =>

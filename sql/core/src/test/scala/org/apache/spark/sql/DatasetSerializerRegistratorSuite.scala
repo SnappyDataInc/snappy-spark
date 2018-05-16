@@ -30,10 +30,16 @@ import org.apache.spark.sql.test.SharedSQLContext
 class DatasetSerializerRegistratorSuite extends QueryTest with SharedSQLContext {
   import testImplicits._
 
-
   override protected def sparkConf: SparkConf = {
     // Make sure we use the KryoRegistrator
     super.sparkConf.set("spark.kryo.registrator", TestRegistrator().getClass.getCanonicalName)
+  }
+  /**
+   * Initialize the [[SparkSession]] with a [[KryoRegistrator]].
+   */
+  protected override def beforeAll(): Unit = {
+    sparkConf.set("spark.kryo.registrator", TestRegistrator().getClass.getCanonicalName)
+    super.beforeAll()
   }
 
   test("Kryo registrator") {

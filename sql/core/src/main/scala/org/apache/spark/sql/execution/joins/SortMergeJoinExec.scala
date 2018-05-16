@@ -78,7 +78,7 @@ case class SortMergeJoinExec(
   }
 
   override def requiredChildDistribution: Seq[Distribution] =
-    HashClusteredDistribution(leftKeys) :: HashClusteredDistribution(rightKeys) :: Nil
+    ClusteredDistribution(leftKeys) :: ClusteredDistribution(rightKeys) :: Nil
 
   override def outputOrdering: Seq[SortOrder] = joinType match {
     // For inner join, orders of both sides keys should be kept.

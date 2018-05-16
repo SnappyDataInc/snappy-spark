@@ -211,6 +211,19 @@ class Dataset[T] private[sql](
   private lazy val deserializer =
     exprEnc.resolveAndBind(logicalPlan.output, sparkSession.sessionState.analyzer).deserializer
 
+  /**
+   * Encoder is used mostly as a container of serde expressions in Dataset.  We build logical
+   * plans by these serde expressions and execute it within the query framework.  However, for
+   * performance reasons we may want to use encoder as a function to deserialize internal rows to
+   * custom objects, e.g. collect.  Here we resolve and bind the encoder so that we can call its
+   * `fromRow` method later.
+   */
+  private lazy val boundEnc =
+    exprEnc.resolveAndBind(logicalPlan.output, sparkSession.sessionState.analyzer)
+
+  // materialize boundEnc immediately if T is not a Row to throw any analysis exception
+  if (!classTag.runtimeClass.isAssignableFrom(classOf[Row])) boundEnc
+
   private implicit def classTag = exprEnc.clsTag
 
   // sqlContext must be val because a stable identifier is expected when you import implicits

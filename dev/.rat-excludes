@@ -103,3 +103,4 @@ META-INF/*
 spark-warehouse
 structured-streaming/*
 kafka-source-initial-offset-version-2.1.0.bin
+org.apache.spark.scheduler.ExternalClusterManager

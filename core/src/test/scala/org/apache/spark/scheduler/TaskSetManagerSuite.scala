@@ -27,6 +27,9 @@ import org.mockito.Mockito.{mock, never, spy, times, verify, when}
 import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
 
+import com.esotericsoftware.kryo.Kryo
+import com.esotericsoftware.kryo.io.{Output, Input}
+
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config
@@ -151,7 +154,7 @@ class FakeTaskScheduler(sc: SparkContext, liveExecutors: (String, String)* /* ex
 /**
  * A Task implementation that results in a large serialized task.
  */
-class LargeTask(stageId: Int) extends Task[Array[Byte]](stageId, 0, 0) {
+class LargeTask(stageId: Int) extends Task[Array[Byte]](stageId, 0, 0, taskBinary = null) {
 
   val randomBuffer = new Array[Byte](TaskSetManager.TASK_SIZE_TO_WARN_KB * 1024)
   val random = new Random(0)
@@ -711,7 +714,7 @@ class TaskSetManagerSuite extends SparkFunSuite with LocalSparkContext with Logg
     }
     sched.setDAGScheduler(dagScheduler)
 
-    val singleTask = new ShuffleMapTask(0, 0, null, new Partition {
+    val singleTask = new ShuffleMapTask(0, 0, TaskData.EMPTY, null, new Partition {
         override def index: Int = 0
       }, Seq(TaskLocation("host1", "execA")), new Properties, null)
     val taskSet = new TaskSet(Array(singleTask), 0, 0, 0, null)
@@ -730,7 +733,7 @@ class TaskSetManagerSuite extends SparkFunSuite with LocalSparkContext with Logg
     assert(manager.isZombie === false)
 
     val directTaskResult = new DirectTaskResult[String](null, Seq()) {
-      override def value(resultSer: SerializerInstance): String = ""
+     // override def _value(resultSer: SerializerInstance): String = ""
     }
     // Complete one copy of the task, which should result in the task set manager
     // being marked as a zombie, because at least one copy of its only task has completed.
@@ -1365,7 +1368,6 @@ class TaskSetManagerSuite extends SparkFunSuite with LocalSparkContext with Logg
   private def createTaskResult(
       id: Int,
       accumUpdates: Seq[AccumulatorV2[_, _]] = Seq.empty): DirectTaskResult[Int] = {
-    val valueSer = SparkEnv.get.serializer.newInstance()
-    new DirectTaskResult[Int](valueSer.serialize(id), accumUpdates)
+    new DirectTaskResult[Int](id, accumUpdates)
   }
 }

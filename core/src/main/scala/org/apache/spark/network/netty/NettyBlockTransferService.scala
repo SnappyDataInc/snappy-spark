@@ -20,13 +20,12 @@ package org.apache.spark.network.netty
 import java.nio.ByteBuffer
 import java.util.{HashMap => JHashMap, Map => JMap}
 
+import com.codahale.metrics.{Metric, MetricSet}
+
 import scala.collection.JavaConverters._
 import scala.concurrent.{Future, Promise}
 import scala.reflect.ClassTag
-
-import com.codahale.metrics.{Metric, MetricSet}
-
-import org.apache.spark.{SecurityManager, SparkConf}
+import org.apache.spark.{SecurityManager, SparkConf, SparkEnv}
 import org.apache.spark.network._
 import org.apache.spark.network.buffer.ManagedBuffer
 import org.apache.spark.network.client.{RpcResponseCallback, TransportClientBootstrap, TransportClientFactory}
@@ -35,7 +34,6 @@ import org.apache.spark.network.server._
 import org.apache.spark.network.shuffle.{BlockFetchingListener, OneForOneBlockFetcher, RetryingBlockFetcher, TempFileManager}
 import org.apache.spark.network.shuffle.protocol.UploadBlock
 import org.apache.spark.network.util.JavaUtils
-import org.apache.spark.serializer.JavaSerializer
 import org.apache.spark.storage.{BlockId, StorageLevel}
 import org.apache.spark.util.Utils
 
@@ -52,7 +50,7 @@ private[spark] class NettyBlockTransferService(
   extends BlockTransferService {
 
   // TODO: Don't use Java serialization, use a more cross-version compatible serialization format.
-  private val serializer = new JavaSerializer(conf)
+  private val serializer = SparkEnv.getClosureSerializer(conf)
   private val authEnabled = securityManager.isAuthenticationEnabled()
   private val transportConf = SparkTransportConf.fromSparkConf(conf, "shuffle", numCores)
 

@@ -14,11 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for SnappyData data platform.
+ *
+ * Portions Copyright (c) 2017 SnappyData, Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark.sql.catalyst.plans
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.trees.TreeNode
+import org.apache.spark.sql.catalyst.trees.{CurrentOrigin, TreeNode}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.{DataType, StructType}
 
@@ -103,7 +121,9 @@ abstract class QueryPlan[PlanType <: QueryPlan[PlanType]] extends TreeNode[PlanT
     var changed = false
 
     @inline def transformExpression(e: Expression): Expression = {
-      val newE = f(e)
+      val newE = CurrentOrigin.withOrigin(e.origin) {
+        f(e)
+      }
       if (newE.fastEquals(e)) {
         e
       } else {
@@ -300,4 +320,14 @@ object QueryPlan extends PredicateHelper {
       Nil
     }
   }
+//
+//  /** Args that have cleaned such that differences in expression id should not affect equality */
+//  @transient protected lazy val cleanArgs: Seq[Any] = {
+//    def cleanArg(arg: Any): Any = arg match {
+//      // Children are checked using sameResult above.
+//      case tn: TreeNode[_] if containsChild(tn) => null
+//      case e: Expression => cleanExpression(e).canonicalized
+//      case other => other
+//    }
+//  }
 }

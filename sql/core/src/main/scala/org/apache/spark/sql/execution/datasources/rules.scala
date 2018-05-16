@@ -18,8 +18,12 @@
 package org.apache.spark.sql.execution.datasources
 
 import java.util.Locale
+import java.util.regex.Pattern
+
+import scala.util.control.NonFatal
 
 import org.apache.spark.sql.{AnalysisException, SaveMode, SparkSession}
+import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis._
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.expressions.{Alias, Attribute, Cast, Expression, InputFileBlockLength, InputFileBlockStart, InputFileName, RowOrdering}
@@ -30,6 +34,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.InsertableRelation
 import org.apache.spark.sql.types.{AtomicType, StructType}
 import org.apache.spark.sql.util.SchemaUtils
+import org.apache.spark.sql.{AnalysisException, SaveMode, SparkSession}
 
 /**
  * Replaces [[UnresolvedRelation]]s if the plan is for direct query on files.
@@ -117,6 +122,14 @@ case class PreprocessTableCreation(sparkSession: SparkSession) extends Rule[Logi
         throw new AnalysisException(s"The format of the existing table $tableName is " +
           s"`${existingProvider.getSimpleName}`. It doesn't match the specified format " +
           s"`${specifiedProvider.getSimpleName}`.")
+      }
+      tableDesc.storage.locationUri match {
+        case Some(location) if location.getPath != existingTable.location.getPath =>
+          throw new AnalysisException(
+            s"The location of the existing table ${tableIdentWithDB.quotedString} is " +
+              s"`${existingTable.location}`. It doesn't match the specified location " +
+              s"`${tableDesc.location}`.")
+        case _ =>
       }
 
       if (query.schema.length != existingTable.schema.length) {

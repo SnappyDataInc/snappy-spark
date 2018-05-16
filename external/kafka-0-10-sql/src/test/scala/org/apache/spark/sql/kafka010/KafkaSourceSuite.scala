@@ -26,15 +26,13 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable
 import scala.util.Random
-
 import org.apache.kafka.clients.producer.RecordMetadata
 import org.apache.kafka.common.TopicPartition
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.time.SpanSugar._
-
 import org.apache.spark.SparkContext
-import org.apache.spark.sql.{Dataset, ForeachWriter}
 import org.apache.spark.sql.execution.datasources.v2.DataSourceV2Relation
+import org.apache.spark.sql.{Dataset, ForeachWriter, SparkSession}
 import org.apache.spark.sql.execution.streaming._
 import org.apache.spark.sql.execution.streaming.continuous.ContinuousExecution
 import org.apache.spark.sql.functions.{count, window}
@@ -1002,7 +1000,7 @@ class KafkaSourceStressForDontFailOnDataLossSuite extends StreamTest with Shared
 
   private def newTopic(): String = s"failOnDataLoss-${topicId.getAndIncrement()}"
 
-  override def createSparkSession(): TestSparkSession = {
+  override def createSparkSession(): SparkSession = {
     // Set maxRetries to 3 to handle NPE from `poll` when deleting a topic
     new TestSparkSession(new SparkContext("local[2,3]", "test-sql-context", sparkConf))
   }

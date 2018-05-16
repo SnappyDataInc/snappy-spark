@@ -27,7 +27,6 @@ import org.codehaus.janino.InternalCompilerException
 
 import org.apache.spark.{broadcast, SparkEnv}
 import org.apache.spark.internal.Logging
-import org.apache.spark.io.CompressionCodec
 import org.apache.spark.rdd.{RDD, RDDOperationScope}
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.catalyst.{CatalystTypeConverters, InternalRow}
@@ -38,6 +37,7 @@ import org.apache.spark.sql.catalyst.plans.physical._
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.util.ThreadUtils
+
 
 /**
  * The base class for physical operators.
@@ -247,7 +247,7 @@ abstract class SparkPlan extends QueryPlan[SparkPlan] with Logging with Serializ
     execute().mapPartitionsInternal { iter =>
       var count = 0
       val buffer = new Array[Byte](4 << 10)  // 4K
-      val codec = CompressionCodec.createCodec(SparkEnv.get.conf)
+      val codec = SparkEnv.get.createCompressionCodec
       val bos = new ByteArrayOutputStream()
       val out = new DataOutputStream(codec.compressedOutputStream(bos))
       while (iter.hasNext && (n < 0 || count < n)) {
@@ -269,7 +269,7 @@ abstract class SparkPlan extends QueryPlan[SparkPlan] with Logging with Serializ
   private def decodeUnsafeRows(bytes: Array[Byte]): Iterator[InternalRow] = {
     val nFields = schema.length
 
-    val codec = CompressionCodec.createCodec(SparkEnv.get.conf)
+    val codec = SparkEnv.get.createCompressionCodec
     val bis = new ByteArrayInputStream(bytes)
     val ins = new DataInputStream(codec.compressedInputStream(bis))
 

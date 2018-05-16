@@ -24,8 +24,8 @@ import scala.util.control.NonFatal
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.hdfs.security.token.delegation.DelegationTokenIdentifier
-import org.apache.hadoop.hive.conf.HiveConf
-import org.apache.hadoop.hive.ql.metadata.Hive
+// import org.apache.hadoop.hive.conf.HiveConf
+// import org.apache.hadoop.hive.ql.metadata.Hive
 import org.apache.hadoop.io.Text
 import org.apache.hadoop.security.{Credentials, UserGroupInformation}
 import org.apache.hadoop.security.token.Token
@@ -46,7 +46,8 @@ private[security] class HiveDelegationTokenProvider
 
   private def hiveConf(hadoopConf: Configuration): Configuration = {
     try {
-      new HiveConf(hadoopConf, classOf[HiveConf])
+      // new HiveConf(hadoopConf, classOf[HiveConf])
+      null
     } catch {
       case NonFatal(e) =>
         logDebug("Fail to create Hive Configuration", e)
@@ -92,11 +93,11 @@ private[security] class HiveDelegationTokenProvider
         s"$principal at $metastoreUri")
 
       doAsRealUser {
-        val hive = Hive.get(conf, classOf[HiveConf])
-        val tokenStr = hive.getDelegationToken(currentUser.getUserName(), principal)
+//        val hive = Hive.get(conf, classOf[HiveConf])
+//        val tokenStr = hive.getDelegationToken(currentUser.getUserName(), principal)
 
         val hive2Token = new Token[DelegationTokenIdentifier]()
-        hive2Token.decodeFromUrlString(tokenStr)
+        hive2Token.decodeFromUrlString("tokenStr")
         logDebug(s"Get Token from hive metastore: ${hive2Token.toString}")
         creds.addToken(new Text("hive.server2.delegation.token"), hive2Token)
       }
@@ -111,7 +112,7 @@ private[security] class HiveDelegationTokenProvider
         None
     } finally {
       Utils.tryLogNonFatalError {
-        Hive.closeCurrent()
+        // Hive.closeCurrent()
       }
     }
   }

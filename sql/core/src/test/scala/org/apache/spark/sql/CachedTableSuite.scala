@@ -522,7 +522,8 @@ class CachedTableSuite extends QueryTest with SQLTestUtils with SharedSQLContext
       spark.catalog.cacheTable("t2")
 
       val query = sql("SELECT key, value, a, b FROM t1 t1 JOIN t2 t2 ON t1.key = t2.a")
-      verifyNumExchanges(query, 2)
+      // SNAP: expect 1 exchanges here instead of 2 due to changes for SNAP-1251
+      verifyNumExchanges(query, 1)
       checkAnswer(
         query,
         testData.join(testData2, $"key" === $"a").select($"key", $"value", $"a", $"b"))

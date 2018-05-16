@@ -18,11 +18,14 @@
 package org.apache.spark.scheduler
 
 import org.apache.spark.SparkContext
+import org.apache.spark.annotation.DeveloperApi
 
 /**
+ * :: DeveloperApi ::
  * A cluster manager interface to plugin external scheduler.
  */
-private[spark] trait ExternalClusterManager {
+@DeveloperApi
+trait ExternalClusterManager {
 
   /**
    * Check if this cluster manager instance can create scheduler components
@@ -42,7 +45,7 @@ private[spark] trait ExternalClusterManager {
 
   /**
    * Create a scheduler backend for the given SparkContext and scheduler. This is
-   * called after task scheduler is created using `ExternalClusterManager.createTaskScheduler()`.
+   * called after task scheduler is created using [[ExternalClusterManager.createTaskScheduler()]].
    * @param sc SparkContext
    * @param masterURL the master URL
    * @param scheduler TaskScheduler that will be used with the scheduler backend.

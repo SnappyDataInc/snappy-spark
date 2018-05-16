@@ -14,6 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for SnappyData data platform.
+ *
+ * Portions Copyright (c) 2017 SnappyData, Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark
 
@@ -28,18 +46,15 @@ import scala.collection.Map
 import scala.collection.generic.Growable
 import scala.collection.mutable.HashMap
 import scala.language.implicitConversions
-import scala.reflect.{classTag, ClassTag}
+import scala.reflect.{ClassTag, classTag}
 import scala.util.control.NonFatal
-
 import com.google.common.collect.MapMaker
-import org.apache.commons.lang3.SerializationUtils
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.{ArrayWritable, BooleanWritable, BytesWritable, DoubleWritable, FloatWritable, IntWritable, LongWritable, NullWritable, Text, Writable}
 import org.apache.hadoop.mapred.{FileInputFormat, InputFormat, JobConf, SequenceFileInputFormat, TextInputFormat}
 import org.apache.hadoop.mapreduce.{InputFormat => NewInputFormat, Job => NewHadoopJob}
 import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat => NewFileInputFormat}
-
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.deploy.{LocalSparkCluster, SparkHadoopUtil}
@@ -54,6 +69,7 @@ import org.apache.spark.scheduler._
 import org.apache.spark.scheduler.cluster.{CoarseGrainedSchedulerBackend, StandaloneSchedulerBackend}
 import org.apache.spark.scheduler.local.LocalSchedulerBackend
 import org.apache.spark.status.AppStatusStore
+import org.apache.spark.serializer.JavaSerializer
 import org.apache.spark.storage._
 import org.apache.spark.storage.BlockManagerMessages.TriggerThreadDump
 import org.apache.spark.ui.{ConsoleProgressBar, SparkUI}
@@ -212,6 +228,7 @@ class SparkContext(config: SparkConf) extends Logging {
   private var _files: Seq[String] = _
   private var _shutdownHookRef: AnyRef = _
   private var _statusStore: AppStatusStore = _
+  private var _isDefaultClosureSerializer: Boolean = true
 
   /* ------------------------------------------------------------------------------------- *
    | Accessors and public fields. These provide access to the internal state of the        |
@@ -261,6 +278,11 @@ class SparkContext(config: SparkConf) extends Logging {
   // Used to store a URL for each static file/jar together with the file's local timestamp
   private[spark] val addedFiles = new ConcurrentHashMap[String, Long]().asScala
   private[spark] val addedJars = new ConcurrentHashMap[String, Long]().asScala
+
+  def removeAddedJar(name : String) {
+    logInfo(s"Removing jar $name from SparkContext list")
+    addedJars.remove(name)
+  }
 
   // Keeps track of all persisted RDDs
   private[spark] val persistentRdds = {
@@ -329,7 +351,7 @@ class SparkContext(config: SparkConf) extends Logging {
     override protected def childValue(parent: Properties): Properties = {
       // Note: make a clone such that changes in the parent properties aren't reflected in
       // the those of the children threads, which has confusing semantics (SPARK-10563).
-      SerializationUtils.clone(parent)
+      Utils.cloneProperties(parent)
     }
     override protected def initialValue(): Properties = new Properties()
   }
@@ -422,6 +444,8 @@ class SparkContext(config: SparkConf) extends Logging {
     // Create the Spark execution environment (cache, map output tracker, etc)
     _env = createSparkEnv(_conf, isLocal, listenerBus)
     SparkEnv.set(_env)
+
+    _isDefaultClosureSerializer = _env.closureSerializer.isInstanceOf[JavaSerializer]
 
     // If running the REPL, register the repl's output dir with the file server.
     _conf.getOption("spark.repl.class.outputDir").foreach { path =>
@@ -1744,6 +1768,7 @@ class SparkContext(config: SparkConf) extends Logging {
   @DeveloperApi
   def getAllPools: Seq[Schedulable] = {
     assertNotStopped()
+    if (taskScheduler eq null) return Seq.empty
     // TODO(xiajunluan): We should take nested pools into account
     taskScheduler.rootPool.schedulableQueue.asScala.toSeq
   }
@@ -2289,7 +2314,7 @@ class SparkContext(config: SparkConf) extends Logging {
    * @return the cleaned closure
    */
   private[spark] def clean[F <: AnyRef](f: F, checkSerializable: Boolean = true): F = {
-    ClosureCleaner.clean(f, checkSerializable)
+    ClosureCleaner.clean(f, checkSerializable && _isDefaultClosureSerializer)
     f
   }
 
@@ -2419,7 +2444,7 @@ object SparkContext extends Logging {
    *
    * Access to this field is guarded by SPARK_CONTEXT_CONSTRUCTOR_LOCK.
    */
-  private val activeContext: AtomicReference[SparkContext] =
+  private[spark] val activeContext: AtomicReference[SparkContext] =
     new AtomicReference[SparkContext](null)
 
   /**

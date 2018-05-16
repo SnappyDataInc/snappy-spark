@@ -755,12 +755,17 @@ class StreamingContextSuite extends SparkFunSuite with BeforeAndAfter with TimeL
 
     ssc.start()
     require(ssc.getState() === StreamingContextState.ACTIVE)
+    /* SNAP: allowed in SnappyData
     testForException("no error on adding input after start", "start") {
       addInputStream(ssc) }
     testForException("no error on adding transformation after start", "start") {
       input.map { x => x * 2 } }
     testForException("no error on adding output operation after start", "start") {
       transformed.foreachRDD { rdd => rdd.collect() } }
+    */
+    addInputStream(ssc)
+    input.map { x => x * 2 }
+    transformed.foreachRDD { rdd => rdd.collect() }
 
     ssc.stop()
     require(ssc.getState() === StreamingContextState.STOPPED)

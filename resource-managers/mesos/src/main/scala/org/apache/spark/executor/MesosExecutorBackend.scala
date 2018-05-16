@@ -89,7 +89,8 @@ private[spark] class MesosExecutorBackend
       logError("Received launchTask but executor was null")
     } else {
       SparkHadoopUtil.get.runAsSparkUser { () =>
-        executor.launchTask(this, taskDescription)
+        executor.launchTask(this, taskId = taskId, attemptNumber = taskData.attemptNumber,
+          taskInfo.getName, taskData.serializedTask, taskData.taskData.decompress())
       }
     }
   }

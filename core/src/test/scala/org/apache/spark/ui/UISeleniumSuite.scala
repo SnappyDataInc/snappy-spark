@@ -119,12 +119,12 @@ class UISeleniumSuite extends SparkFunSuite with WebBrowser with Matchers with B
       val rdd = sc.parallelize(Seq(1, 2, 3))
       rdd.persist(StorageLevels.DISK_ONLY).count()
       eventually(timeout(5 seconds), interval(50 milliseconds)) {
-        goToUi(ui, "/storage")
+        goToUi(ui, "/Spark Cache")
         val tableRowText = findAll(cssSelector("#storage-by-rdd-table td")).map(_.text).toSeq
         tableRowText should contain (StorageLevels.DISK_ONLY.description)
       }
       eventually(timeout(5 seconds), interval(50 milliseconds)) {
-        goToUi(ui, "/storage/rdd/?id=0")
+        goToUi(ui, "/Spark Cache/rdd/?id=0")
         val tableRowText = findAll(cssSelector("#rdd-storage-by-block-table td")).map(_.text).toSeq
         tableRowText should contain (StorageLevels.DISK_ONLY.description)
       }
@@ -138,12 +138,12 @@ class UISeleniumSuite extends SparkFunSuite with WebBrowser with Matchers with B
       rdd.unpersist()
       rdd.persist(StorageLevels.MEMORY_ONLY).count()
       eventually(timeout(5 seconds), interval(50 milliseconds)) {
-        goToUi(ui, "/storage")
+        goToUi(ui, "/Spark Cache")
         val tableRowText = findAll(cssSelector("#storage-by-rdd-table td")).map(_.text).toSeq
         tableRowText should contain (StorageLevels.MEMORY_ONLY.description)
       }
       eventually(timeout(5 seconds), interval(50 milliseconds)) {
-        goToUi(ui, "/storage/rdd/?id=0")
+        goToUi(ui, "/Spark Cache/rdd/?id=0")
         val tableRowText = findAll(cssSelector("#rdd-storage-by-block-table td")).map(_.text).toSeq
         tableRowText should contain (StorageLevels.MEMORY_ONLY.description)
       }
@@ -474,7 +474,7 @@ class UISeleniumSuite extends SparkFunSuite with WebBrowser with Matchers with B
         goToUi(sc, "")
         find(cssSelector("""ul li a[href*="jobs"]""")) should not be(None)
         find(cssSelector("""ul li a[href*="stages"]""")) should not be(None)
-        find(cssSelector("""ul li a[href*="storage"]""")) should not be(None)
+        find(cssSelector("""ul li a[href*="Spark Cache"]""")) should not be(None)
         find(cssSelector("""ul li a[href*="environment"]""")) should not be(None)
         find(cssSelector("""ul li a[href*="foo"]""")) should not be(None)
       }
@@ -488,7 +488,7 @@ class UISeleniumSuite extends SparkFunSuite with WebBrowser with Matchers with B
         goToUi(sc, "")
         find(cssSelector("""ul li a[href*="jobs"]""")) should not be(None)
         find(cssSelector("""ul li a[href*="stages"]""")) should not be(None)
-        find(cssSelector("""ul li a[href*="storage"]""")) should not be(None)
+        find(cssSelector("""ul li a[href*="Spark Cache"]""")) should not be(None)
         find(cssSelector("""ul li a[href*="environment"]""")) should not be(None)
         find(cssSelector("""ul li a[href*="foo"]""")) should be(None)
       }

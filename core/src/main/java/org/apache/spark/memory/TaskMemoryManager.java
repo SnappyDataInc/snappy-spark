@@ -203,8 +203,10 @@ public class TaskMemoryManager {
         try {
           long released = consumer.spill(required - got, consumer);
           if (released > 0) {
-            logger.debug("Task {} released {} from itself ({})", taskAttemptId,
-              Utils.bytesToString(released), consumer);
+            if (logger.isDebugEnabled()) {
+              logger.debug("Task {} released {} from itself ({})", taskAttemptId,
+                  Utils.bytesToString(released), consumer);
+            }
             got += memoryManager.acquireExecutionMemory(required - got, taskAttemptId, mode);
           }
         } catch (ClosedByInterruptException e) {
@@ -219,7 +221,10 @@ public class TaskMemoryManager {
       }
 
       consumers.add(consumer);
-      logger.debug("Task {} acquired {} for {}", taskAttemptId, Utils.bytesToString(got), consumer);
+      if (logger.isDebugEnabled()) {
+        logger.debug("Task {} acquired {} for {}", taskAttemptId,
+            Utils.bytesToString(got), consumer);
+      }
       return got;
     }
   }
@@ -228,7 +233,10 @@ public class TaskMemoryManager {
    * Release N bytes of execution memory for a MemoryConsumer.
    */
   public void releaseExecutionMemory(long size, MemoryConsumer consumer) {
-    logger.debug("Task {} release {} from {}", taskAttemptId, Utils.bytesToString(size), consumer);
+    if (logger.isDebugEnabled()) {
+      logger.debug("Task {} release {} from {}", taskAttemptId,
+          Utils.bytesToString(size), consumer);
+    }
     memoryManager.releaseExecutionMemory(size, taskAttemptId, consumer.getMode());
   }
 
@@ -424,15 +432,18 @@ public class TaskMemoryManager {
       for (MemoryConsumer c: consumers) {
         if (c != null && c.getUsed() > 0) {
           // In case of failed task, it's normal to see leaked memory
-          logger.debug("unreleased " + Utils.bytesToString(c.getUsed()) + " memory from " + c);
+          if (logger.isDebugEnabled()) {
+            logger.debug("unreleased " + Utils.bytesToString(c.getUsed()) + " memory from " + c);
+          }
         }
       }
       consumers.clear();
 
       for (MemoryBlock page : pageTable) {
         if (page != null) {
-          logger.debug("unreleased page: " + page + " in task " + taskAttemptId);
-          page.pageNumber = MemoryBlock.FREED_IN_TMM_PAGE_NUMBER;
+          if (logger.isDebugEnabled()) {
+            logger.debug("unreleased page: " + page + " in task " + taskAttemptId);
+          }
           memoryManager.tungstenMemoryAllocator().free(page);
         }
       }

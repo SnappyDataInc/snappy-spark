@@ -35,9 +35,9 @@ class SparkContextSchedulerCreationSuite
     createTaskScheduler(master, deployMode, new SparkConf())
 
   def createTaskScheduler(
-      master: String,
-      deployMode: String,
-      conf: SparkConf): TaskSchedulerImpl = {
+                           master: String,
+                           deployMode: String,
+                           conf: SparkConf): TaskSchedulerImpl = {
     // Create local SparkContext to setup a SparkEnv. We don't actually want to start() the
     // real schedulers, so we don't want to create a full SparkContext with the desired scheduler.
     sc = new SparkContext("local", "test", conf)

@@ -26,22 +26,21 @@ import java.util.Properties
 import java.util.concurrent._
 import javax.annotation.concurrent.GuardedBy
 
-import scala.collection.JavaConverters._
-import scala.collection.mutable.{ArrayBuffer, HashMap, Map}
-import scala.util.control.NonFatal
-
 import com.google.common.util.concurrent.ThreadFactoryBuilder
-
 import org.apache.spark._
 import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.internal.Logging
-import org.apache.spark.memory.{SparkOutOfMemoryError, TaskMemoryManager}
+import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rpc.RpcTimeout
 import org.apache.spark.scheduler.{DirectTaskResult, IndirectTaskResult, Task, TaskDescription}
 import org.apache.spark.shuffle.FetchFailedException
 import org.apache.spark.storage.{StorageLevel, TaskResultBlockId}
 import org.apache.spark.util._
 import org.apache.spark.util.io.ChunkedByteBuffer
+
+import scala.collection.JavaConverters._
+import scala.collection.mutable.{ArrayBuffer, HashMap, Map}
+import scala.util.control.NonFatal
 
 /**
  * Spark executor, backed by a threadpool to run tasks.
@@ -64,11 +63,11 @@ private[spark] class Executor(
   // Application dependencies (added through SparkContext) that we've fetched so far on this node.
   // Each map holds the master's timestamp for the version of that file or JAR we got.
   private val currentFiles: HashMap[String, Long] = new HashMap[String, Long]()
-  private val currentJars: HashMap[String, Long] = new HashMap[String, Long]()
+  protected val currentJars: HashMap[String, Long] = new HashMap[String, Long]()
 
   private val EMPTY_BYTE_BUFFER = ByteBuffer.wrap(new Array[Byte](0))
 
-  private val conf = env.conf
+  protected val conf = env.conf
 
   // No ip or host:port - just hostname
   Utils.checkHost(executorHostname)
@@ -86,7 +85,7 @@ private[spark] class Executor(
   }
 
   // Start worker thread pool
-  private val threadPool = {
+  protected final val threadPool = {
     val threadFactory = new ThreadFactoryBuilder()
       .setDaemon(true)
       .setNameFormat("Executor task launch worker-%d")
@@ -102,7 +101,7 @@ private[spark] class Executor(
   }
   private val executorSource = new ExecutorSource(threadPool, executorId)
   // Pool used for threads that supervise task killing / cancellation
-  private val taskReaperPool = ThreadUtils.newDaemonCachedThreadPool("Task reaper")
+  protected final val taskReaperPool = ThreadUtils.newDaemonCachedThreadPool("Task reaper")
   // For tasks which are in the process of being killed, this map holds the most recently created
   // TaskReaper. All accesses to this map should be synchronized on the map itself (this isn't
   // a ConcurrentHashMap because we use the synchronization for purposes other than simply guarding
@@ -126,8 +125,8 @@ private[spark] class Executor(
 
   // Create our ClassLoader
   // do this after SparkEnv creation so can access the SecurityManager
-  private val urlClassLoader = createClassLoader()
-  private val replClassLoader = addReplClassLoaderIfNeeded(urlClassLoader)
+  protected val urlClassLoader = createClassLoader()
+  protected val replClassLoader = addReplClassLoaderIfNeeded(urlClassLoader)
 
   // Set the classloader for serializer
   env.serializer.setDefaultClassLoader(replClassLoader)
@@ -292,7 +291,7 @@ private[spark] class Executor(
       Thread.currentThread.setName(threadName)
       val threadMXBean = ManagementFactory.getThreadMXBean
       val taskMemoryManager = new TaskMemoryManager(env.memoryManager, taskId)
-      val deserializeStartTime = System.currentTimeMillis()
+      val deserializeStartTime = System.nanoTime()
       val deserializeStartCpuTime = if (threadMXBean.isCurrentThreadCpuTimeSupported) {
         threadMXBean.getCurrentThreadCpuTime
       } else 0L
@@ -336,7 +335,7 @@ private[spark] class Executor(
         }
 
         // Run the actual task and measure its runtime.
-        taskStart = System.currentTimeMillis()
+        taskStart = System.nanoTime()
         taskStartCpu = if (threadMXBean.isCurrentThreadCpuTimeSupported) {
           threadMXBean.getCurrentThreadCpuTime
         } else 0L
@@ -357,7 +356,7 @@ private[spark] class Executor(
             if (conf.getBoolean("spark.unsafe.exceptionOnMemoryLeak", false)) {
               throw new SparkException(errMsg)
             } else {
-              logWarning(errMsg)
+              logDebug(errMsg)
             }
           }
 
@@ -380,7 +379,8 @@ private[spark] class Executor(
             s"unrecoverable fetch failures!  Most likely this means user code is incorrectly " +
             s"swallowing Spark's internal ${classOf[FetchFailedException]}", fetchFailure)
         }
-        val taskFinish = System.currentTimeMillis()
+
+        val taskFinish = System.nanoTime()
         val taskFinishCpu = if (threadMXBean.isCurrentThreadCpuTimeSupported) {
           threadMXBean.getCurrentThreadCpuTime
         } else 0L
@@ -388,23 +388,18 @@ private[spark] class Executor(
         // If the task has been killed, let's fail it.
         task.context.killTaskIfInterrupted()
 
-        val resultSer = env.serializer.newInstance()
-        val beforeSerialization = System.currentTimeMillis()
-        val valueBytes = resultSer.serialize(value)
-        val afterSerialization = System.currentTimeMillis()
-
         // Deserialization happens in two parts: first, we deserialize a Task object, which
         // includes the Partition. Second, Task.run() deserializes the RDD and function to be run.
-        task.metrics.setExecutorDeserializeTime(
-          (taskStart - deserializeStartTime) + task.executorDeserializeTime)
-        task.metrics.setExecutorDeserializeCpuTime(
-          (taskStartCpu - deserializeStartCpuTime) + task.executorDeserializeCpuTime)
+        task.metrics.setExecutorDeserializeTime(math.max(taskStart - deserializeStartTime +
+          task.executorDeserializeTime /* + taskDecompressTime */, 0L).toDouble / 1000000.0)
+        task.metrics.setExecutorDeserializeCpuTime(math.max(taskStartCpu -
+          deserializeStartCpuTime + task.executorDeserializeCpuTime, 0L).toDouble / 1000000.0)
         // We need to subtract Task.run()'s deserialization time to avoid double-counting
-        task.metrics.setExecutorRunTime((taskFinish - taskStart) - task.executorDeserializeTime)
-        task.metrics.setExecutorCpuTime(
-          (taskFinishCpu - taskStartCpu) - task.executorDeserializeCpuTime)
+        task.metrics.setExecutorRunTime(math.max(taskFinish - taskStart -
+          task.executorDeserializeTime, 0L).toDouble / 1000000.0)
+        task.metrics.setExecutorCpuTime(math.max(taskFinishCpu - taskStartCpu -
+          task.executorDeserializeCpuTime, 0L).toDouble / 1000000.0)
         task.metrics.setJvmGCTime(computeTotalGcTime() - startGCTime)
-        task.metrics.setResultSerializationTime(afterSerialization - beforeSerialization)
 
         // Expose task metrics using the Dropwizard metrics system.
         // Update task metrics counters
@@ -450,7 +445,7 @@ private[spark] class Executor(
         // Note: accumulator updates must be collected after TaskMetrics is updated
         val accumUpdates = task.collectAccumulatorUpdates()
         // TODO: do not serialize value twice
-        val directResult = new DirectTaskResult(valueBytes, accumUpdates)
+        val directResult = new DirectTaskResult(value, accumUpdates)
         val serializedDirectResult = ser.serialize(directResult)
         val resultSize = serializedDirectResult.limit()
 
@@ -512,49 +507,69 @@ private[spark] class Executor(
           setTaskFinishedAndClearInterruptStatus()
           execBackend.statusUpdate(taskId, TaskState.KILLED, ser.serialize(reason))
 
+        case t: Throwable if isStoreCloseException(t) =>
+          logError(s"Store closed exception in $taskName (TID $taskId)", t)
+          setTaskFinishedAndClearInterruptStatus()
+          val reason = new ExecutorLostFailure(executorId, false, Some(t.getMessage))
+          execBackend.statusUpdate(taskId, TaskState.KILLED, ser.serialize(reason))
+
+        case t: Throwable if isStoreException(t) =>
+          logError(s"Executor killed $taskName (TID $taskId)", t)
+          setTaskFinishedAndClearInterruptStatus()
+          val reason = {
+            try {
+              new ExceptionFailure(t, null, true)
+            } catch {
+              case _: Throwable => new ExceptionFailure(t, null, false)
+            }
+          }
+          execBackend.statusUpdate(taskId, TaskState.KILLED, ser.serialize(reason))
+
         case t: Throwable =>
           // Attempt to exit cleanly by informing the driver of our failure.
           // If anything goes wrong (or this was a fatal exception), we will delegate to
           // the default uncaught exception handler, which will terminate the Executor.
           logError(s"Exception in $taskName (TID $taskId)", t)
 
-          // SPARK-20904: Do not report failure to driver if if happened during shut down. Because
-          // libraries may set up shutdown hooks that race with running tasks during shutdown,
-          // spurious failures may occur and can result in improper accounting in the driver (e.g.
-          // the task failure would not be ignored if the shutdown happened because of premption,
-          // instead of an app issue).
-          if (!ShutdownHookManager.inShutdown()) {
-            // Collect latest accumulator values to report back to the driver
-            val accums: Seq[AccumulatorV2[_, _]] =
-              if (task != null) {
-                task.metrics.setExecutorRunTime(System.currentTimeMillis() - taskStart)
-                task.metrics.setJvmGCTime(computeTotalGcTime() - startGCTime)
-                task.collectAccumulatorUpdates(taskFailed = true)
-              } else {
-                Seq.empty
-              }
-
-            val accUpdates = accums.map(acc => acc.toInfo(Some(acc.value), None))
-
-            val serializedTaskEndReason = {
-              try {
-                ser.serialize(new ExceptionFailure(t, accUpdates).withAccums(accums))
-              } catch {
-                case _: NotSerializableException =>
-                  // t is not serializable so just send the stacktrace
-                  ser.serialize(new ExceptionFailure(t, accUpdates, false).withAccums(accums))
-              }
+          // Collect latest accumulator values to report back to the driver
+          val accums: Seq[AccumulatorV2[_, _]] =
+            if (task != null) {
+              task.metrics.setExecutorRunTime(
+                math.max(System.nanoTime() - taskStart, 0L).toDouble / 1000000.0)
+              val taskEndCpu = if (threadMXBean.isCurrentThreadCpuTimeSupported) {
+                threadMXBean.getCurrentThreadCpuTime
+              } else 0L
+              task.metrics.setExecutorCpuTime(
+                math.max(taskEndCpu - taskStartCpu, 0L).toDouble / 1000000.0)
+              task.metrics.setJvmGCTime(computeTotalGcTime() - startGCTime)
+              task.collectAccumulatorUpdates(taskFailed = true)
+            } else {
+              Seq.empty
             }
-            setTaskFinishedAndClearInterruptStatus()
-            execBackend.statusUpdate(taskId, TaskState.FAILED, serializedTaskEndReason)
-          } else {
-            logInfo("Not reporting error to driver during JVM shutdown.")
+
+          val accUpdates = accums.map(acc => acc.toInfo(Some(acc.value), None))
+
+          val serializedTaskEndReason = {
+            try {
+              ser.serialize(new ExceptionFailure(t, accUpdates).withAccums(accums))
+            } catch {
+              case _: NotSerializableException =>
+                // t is not serializable so just send the stacktrace
+                ser.serialize(new ExceptionFailure(t, accUpdates, false).withAccums(accums))
+            }
           }
+          setTaskFinishedAndClearInterruptStatus()
+          execBackend.statusUpdate(taskId, TaskState.FAILED, serializedTaskEndReason)
 
           // Don't forcibly exit unless the exception was inherently fatal, to avoid
           // stopping other tasks unnecessarily.
-          if (!t.isInstanceOf[SparkOutOfMemoryError] && Utils.isFatalError(t)) {
-            uncaughtExceptionHandler.uncaughtException(Thread.currentThread(), t)
+          if (isFatalError(t)) {
+            if (!isLocal) {
+              Thread.getDefaultUncaughtExceptionHandler.
+                  uncaughtException(Thread.currentThread(), t)
+            } else {
+              // SparkUncaughtExceptionHandler.uncaughtException(t)
+            }
           }
       } finally {
         runningTasks.remove(taskId)
@@ -682,7 +697,7 @@ private[spark] class Executor(
    * Create a ClassLoader for use in tasks, adding any JARs specified by the user or any classes
    * created by the interpreter to the search path
    */
-  private def createClassLoader(): MutableURLClassLoader = {
+  protected def createClassLoader(): MutableURLClassLoader = {
     // Bootstrap the list of jars with the user class path.
     val now = System.currentTimeMillis()
     userClassPath.foreach { url =>
@@ -707,7 +722,7 @@ private[spark] class Executor(
    * If the REPL is in use, add another ClassLoader that will read
    * new classes defined by the REPL as the user types code
    */
-  private def addReplClassLoaderIfNeeded(parent: ClassLoader): ClassLoader = {
+  def addReplClassLoaderIfNeeded(parent: ClassLoader): ClassLoader = {
     val classUri = conf.get("spark.repl.class.uri", null)
     if (classUri != null) {
       logInfo("Using REPL class URI: " + classUri)
@@ -733,7 +748,8 @@ private[spark] class Executor(
    * Download any missing dependencies if we receive a new set of files and JARs from the
    * SparkContext. Also adds any new JARs we fetched to the class loader.
    */
-  private def updateDependencies(newFiles: Map[String, Long], newJars: Map[String, Long]) {
+  protected def updateDependencies(newFiles: Map[String, Long],
+      newJars: Map[String, Long]) {
     lazy val hadoopConf = SparkHadoopUtil.get.newConfiguration(conf)
     synchronized {
       // Fetch missing dependencies
@@ -814,6 +830,15 @@ private[spark] class Executor(
       override def run(): Unit = Utils.logUncaughtExceptions(reportHeartBeat())
     }
     heartbeater.scheduleAtFixedRate(heartbeatTask, initialDelay, intervalMs, TimeUnit.MILLISECONDS)
+  }
+
+  // Pluggable Throwable handlers for a task related to underlying store
+  protected  def isStoreCloseException(t: Throwable) : Boolean = false
+
+  protected  def isStoreException(t: Throwable) : Boolean = false
+
+  protected  def isFatalError(t: Throwable) : Boolean = {
+    Utils.isFatalError(t)
   }
 }
 

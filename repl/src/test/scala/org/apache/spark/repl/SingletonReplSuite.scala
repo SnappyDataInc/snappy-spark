@@ -32,6 +32,7 @@ import org.apache.spark.util.Utils
  */
 class SingletonReplSuite extends SparkFunSuite {
 
+  
   private val out = new StringWriter()
   private val in = new PipedOutputStream()
   private var thread: Thread = _

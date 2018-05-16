@@ -131,9 +131,10 @@ public class TransportClient implements Closeable {
    */
   public void fetchChunk(
       long streamId,
-      int chunkIndex,
-      ChunkReceivedCallback callback) {
-    long startTime = System.currentTimeMillis();
+      final int chunkIndex,
+      final ChunkReceivedCallback callback) {
+    final boolean isTraceEnabled = logger.isTraceEnabled();
+    final long startTime = isTraceEnabled ? System.currentTimeMillis() : 0L;
     if (logger.isDebugEnabled()) {
       logger.debug("Sending fetch chunk request {} to {}", chunkIndex, getRemoteAddress(channel));
     }
@@ -144,7 +145,7 @@ public class TransportClient implements Closeable {
     channel.writeAndFlush(new ChunkFetchRequest(streamChunkId)).addListener(future -> {
       if (future.isSuccess()) {
         long timeTaken = System.currentTimeMillis() - startTime;
-        if (logger.isTraceEnabled()) {
+          if (isTraceEnabled) {
           logger.trace("Sending request {} to {} took {} ms", streamChunkId,
             getRemoteAddress(channel), timeTaken);
         }
@@ -169,8 +170,9 @@ public class TransportClient implements Closeable {
    * @param streamId The stream to fetch.
    * @param callback Object to call with the stream data.
    */
-  public void stream(String streamId, StreamCallback callback) {
-    long startTime = System.currentTimeMillis();
+  public void stream(final String streamId, final StreamCallback callback) {
+    final boolean isTraceEnabled = logger.isTraceEnabled();
+    final long startTime = isTraceEnabled ? System.currentTimeMillis() : 0L;
     if (logger.isDebugEnabled()) {
       logger.debug("Sending stream request for {} to {}", streamId, getRemoteAddress(channel));
     }
@@ -183,7 +185,7 @@ public class TransportClient implements Closeable {
       channel.writeAndFlush(new StreamRequest(streamId)).addListener(future -> {
         if (future.isSuccess()) {
           long timeTaken = System.currentTimeMillis() - startTime;
-          if (logger.isTraceEnabled()) {
+            if (isTraceEnabled) {
             logger.trace("Sending request for {} to {} took {} ms", streamId,
               getRemoteAddress(channel), timeTaken);
           }
@@ -210,9 +212,10 @@ public class TransportClient implements Closeable {
    * @param callback Callback to handle the RPC's reply.
    * @return The RPC's id.
    */
-  public long sendRpc(ByteBuffer message, RpcResponseCallback callback) {
-    long startTime = System.currentTimeMillis();
-    if (logger.isTraceEnabled()) {
+  public long sendRpc(ByteBuffer message, final RpcResponseCallback callback) {
+    final boolean isTraceEnabled = logger.isTraceEnabled();
+    final long startTime = isTraceEnabled ? System.currentTimeMillis() : 0L;
+    if (isTraceEnabled) {
       logger.trace("Sending RPC to {}", getRemoteAddress(channel));
     }
 
@@ -222,8 +225,8 @@ public class TransportClient implements Closeable {
     channel.writeAndFlush(new RpcRequest(requestId, new NioManagedBuffer(message)))
         .addListener(future -> {
           if (future.isSuccess()) {
-            long timeTaken = System.currentTimeMillis() - startTime;
-            if (logger.isTraceEnabled()) {
+            if (isTraceEnabled) {
+              long timeTaken = System.currentTimeMillis() - startTime;
               logger.trace("Sending request {} to {} took {} ms", requestId,
                 getRemoteAddress(channel), timeTaken);
             }

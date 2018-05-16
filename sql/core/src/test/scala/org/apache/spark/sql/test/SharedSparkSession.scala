@@ -42,15 +42,15 @@ trait SharedSparkSession
   }
 
   /**
-   * The [[TestSparkSession]] to use for all tests in this suite.
+   * The [[SparkSession]] to use for all tests in this suite.
    *
    * By default, the underlying [[org.apache.spark.SparkContext]] will be run in local
    * mode with the default test configurations.
    */
-  private var _spark: TestSparkSession = null
+  private var _spark: SparkSession = null
 
   /**
-   * The [[TestSparkSession]] to use for all tests in this suite.
+   * The [[SparkSession]] to use for all tests in this suite.
    */
   protected implicit def spark: SparkSession = _spark
 
@@ -59,12 +59,12 @@ trait SharedSparkSession
    */
   protected implicit def sqlContext: SQLContext = _spark.sqlContext
 
-  protected def createSparkSession: TestSparkSession = {
+  protected def createSparkSession: SparkSession = {
     new TestSparkSession(sparkConf)
   }
 
   /**
-   * Initialize the [[TestSparkSession]].  Generally, this is just called from
+   * Initialize the [[SparkSession]].  Generally, this is just called from
    * beforeAll; however, in test using styles other than FunSuite, there is
    * often code that relies on the session between test group constructs and
    * the actual tests, which may need this session.  It is purely a semantic
@@ -79,7 +79,7 @@ trait SharedSparkSession
   }
 
   /**
-   * Make sure the [[TestSparkSession]] is initialized before any tests are run.
+   * Make sure the [[SparkSession]] is initialized before any tests are run.
    */
   protected override def beforeAll(): Unit = {
     initializeSession()

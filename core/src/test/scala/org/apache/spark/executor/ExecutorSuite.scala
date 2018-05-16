@@ -26,7 +26,6 @@ import java.util.concurrent.{CountDownLatch, TimeUnit}
 import scala.collection.mutable.Map
 import scala.concurrent.duration._
 import scala.language.postfixOps
-
 import org.mockito.ArgumentCaptor
 import org.mockito.Matchers.{any, eq => meq}
 import org.mockito.Mockito.{inOrder, verify, when}
@@ -34,14 +33,13 @@ import org.mockito.invocation.InvocationOnMock
 import org.mockito.stubbing.Answer
 import org.scalatest.concurrent.Eventually
 import org.scalatest.mockito.MockitoSugar
-
 import org.apache.spark._
 import org.apache.spark.TaskState.TaskState
 import org.apache.spark.memory.MemoryManager
 import org.apache.spark.metrics.MetricsSystem
 import org.apache.spark.rdd.RDD
 import org.apache.spark.rpc.RpcEnv
-import org.apache.spark.scheduler.{FakeTask, ResultTask, TaskDescription}
+import org.apache.spark.scheduler.{FakeTask, ResultTask, TaskData, TaskDescription}
 import org.apache.spark.serializer.{JavaSerializer, SerializerManager}
 import org.apache.spark.shuffle.FetchFailedException
 import org.apache.spark.storage.BlockManagerId
@@ -145,13 +143,13 @@ class ExecutorSuite extends SparkFunSuite with LocalSparkContext with MockitoSug
     val task = new ResultTask(
       stageId = 1,
       stageAttemptId = 0,
+      _taskData = TaskData.EMPTY,
       taskBinary = taskBinary,
       partition = secondRDD.partitions(0),
       locs = Seq(),
-      outputId = 0,
+      _outputId = 0,
       localProperties = new Properties(),
-      serializedTaskMetrics = serializedTaskMetrics
-    )
+      serializedTaskMetrics = serializedTaskMetrics)
 
     val serTask = serializer.serialize(task)
     val taskDescription = createFakeTaskDescription(serTask)
@@ -189,10 +187,11 @@ class ExecutorSuite extends SparkFunSuite with LocalSparkContext with MockitoSug
     val task = new ResultTask(
       stageId = 1,
       stageAttemptId = 0,
+      _taskData = TaskData.EMPTY,
       taskBinary = taskBinary,
       partition = secondRDD.partitions(0),
       locs = Seq(),
-      outputId = 0,
+      _outputId = 0,
       localProperties = new Properties(),
       serializedTaskMetrics = serializedTaskMetrics
     )
@@ -245,11 +244,11 @@ class ExecutorSuite extends SparkFunSuite with LocalSparkContext with MockitoSug
 
   private def createFakeTaskDescription(serializedTask: ByteBuffer): TaskDescription = {
     new TaskDescription(
-      taskId = 0,
-      attemptNumber = 0,
-      executorId = "",
-      name = "",
-      index = 0,
+      _taskId = 0,
+      _attemptNumber = 0,
+      _executorId = "",
+      _name = "",
+      _index = 0,
       addedFiles = Map[String, Long](),
       addedJars = Map[String, Long](),
       properties = new Properties,

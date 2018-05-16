@@ -131,7 +131,7 @@ private[spark] class TaskContextImpl(
         callback(listener)
       } catch {
         case e: Throwable =>
-          errorMsgs += e.getMessage
+          errorMsgs += Utils.exceptionString(e)
           logError(s"Error in $name", e)
       }
     }

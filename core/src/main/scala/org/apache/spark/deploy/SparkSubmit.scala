@@ -200,7 +200,7 @@ object SparkSubmit extends CommandLineUtils with Logging {
 
     // Let the main class re-initialize the logging system once it starts.
     if (uninitLog) {
-      Logging.uninitialize()
+      // Logging.uninitialize()
     }
 
     // In standalone cluster mode, there are two submission gateways:

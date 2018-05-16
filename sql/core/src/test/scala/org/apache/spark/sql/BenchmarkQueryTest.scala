@@ -27,6 +27,7 @@ import org.apache.spark.util.Utils
 
 abstract class BenchmarkQueryTest extends QueryTest with SharedSQLContext with BeforeAndAfterAll {
 
+
   // When Utils.isTesting is true, the RuleExecutor will issue an exception when hitting
   // the max iteration of analyzer/optimizer batches.
   assert(Utils.isTesting, "spark.testing is not set to true")

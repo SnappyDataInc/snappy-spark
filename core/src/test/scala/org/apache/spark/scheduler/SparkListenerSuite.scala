@@ -17,6 +17,7 @@
 
 package org.apache.spark.scheduler
 
+import java.io.{ObjectInput, ObjectOutput}
 import java.util.concurrent.Semaphore
 
 import scala.collection.JavaConverters._
@@ -295,13 +296,7 @@ class SparkListenerSuite extends SparkFunSuite with LocalSparkContext with Match
     sc.addSparkListener(listener)
     sc.addSparkListener(new StatsReportListener)
     // just to make sure some of the tasks take a noticeable amount of time
-    val w = { i: Int =>
-      if (i == 0) {
-        Thread.sleep(100)
-      }
-      i
-    }
-
+    val w = new WaitForTask
     val numSlices = 16
     val d = sc.parallelize(0 to 10000, numSlices).map(w)
     d.count()
@@ -582,4 +577,17 @@ private class FirehoseListenerThatAcceptsSparkConf(conf: SparkConf) extends Spar
     case job: SparkListenerJobEnd => count += 1
     case _ =>
   }
+}
+
+class WaitForTask extends (Int => Int) with java.io.Externalizable {
+  override def apply(i: Int): Int = {
+    if (i == 0) {
+      Thread.sleep(100)
+    }
+    i
+  }
+
+  override def writeExternal(out: ObjectOutput): Unit = {}
+
+  override def readExternal(in: ObjectInput): Unit = Thread.sleep(1)
 }

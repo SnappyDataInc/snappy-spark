@@ -64,7 +64,7 @@ private[spark] class ContextCleaner(sc: SparkContext) extends Logging {
    * have not been handled by the reference queue.
    */
   private val referenceBuffer =
-    Collections.newSetFromMap[CleanupTaskWeakReference](new ConcurrentHashMap)
+    new ConcurrentHashMap[CleanupTaskWeakReference, java.lang.Boolean]()
 
   private val referenceQueue = new ReferenceQueue[AnyRef]
 
@@ -171,7 +171,8 @@ private[spark] class ContextCleaner(sc: SparkContext) extends Logging {
 
   /** Register an object for cleanup. */
   private def registerForCleanup(objectForCleanup: AnyRef, task: CleanupTask): Unit = {
-    referenceBuffer.add(new CleanupTaskWeakReference(task, objectForCleanup, referenceQueue))
+    referenceBuffer.put(new CleanupTaskWeakReference(task, objectForCleanup,
+      referenceQueue), java.lang.Boolean.TRUE)
   }
 
   /** Keep cleaning RDD, shuffle, and broadcast state. */

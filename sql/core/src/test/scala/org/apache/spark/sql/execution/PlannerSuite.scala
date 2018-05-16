@@ -216,7 +216,8 @@ class PlannerSuite extends SharedSQLContext {
           ).queryExecution.executedPlan.collect {
             case exchange: ShuffleExchangeExec => exchange
           }.length
-          assert(numExchanges === 5)
+          // SNAP: expect 3 exchanges here instead of 5 due to changes for SNAP-1251
+          assert(numExchanges === 3)
         }
 
         {
@@ -231,7 +232,8 @@ class PlannerSuite extends SharedSQLContext {
           ).queryExecution.executedPlan.collect {
             case exchange: ShuffleExchangeExec => exchange
           }.length
-          assert(numExchanges === 5)
+          // SNAP: expect 3 exchanges here instead of 5 due to changes for SNAP-1251
+          assert(numExchanges === 3)
         }
 
       }

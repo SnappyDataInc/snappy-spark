@@ -51,3 +51,11 @@ function collapseTable(thisName, table){
 $(function() {
   collapseTablePageLoad('collapse-aggregated-metrics','aggregated-metrics');
 });
+
+/* SnappyData */
+
+// When the user clicks on div, open the popup
+function displayVersionDetails() {
+    var popup = document.getElementById("sdVersionDetails");
+    popup.classList.toggle("show");
+}

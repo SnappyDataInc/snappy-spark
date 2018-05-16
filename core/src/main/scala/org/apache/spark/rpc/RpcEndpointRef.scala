@@ -17,12 +17,12 @@
 
 package org.apache.spark.rpc
 
-import scala.concurrent.Future
-import scala.reflect.ClassTag
-
-import org.apache.spark.{SparkConf, SparkException}
+import org.apache.spark.SparkConf
 import org.apache.spark.internal.Logging
 import org.apache.spark.util.RpcUtils
+
+import scala.concurrent.Future
+import scala.reflect.ClassTag
 
 /**
  * A reference for a remote [[RpcEndpoint]]. [[RpcEndpointRef]] is thread-safe.

@@ -306,9 +306,7 @@ private[spark] abstract class MockBackend(
    * updates some internal state for this mock.
    */
   def taskSuccess(task: TaskDescription, result: Any): Unit = {
-    val ser = env.serializer.newInstance()
-    val resultBytes = ser.serialize(result)
-    val directResult = new DirectTaskResult(resultBytes, Seq()) // no accumulator updates
+    val directResult = new DirectTaskResult(result, Seq()) // no accumulator updates
     taskUpdate(task, TaskState.FINISHED, directResult)
   }
 
@@ -325,7 +323,8 @@ private[spark] abstract class MockBackend(
   }
 
   def taskUpdate(task: TaskDescription, state: TaskState, result: Any): Unit = {
-    val ser = env.serializer.newInstance()
+    val ser = if (state == TaskState.FINISHED) env.serializer.newInstance()
+    else env.closureSerializer.newInstance()
     val resultBytes = ser.serialize(result)
     // statusUpdate is safe to call from multiple threads, its protected inside taskScheduler
     taskScheduler.statusUpdate(task.taskId, state, resultBytes)

@@ -48,42 +48,75 @@ public class ByteArrayMethods {
   public static int MAX_ROUNDED_ARRAY_LENGTH = Integer.MAX_VALUE - 15;
 
   private static final boolean unaligned = Platform.unaligned();
+
   /**
    * Optimized byte array equality check for byte arrays.
    * @return true if the arrays are equal, false otherwise
    */
-  public static boolean arrayEquals(
-      Object leftBase, long leftOffset, Object rightBase, long rightOffset, final long length) {
-    int i = 0;
-
-    // check if stars align and we can get both offsets to be aligned
-    if ((leftOffset % 8) == (rightOffset % 8)) {
-      while ((leftOffset + i) % 8 != 0 && i < length) {
-        if (Platform.getByte(leftBase, leftOffset + i) !=
-            Platform.getByte(rightBase, rightOffset + i)) {
-              return false;
+  public static boolean arrayEquals(final Object leftBase, long leftOffset,
+      final Object rightBase, long rightOffset, final long length) {
+    // for the case that equals will fail in first few bytes itself, the overhead
+    // of JNI call is too high
+    /*
+    if (leftBase == null && rightBase == null &&
+        length >= Native.MIN_JNI_SIZE && Native.isLoaded()) {
+      return Native.arrayEquals(leftOffset, rightOffset, length);
+    }
+    */
+    long endOffset = leftOffset + length;
+    // try to align at least one side
+    if ((rightOffset & 0x7) != 0 && (leftOffset & 0x7) != 0) { // mod 8
+      final long alignedOffset = Math.min(((leftOffset + 7) >>> 3) << 3, endOffset);
+      if (Platform.unaligned()) {
+        if (leftOffset <= (alignedOffset - 4)) {
+          if (Platform.getInt(leftBase, leftOffset) !=
+              Platform.getInt(rightBase, rightOffset)) {
+            return false;
+          }
+          leftOffset += 4;
+          rightOffset += 4;
         }
-        i += 1;
+      }
+      while (leftOffset < alignedOffset) {
+        if (Platform.getByte(leftBase, leftOffset) !=
+            Platform.getByte(rightBase, rightOffset)) {
+          return false;
+        }
+        leftOffset++;
+        rightOffset++;
       }
     }
     // for architectures that support unaligned accesses, chew it up 8 bytes at a time
-    if (unaligned || (((leftOffset + i) % 8 == 0) && ((rightOffset + i) % 8 == 0))) {
-      while (i <= length - 8) {
-        if (Platform.getLong(leftBase, leftOffset + i) !=
-            Platform.getLong(rightBase, rightOffset + i)) {
-              return false;
+    if (Platform.unaligned() || (((leftOffset & 0x7) == 0) && ((rightOffset & 0x7) == 0))) {
+      endOffset -= 8;
+      while (leftOffset <= endOffset) {
+        if (Platform.getLong(leftBase, leftOffset) !=
+            Platform.getLong(rightBase, rightOffset)) {
+          return false;
         }
-        i += 8;
+        leftOffset += 8;
+        rightOffset += 8;
       }
+      endOffset += 4;
+      if (leftOffset <= endOffset) {
+        if (Platform.getInt(leftBase, leftOffset) !=
+            Platform.getInt(rightBase, rightOffset)) {
+          return false;
+        }
+        leftOffset += 4;
+        rightOffset += 4;
+      }
+      endOffset += 4;
     }
     // this will finish off the unaligned comparisons, or do the entire aligned
     // comparison whichever is needed.
-    while (i < length) {
-      if (Platform.getByte(leftBase, leftOffset + i) !=
-          Platform.getByte(rightBase, rightOffset + i)) {
-            return false;
+    while (leftOffset < endOffset) {
+      if (Platform.getByte(leftBase, leftOffset) !=
+          Platform.getByte(rightBase, rightOffset)) {
+        return false;
       }
-      i += 1;
+      leftOffset++;
+      rightOffset++;
     }
     return true;
   }

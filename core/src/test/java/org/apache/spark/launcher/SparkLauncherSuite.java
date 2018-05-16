@@ -17,7 +17,6 @@
 
 package org.apache.spark.launcher;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -25,26 +24,38 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import org.junit.Ignore;
+import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.bridge.SLF4JBridgeHandler;
 import static org.junit.Assert.*;
 import static org.junit.Assume.*;
 import static org.mockito.Mockito.*;
 
 import org.apache.spark.SparkContext;
-import org.apache.spark.SparkContext$;
 import org.apache.spark.internal.config.package$;
 import org.apache.spark.util.Utils;
 
 /**
  * These tests require the Spark assembly to be built before they can be run.
  */
-public class SparkLauncherSuite extends BaseSuite {
+public class SparkLauncherSuite {
 
+  static {
+    SLF4JBridgeHandler.removeHandlersForRootLogger();
+    SLF4JBridgeHandler.install();
+  }
+
+  private static final Logger LOG = LoggerFactory.getLogger(SparkLauncherSuite.class);
   private static final NamedThreadFactory TF = new NamedThreadFactory("SparkLauncherSuite-%d");
 
-  private final SparkLauncher launcher = new SparkLauncher();
+  private SparkLauncher launcher;
 
+  @Before
+  public void configureLauncher() {
+    launcher = new SparkLauncher().setSparkHome(System.getProperty("spark.test.home"));
+  }
   @Test
   public void testSparkArgumentHandling() throws Exception {
     SparkSubmitOptionParser opts = new SparkSubmitOptionParser();
@@ -114,16 +125,16 @@ public class SparkLauncherSuite extends BaseSuite {
       .setConf(SparkLauncher.DRIVER_EXTRA_CLASSPATH, System.getProperty("java.class.path"))
       .addSparkArg(opts.CLASS, "ShouldBeOverriddenBelow")
       .setMainClass(SparkLauncherTestApp.class.getName())
-      .redirectError()
+      // .redirectError()
       .addAppArgs("proc");
     final Process app = launcher.launch();
 
-    new OutputRedirector(app.getInputStream(), getClass().getName() + ".child", TF);
+    new OutputRedirector(app.getInputStream(), LOG.getName(), TF);
+    new OutputRedirector(app.getErrorStream(), LOG.getName(), TF);
     assertEquals(0, app.waitFor());
   }
 
-  // TODO: [SPARK-23020] Re-enable this
-  @Ignore
+  @Test
   public void testInProcessLauncher() throws Exception {
     // Because this test runs SparkLauncher in process and in client mode, it pollutes the system
     // properties, and that can cause test failures down the test pipeline. So restore the original
@@ -137,12 +148,6 @@ public class SparkLauncherSuite extends BaseSuite {
         p.put(e.getKey(), e.getValue());
       }
       System.setProperties(p);
-      // Here DAGScheduler is stopped, while SparkContext.clearActiveContext may not be called yet.
-      // Wait for a reasonable amount of time to avoid creating two active SparkContext in JVM.
-      // See SPARK-23019 and SparkContext.stop() for details.
-      eventually(Duration.ofSeconds(5), Duration.ofMillis(10), () -> {
-        assertTrue("SparkContext is still alive.", SparkContext$.MODULE$.getActive().isEmpty());
-      });
     }
   }
 
@@ -151,35 +156,26 @@ public class SparkLauncherSuite extends BaseSuite {
     SparkAppHandle.Listener listener = mock(SparkAppHandle.Listener.class);
     doAnswer(invocation -> {
       SparkAppHandle h = (SparkAppHandle) invocation.getArguments()[0];
-      synchronized (transitions) {
-        transitions.add(h.getState());
-      }
+      transitions.add(h.getState());
       return null;
     }).when(listener).stateChanged(any(SparkAppHandle.class));
 
-    SparkAppHandle handle = null;
-    try {
-      handle = new InProcessLauncher()
-        .setMaster("local")
-        .setAppResource(SparkLauncher.NO_RESOURCE)
-        .setMainClass(InProcessTestApp.class.getName())
-        .addAppArgs("hello")
-        .startApplication(listener);
+    SparkAppHandle handle = new InProcessLauncher()
+      .setMaster("local")
+      .setAppResource(SparkLauncher.NO_RESOURCE)
+      .setMainClass(InProcessTestApp.class.getName())
+      .addAppArgs("hello")
+      .startApplication(listener);
 
-      waitFor(handle);
-      assertEquals(SparkAppHandle.State.FINISHED, handle.getState());
+    // waitFor(handle);
+    assertEquals(SparkAppHandle.State.FINISHED, handle.getState());
 
-      // Matches the behavior of LocalSchedulerBackend.
-      List<SparkAppHandle.State> expected = Arrays.asList(
-        SparkAppHandle.State.CONNECTED,
-        SparkAppHandle.State.RUNNING,
-        SparkAppHandle.State.FINISHED);
-      assertEquals(expected, transitions);
-    } finally {
-      if (handle != null) {
-        handle.kill();
-      }
-    }
+    // Matches the behavior of LocalSchedulerBackend.
+    List<SparkAppHandle.State> expected = Arrays.asList(
+      SparkAppHandle.State.CONNECTED,
+      SparkAppHandle.State.RUNNING,
+      SparkAppHandle.State.FINISHED);
+    assertEquals(expected, transitions);
   }
 
   public static class SparkLauncherTestApp {

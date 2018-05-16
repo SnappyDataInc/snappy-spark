@@ -217,7 +217,7 @@ public class UnsafeShuffleWriter<K, V> extends ShuffleWriter<K, V> {
       partitioner.numPartitions(),
       sparkConf,
       writeMetrics);
-    serBuffer = new MyByteArrayOutputStream(DEFAULT_INITIAL_SER_BUFFER_SIZE);
+    serBuffer = new MyByteArrayOutputStream(64 * 1024); // DEFAULT_INITIAL_SER_BUFFER_SIZE
     serOutputStream = serializer.serializeStream(serBuffer);
   }
 

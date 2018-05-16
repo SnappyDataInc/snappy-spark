@@ -22,20 +22,20 @@ import java.nio.ByteBuffer
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
-import scala.collection.mutable
-import scala.util.{Failure, Success}
-import scala.util.control.NonFatal
-
-import org.apache.spark._
 import org.apache.spark.TaskState.TaskState
+import org.apache.spark._
 import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.deploy.worker.WorkerWatcher
 import org.apache.spark.internal.Logging
 import org.apache.spark.rpc._
-import org.apache.spark.scheduler.{ExecutorLossReason, TaskDescription}
+import org.apache.spark.scheduler.ExecutorLossReason
 import org.apache.spark.scheduler.cluster.CoarseGrainedClusterMessages._
 import org.apache.spark.serializer.SerializerInstance
 import org.apache.spark.util.{ThreadUtils, Utils}
+
+import scala.collection.mutable
+import scala.util.control.NonFatal
+import scala.util.{Failure, Success}
 
 private[spark] class CoarseGrainedExecutorBackend(
     override val rpcEnv: RpcEnv,
@@ -66,9 +66,13 @@ private[spark] class CoarseGrainedExecutorBackend(
       case Success(msg) =>
         // Always receive `true`. Just ignore it
       case Failure(e) =>
-        exitExecutor(1, s"Cannot register with driver: $driverUrl", e, notifyDriver = false)
+        logError(s"Cannot register with driver: $driverUrl", e)
+        exitExecutor(1, "Cannot register with driver")
     }(ThreadUtils.sameThread)
   }
+
+  protected def registerExecutor: Executor =
+    new Executor(executorId, hostname, env, userClassPath, isLocal = false)
 
   def extractLogUrls: Map[String, String] = {
     val prefix = "SPARK_LOG_URL_"
@@ -87,19 +91,35 @@ private[spark] class CoarseGrainedExecutorBackend(
       }
 
     case RegisterExecutorFailed(message) =>
-      exitExecutor(1, "Slave registration failed: " + message)
+      logError("Slave registration failed: " + message)
+      exitExecutor(1, "Slave registration failed")
 
-    case LaunchTask(data) =>
+    case LaunchTask(taskDesc) =>
       if (executor == null) {
+        logError("Received LaunchTask command but executor was null")
         exitExecutor(1, "Received LaunchTask command but executor was null")
       } else {
-        val taskDesc = TaskDescription.decode(data.value)
+        // val taskDesc = TaskDescription.decode(data)
         logInfo("Got assigned task " + taskDesc.taskId)
         executor.launchTask(this, taskDesc)
       }
 
+    case LaunchTasks(tasks, taskDataList) =>
+      if (executor ne null) {
+        logDebug("Got assigned tasks " + tasks.map(_.taskId).mkString(","))
+        for (task <- tasks) {
+          logInfo("Got assigned task " + task.taskId)
+          val ref = task.taskData.reference
+          val taskData = if (ref >= 0) taskDataList(ref) else task.taskData
+          executor.launchTask(this, task)
+        }
+      } else {
+        exitExecutor(1, "Received LaunchTasks command but executor was null")
+      }
+
     case KillTask(taskId, _, interruptThread, reason) =>
       if (executor == null) {
+        logError("Received KillTask command but executor was null")
         exitExecutor(1, "Received KillTask command but executor was null")
       } else {
         executor.killTask(taskId, interruptThread, reason)

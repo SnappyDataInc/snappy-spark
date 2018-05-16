@@ -328,4 +328,3 @@ object CompactibleFileStreamLog {
     }
   }
 }
-

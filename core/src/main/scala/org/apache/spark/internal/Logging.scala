@@ -17,6 +17,7 @@
 
 package org.apache.spark.internal
 
+
 import org.apache.log4j.{Level, LogManager, PropertyConfigurator}
 import org.slf4j.{Logger, LoggerFactory}
 import org.slf4j.impl.StaticLoggerBinder
@@ -162,7 +163,7 @@ trait Logging {
   }
 }
 
-private[spark] object Logging {
+private object Logging {
   @volatile private var initialized = false
   @volatile private var defaultRootLevel: Level = null
   @volatile private var defaultSparkLog4jConfig = false

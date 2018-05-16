@@ -86,8 +86,9 @@ case class DeserializeToObjectExec(
   }
 
   override protected def doExecute(): RDD[InternalRow] = {
+    val output = child.output
     child.execute().mapPartitionsWithIndexInternal { (index, iter) =>
-      val projection = GenerateSafeProjection.generate(deserializer :: Nil, child.output)
+      val projection = GenerateSafeProjection.generate(deserializer :: Nil, output)
       projection.initialize(index)
       iter.map(projection)
     }
@@ -456,7 +457,7 @@ case class CoGroupExec(
     right: SparkPlan) extends BinaryExecNode with ObjectProducerExec {
 
   override def requiredChildDistribution: Seq[Distribution] =
-    HashClusteredDistribution(leftGroup) :: HashClusteredDistribution(rightGroup) :: Nil
+    ClusteredDistribution(leftGroup) :: ClusteredDistribution(rightGroup) :: Nil
 
   override def requiredChildOrdering: Seq[Seq[SortOrder]] =
     leftGroup.map(SortOrder(_, Ascending)) :: rightGroup.map(SortOrder(_, Ascending)) :: Nil

@@ -45,6 +45,7 @@ public final class UnsafeSorterSpillWriter {
   /** The buffer size to use when writing the sorted records to an on-disk file */
   private final int diskWriteBufferSize =
     (int) (long) conf.get(package$.MODULE$.SHUFFLE_DISK_WRITE_BUFFER_SIZE());
+  static final int DISK_WRITE_BUFFER_SIZE = 64 * 1024;
 
   // Small writes to DiskBlockObjectWriter will be fairly inefficient. Since there doesn't seem to
   // be an API to directly transfer bytes from managed memory to the disk writer, we buffer

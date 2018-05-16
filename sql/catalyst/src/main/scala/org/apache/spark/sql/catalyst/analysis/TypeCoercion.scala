@@ -345,6 +345,43 @@ object TypeCoercion {
         if findCommonTypeForBinaryComparison(left.dataType, right.dataType).isDefined =>
         val commonType = findCommonTypeForBinaryComparison(left.dataType, right.dataType).get
         p.makeCopy(Array(castExpr(left, commonType), castExpr(right, commonType)))
+      // We should cast all relative timestamp/date/string comparison into string comparisons
+      // This behaves as a user would expect because timestamp strings sort lexicographically.
+      // i.e. TimeStamp(2013-01-01 00:00 ...) < "2014" = true
+      case p @ BinaryComparison(left @ StringType(), right @ DateType()) =>
+        p.makeCopy(Array(left, Cast(right, StringType)))
+      case p @ BinaryComparison(left @ DateType(), right @ StringType()) =>
+        p.makeCopy(Array(Cast(left, StringType), right))
+      case p @ BinaryComparison(left @ StringType(), right @ TimestampType()) =>
+        p.makeCopy(Array(left, Cast(right, StringType)))
+      case p @ BinaryComparison(left @ TimestampType(), right @ StringType()) =>
+        p.makeCopy(Array(Cast(left, StringType), right))
+
+      // Comparisons between dates and timestamps.
+      case p @ BinaryComparison(left @ TimestampType(), right @ DateType()) =>
+        p.makeCopy(Array(Cast(left, StringType), Cast(right, StringType)))
+      case p @ BinaryComparison(left @ DateType(), right @ TimestampType()) =>
+        p.makeCopy(Array(Cast(left, StringType), Cast(right, StringType)))
+
+      // Checking NullType
+      case p @ BinaryComparison(left @ StringType(), right @ NullType()) =>
+        p.makeCopy(Array(left, Literal.create(null, StringType)))
+      case p @ BinaryComparison(left @ NullType(), right @ StringType()) =>
+        p.makeCopy(Array(Literal.create(null, StringType), right))
+
+      case p @ BinaryComparison(left @ StringType(), right) if right.dataType != StringType =>
+        p.makeCopy(Array(Cast(left, DoubleType), right))
+      case p @ BinaryComparison(left, right @ StringType()) if left.dataType != StringType =>
+        p.makeCopy(Array(left, Cast(right, DoubleType)))
+
+      case i @ In(a @ DateType(), b) if b.forall(_.dataType == StringType) =>
+        i.makeCopy(Array(Cast(a, StringType), b))
+      case i @ In(a @ TimestampType(), b) if b.forall(_.dataType == StringType) =>
+        i.makeCopy(Array(a, b.map(Cast(_, TimestampType))))
+      case i @ In(a @ DateType(), b) if b.forall(_.dataType == TimestampType) =>
+        i.makeCopy(Array(Cast(a, StringType), b.map(Cast(_, StringType))))
+      case i @ In(a @ TimestampType(), b) if b.forall(_.dataType == DateType) =>
+        i.makeCopy(Array(Cast(a, StringType), b.map(Cast(_, StringType))))
 
       case Abs(e @ StringType()) => Abs(Cast(e, DoubleType))
       case Sum(e @ StringType()) => Sum(Cast(e, DoubleType))

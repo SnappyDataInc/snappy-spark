@@ -1285,12 +1285,23 @@ abstract class GeneratedClass {
  */
 class CodeAndComment(val body: String, val comment: collection.Map[String, String])
   extends Serializable {
+
+  private[sql] var hash: Int = 0
+
   override def equals(that: Any): Boolean = that match {
     case t: CodeAndComment if t.body == body => true
     case _ => false
   }
 
-  override def hashCode(): Int = body.hashCode
+  // noinspection HashCodeUsesVar
+  override def hashCode(): Int = {
+    val h = hash
+    if (h != 0) h
+    else {
+      hash = body.hashCode
+      hash
+    }
+  }
 }
 
 /**
@@ -1373,6 +1384,10 @@ object CodeGenerator extends Logging {
     //   Cache.html#get(K,%20java.util.concurrent.Callable)
     case e @ (_: UncheckedExecutionException | _: ExecutionError) =>
       throw e.getCause
+  }
+
+  def invalidate(code: CodeAndComment) : Unit = {
+    cache.invalidate(code)
   }
 
   /**
@@ -1488,9 +1503,12 @@ object CodeGenerator extends Logging {
    * automatically, in order to constrain its memory footprint.  Note that this cache does not use
    * weak keys/values and thus does not respond to memory pressure.
    */
-  private val cache = CacheBuilder.newBuilder()
-    .maximumSize(100)
-    .build(
+  private lazy val cache = {
+    val env = SparkEnv.get
+    val cacheSize = if (env ne null) {
+      env.conf.getInt("spark.sql.codegen.cacheSize", 2000)
+    } else 2000
+    CacheBuilder.newBuilder().maximumSize(cacheSize).build(
       new CacheLoader[CodeAndComment, (GeneratedClass, Int)]() {
         override def load(code: CodeAndComment): (GeneratedClass, Int) = {
           val startTime = System.nanoTime()
@@ -1503,4 +1521,5 @@ object CodeGenerator extends Logging {
           result
         }
       })
+  }
 }

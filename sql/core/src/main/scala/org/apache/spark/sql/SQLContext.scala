@@ -19,10 +19,6 @@ package org.apache.spark.sql
 
 import java.util.Properties
 
-import scala.collection.immutable
-import scala.reflect.runtime.universe.TypeTag
-
-import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.annotation.{DeveloperApi, Experimental, InterfaceStability}
 import org.apache.spark.api.java.{JavaRDD, JavaSparkContext}
 import org.apache.spark.internal.Logging
@@ -31,11 +27,15 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst._
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.execution.command.ShowTablesCommand
-import org.apache.spark.sql.internal.{SessionState, SharedState, SQLConf}
+import org.apache.spark.sql.internal.{SQLConf, SessionState, SharedState}
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.streaming.{DataStreamReader, StreamingQueryManager}
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.ExecutionListenerManager
+import org.apache.spark.{SparkConf, SparkContext}
+
+import scala.collection.immutable
+import scala.reflect.runtime.universe.TypeTag
 
 /**
  * The entry point for working with structured data (rows and columns) in Spark 1.x.
@@ -1095,9 +1095,9 @@ object SQLContext {
    * method for internal use.
    */
   private[sql] def beansToRows(
-      data: Iterator[_],
-      beanClass: Class[_],
-      attrs: Seq[AttributeReference]): Iterator[InternalRow] = {
+     data: Iterator[_],
+     beanClass: Class[_],
+     attrs: Seq[AttributeReference]): Iterator[InternalRow] = {
     val extractors =
       JavaTypeInference.getJavaBeanReadableProperties(beanClass).map(_.getReadMethod)
     val methodsToConverts = extractors.zip(attrs).map { case (e, attr) =>

@@ -324,8 +324,9 @@ private[spark] object JsonProtocol {
       value match {
         case v: Int => JInt(v)
         case v: Long => JInt(v)
-        // We only have 3 kind of internal accumulator types, so if it's not int or long, it must be
-        // the blocks accumulator, whose type is `java.util.List[(BlockId, BlockStatus)]`
+        case v: Double => JDouble(v)
+        // We only have 4 kinds of internal accumulator types, so if it's not int, long or double,
+        // it must be the blocks accumulator with type `java.util.List[(BlockId, BlockStatus)]`
         case v =>
           JArray(v.asInstanceOf[java.util.List[(BlockId, BlockStatus)]].asScala.toList.map {
             case (id, status) =>
@@ -785,6 +786,7 @@ private[spark] object JsonProtocol {
     if (name.exists(_.startsWith(InternalAccumulator.METRICS_PREFIX))) {
       value match {
         case JInt(v) => v.toLong
+        case JDouble(v) => v
         case JArray(v) =>
           v.map { blockJson =>
             val id = BlockId((blockJson \ "Block ID").extract[String])
@@ -804,19 +806,19 @@ private[spark] object JsonProtocol {
     if (json == JNothing) {
       return metrics
     }
-    metrics.setExecutorDeserializeTime((json \ "Executor Deserialize Time").extract[Long])
+    metrics.setExecutorDeserializeTime((json \ "Executor Deserialize Time").extract[Double])
     metrics.setExecutorDeserializeCpuTime((json \ "Executor Deserialize CPU Time") match {
       case JNothing => 0
-      case x => x.extract[Long]
+      case x => x.extract[Double]
     })
-    metrics.setExecutorRunTime((json \ "Executor Run Time").extract[Long])
+    metrics.setExecutorRunTime((json \ "Executor Run Time").extract[Double])
     metrics.setExecutorCpuTime((json \ "Executor CPU Time") match {
       case JNothing => 0
-      case x => x.extract[Long]
+      case x => x.extract[Double]
     })
     metrics.setResultSize((json \ "Result Size").extract[Long])
     metrics.setJvmGCTime((json \ "JVM GC Time").extract[Long])
-    metrics.setResultSerializationTime((json \ "Result Serialization Time").extract[Long])
+    metrics.setResultSerializationTime((json \ "Result Serialization Time").extract[Double])
     metrics.incMemoryBytesSpilled((json \ "Memory Bytes Spilled").extract[Long])
     metrics.incDiskBytesSpilled((json \ "Disk Bytes Spilled").extract[Long])
 
@@ -830,7 +832,7 @@ private[spark] object JsonProtocol {
         .foreach { v => readMetrics.incRemoteBytesReadToDisk(v.extract[Long])}
       readMetrics.incLocalBytesRead(
         Utils.jsonOption(readJson \ "Local Bytes Read").map(_.extract[Long]).getOrElse(0L))
-      readMetrics.incFetchWaitTime((readJson \ "Fetch Wait Time").extract[Long])
+      readMetrics.incFetchWaitTime((readJson \ "Fetch Wait Time").extract[Double])
       readMetrics.incRecordsRead(
         Utils.jsonOption(readJson \ "Total Records Read").map(_.extract[Long]).getOrElse(0L))
       metrics.mergeShuffleReadMetrics()

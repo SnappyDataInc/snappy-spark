@@ -147,7 +147,8 @@ abstract class RDD[T: ClassTag](
   def sparkContext: SparkContext = sc
 
   /** A unique ID for this RDD (within its SparkContext). */
-  val id: Int = sc.newRddId()
+  protected var _id: Int = sc.newRddId()
+  def id: Int = _id
 
   /** A friendly name for this RDD */
   @transient var name: String = _
@@ -1651,7 +1652,7 @@ abstract class RDD[T: ClassTag](
   // Other internal methods and fields
   // =======================================================================
 
-  private var storageLevel: StorageLevel = StorageLevel.NONE
+  protected var storageLevel: StorageLevel = StorageLevel.NONE
 
   /** User code that created this RDD (e.g. `textFile`, `parallelize`). */
   @transient private[spark] val creationSite = sc.getCallSite()

@@ -20,7 +20,10 @@ package org.apache.spark.sql.streaming
 import java.util.Locale
 
 import scala.collection.JavaConverters._
-
+import org.apache.spark.annotation.Experimental
+import org.apache.spark.sql.execution.datasources.DataSource
+import org.apache.spark.sql.execution.streaming._
+import org.apache.spark.sql.{AnalysisException, Dataset, ForeachWriter}
 import org.apache.spark.annotation.InterfaceStability
 import org.apache.spark.sql.{AnalysisException, Dataset, ForeachWriter}
 import org.apache.spark.sql.catalyst.streaming.InternalOutputModes

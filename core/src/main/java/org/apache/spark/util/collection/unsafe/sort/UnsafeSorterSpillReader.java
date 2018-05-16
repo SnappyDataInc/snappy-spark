@@ -49,7 +49,7 @@ public final class UnsafeSorterSpillReader extends UnsafeSorterIterator implemen
   private int numRecords;
   private int numRecordsRemaining;
 
-  private byte[] arr = new byte[1024 * 1024];
+  private byte[] arr = new byte[64 * 1024];
   private Object baseObject = arr;
   private final long baseOffset = Platform.BYTE_ARRAY_OFFSET;
   private final TaskContext taskContext = TaskContext.get();

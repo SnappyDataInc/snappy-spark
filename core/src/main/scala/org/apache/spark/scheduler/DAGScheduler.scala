@@ -30,8 +30,6 @@ import scala.language.existentials
 import scala.language.postfixOps
 import scala.util.control.NonFatal
 
-import org.apache.commons.lang3.SerializationUtils
-
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.executor.TaskMetrics
@@ -184,6 +182,8 @@ class DAGScheduler(
   // A closure serializer that we reuse.
   // This is only safe because DAGScheduler runs in a single thread.
   private val closureSerializer = SparkEnv.get.closureSerializer.newInstance()
+
+  private lazy val maxRpcMessageSize = RpcUtils.maxMessageSizeBytes(sc.conf)
 
   /** If enabled, FetchFailed will not cause stage retry, in order to surface the problem. */
   private val disallowStageRetryForTest = sc.getConf.getBoolean("spark.test.noStageRetry", false)
@@ -603,7 +603,7 @@ class DAGScheduler(
     val waiter = new JobWaiter(this, jobId, partitions.size, resultHandler)
     eventProcessLoop.post(JobSubmitted(
       jobId, rdd, func2, partitions.toArray, callSite, waiter,
-      SerializationUtils.clone(properties)))
+      Utils.cloneProperties(properties)))
     waiter
   }
 
@@ -668,7 +668,7 @@ class DAGScheduler(
     val partitions = (0 until rdd.partitions.length).toArray
     val jobId = nextJobId.getAndIncrement()
     eventProcessLoop.post(JobSubmitted(
-      jobId, rdd, func2, partitions, callSite, listener, SerializationUtils.clone(properties)))
+      jobId, rdd, func2, partitions, callSite, listener, Utils.cloneProperties(properties)))
     listener.awaitResult()    // Will throw an exception if the job fails
   }
 
@@ -703,7 +703,7 @@ class DAGScheduler(
     // the map output tracker and some node failures had caused the output statistics to be lost.
     val waiter = new JobWaiter(this, jobId, 1, (i: Int, r: MapOutputStatistics) => callback(r))
     eventProcessLoop.post(MapStageSubmitted(
-      jobId, dependency, callSite, waiter, SerializationUtils.clone(properties)))
+      jobId, dependency, callSite, waiter, Utils.cloneProperties(properties)))
     waiter
   }
 
@@ -795,7 +795,8 @@ class DAGScheduler(
   // That should take care of at least part of the priority inversion problem with
   // cross-job dependencies.
   private def activeJobForStage(stage: Stage): Option[Int] = {
-    val jobsThatUseStage: Array[Int] = stage.jobIds.toArray.sorted
+    val jobsThatUseStage: Array[Int] = stage.jobIds.toArray
+    java.util.Arrays.sort(jobsThatUseStage)
     jobsThatUseStage.find(jobIdToActiveJob.contains)
   }
 
@@ -1016,24 +1017,15 @@ class DAGScheduler(
     // might modify state of objects referenced in their closures. This is necessary in Hadoop
     // where the JobConf/Configuration object is not thread-safe.
     var taskBinary: Broadcast[Array[Byte]] = null
-    var partitions: Array[Partition] = null
     try {
       // For ShuffleMapTask, serialize and broadcast (rdd, shuffleDep).
       // For ResultTask, serialize and broadcast (rdd, func).
-      var taskBinaryBytes: Array[Byte] = null
-      // taskBinaryBytes and partitions are both effected by the checkpoint status. We need
-      // this synchronization in case another concurrent job is checkpointing this RDD, so we get a
-      // consistent view of both variables.
-      RDDCheckpointData.synchronized {
-        taskBinaryBytes = stage match {
-          case stage: ShuffleMapStage =>
-            JavaUtils.bufferToArray(
-              closureSerializer.serialize((stage.rdd, stage.shuffleDep): AnyRef))
-          case stage: ResultStage =>
-            JavaUtils.bufferToArray(closureSerializer.serialize((stage.rdd, stage.func): AnyRef))
-        }
-
-        partitions = stage.rdd.partitions
+      val taskBinaryBytes: Array[Byte] = stage match {
+        case stage: ShuffleMapStage =>
+          JavaUtils.bufferToArray(
+            closureSerializer.serialize((stage.rdd, stage.shuffleDep): AnyRef))
+        case stage: ResultStage =>
+          JavaUtils.bufferToArray(closureSerializer.serialize((stage.rdd, stage.func): AnyRef))
       }
 
       taskBinary = sc.broadcast(taskBinaryBytes)
@@ -1058,9 +1050,9 @@ class DAGScheduler(
           stage.pendingPartitions.clear()
           partitionsToCompute.map { id =>
             val locs = taskIdToLocations(id)
-            val part = partitions(id)
+            val part = stage.rdd.partitions(id)
             stage.pendingPartitions += id
-            new ShuffleMapTask(stage.id, stage.latestInfo.attemptNumber,
+            new ShuffleMapTask(stage.id, stage.latestInfo.attemptId, _taskData = TaskData.EMPTY,
               taskBinary, part, locs, properties, serializedTaskMetrics, Option(jobId),
               Option(sc.applicationId), sc.applicationAttemptId)
           }
@@ -1068,9 +1060,9 @@ class DAGScheduler(
         case stage: ResultStage =>
           partitionsToCompute.map { id =>
             val p: Int = stage.partitions(id)
-            val part = partitions(p)
+            val part = stage.rdd.partitions(p)
             val locs = taskIdToLocations(id)
-            new ResultTask(stage.id, stage.latestInfo.attemptNumber,
+            new ResultTask(stage.id, stage.latestInfo.attemptId, _taskData = TaskData.EMPTY,
               taskBinary, part, locs, id, properties, serializedTaskMetrics,
               Option(jobId), Option(sc.applicationId), sc.applicationAttemptId)
           }
@@ -1086,7 +1078,7 @@ class DAGScheduler(
       logInfo(s"Submitting ${tasks.size} missing tasks from $stage (${stage.rdd}) (first 15 " +
         s"tasks are for partitions ${tasks.take(15).map(_.partitionId)})")
       taskScheduler.submitTasks(new TaskSet(
-        tasks.toArray, stage.id, stage.latestInfo.attemptNumber, jobId, properties))
+        tasks.toArray, stage.id, stage.latestInfo.attemptId, jobId, properties))
     } else {
       // Because we posted SparkListenerStageSubmitted earlier, we should mark
       // the stage as completed here in case there are no tasks to run
@@ -1545,7 +1537,7 @@ class DAGScheduler(
    * Marks a stage as finished and removes it from the list of running stages.
    */
   private def markStageAsFinished(stage: Stage, errorMessage: Option[String] = None): Unit = {
-    val serviceTime = stage.latestInfo.submissionTime match {
+    val serviceTime = if (!log.isInfoEnabled) 0L else stage.latestInfo.submissionTime match {
       case Some(t) => "%.03f".format((clock.getTimeMillis() - t) / 1000.0)
       case _ => "Unknown"
     }
@@ -1847,4 +1839,16 @@ private[spark] object DAGScheduler {
 
   // Number of consecutive stage attempts allowed before a stage is aborted
   val DEFAULT_MAX_CONSECUTIVE_STAGE_ATTEMPTS = 4
+
+  // The maximum size of uncompressed common task bytes (rdd, closure)
+  // that will be shipped with the task else will be broadcast separately.
+  val TASK_INLINE_LIMIT: Int = 128 * 1024
+
+  // Maximum size beyond which common task bytes will always be broadcast even if number
+  // of partitions is smaller than TASK_INLINE_PARTITION_LIMIT (except if it is 1)
+  val TASK_INLINE_UPPER_LIMIT: Int = 4 * 1024 * 1024
+
+  // The maximum number of partitions below which common task bytes will be
+  // shipped with the task else will be broadcast separately.
+  val TASK_INLINE_PARTITION_LIMIT = 8
 }

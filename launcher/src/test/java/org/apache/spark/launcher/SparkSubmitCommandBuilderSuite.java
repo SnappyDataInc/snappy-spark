@@ -236,7 +236,11 @@ public class SparkSubmitCommandBuilderSuite extends BaseSuite {
       launcher.conf.put(SparkLauncher.DRIVER_EXTRA_JAVA_OPTIONS, "-Ddriver");
       launcher.conf.put(SparkLauncher.DRIVER_EXTRA_LIBRARY_PATH, "/native");
     } else {
-      launcher.childEnv.put("SPARK_CONF_DIR", System.getProperty("spark.test.home")
+      String projectHome = System.getProperty("spark.project.home");
+      if (projectHome == null) {
+        projectHome = System.getProperty("spark.test.home");
+      }
+      launcher.childEnv.put("SPARK_CONF_DIR", projectHome
           + "/launcher/src/test/resources");
     }
 

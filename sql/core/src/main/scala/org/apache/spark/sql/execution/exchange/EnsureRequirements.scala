@@ -20,7 +20,7 @@ package org.apache.spark.sql.execution.exchange
 import scala.collection.mutable.ArrayBuffer
 
 import org.apache.spark.sql.catalyst.expressions._
-import org.apache.spark.sql.catalyst.plans.physical._
+import org.apache.spark.sql.catalyst.plans.physical. _
 import org.apache.spark.sql.catalyst.rules.Rule
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, ShuffledHashJoinExec,
@@ -44,6 +44,20 @@ case class EnsureRequirements(conf: SQLConf) extends Rule[SparkPlan] {
   private def minNumPostShufflePartitions: Option[Int] = {
     val minNumPostShufflePartitions = conf.minNumPostShufflePartitions
     if (minNumPostShufflePartitions > 0) Some(minNumPostShufflePartitions) else None
+  }
+
+  /**
+   * Given a required distribution, returns a partitioning that satisfies that distribution.
+   */
+  private def createPartitioning(
+      requiredDistribution: Distribution,
+      numPartitions: Int): Partitioning = {
+    requiredDistribution match {
+      case AllTuples => SinglePartition
+      case ClusteredDistribution(clustering, _) => HashPartitioning(clustering, numPartitions)
+      case OrderedDistribution(ordering) => RangePartitioning(ordering, numPartitions)
+      case dist => sys.error(s"Do not know how to satisfy distribution $dist")
+    }
   }
 
   /**
@@ -164,6 +178,7 @@ case class EnsureRequirements(conf: SQLConf) extends Rule[SparkPlan] {
       case (_: BroadcastDistribution, _) => false
       case _ => true
     }.map(_._2)
+
 
     val childrenNumPartitions =
       childrenIndexes.map(children(_).outputPartitioning.numPartitions).toSet

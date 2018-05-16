@@ -14,6 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for SnappyData data platform.
+ *
+ * Portions Copyright (c) 2017 SnappyData, Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark
 
@@ -26,11 +44,14 @@ import scala.util.Properties
 
 import com.google.common.collect.MapMaker
 
+import org.slf4j.LoggerFactory
+
 import org.apache.spark.annotation.DeveloperApi
 import org.apache.spark.api.python.PythonWorkerFactory
 import org.apache.spark.broadcast.BroadcastManager
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
+import org.apache.spark.io.CompressionCodec
 import org.apache.spark.memory.{MemoryManager, StaticMemoryManager, UnifiedMemoryManager}
 import org.apache.spark.metrics.MetricsSystem
 import org.apache.spark.network.netty.NettyBlockTransferService
@@ -73,11 +94,19 @@ class SparkEnv (
   private[spark] var isStopped = false
   private val pythonWorkers = mutable.HashMap[(String, Map[String, String]), PythonWorkerFactory]()
 
+  // This logger is used to do task related logging across multiple classes
+  private[spark] val taskLogger = new NamedLogger("org.apache.spark.Task")
+
   // A general, soft-reference map for metadata needed during HadoopRDD split computation
   // (e.g., HadoopFileRDD uses this to cache JobConfs and InputFormats).
   private[spark] val hadoopJobMetadata = new MapMaker().softValues().makeMap[String, Any]()
 
   private[spark] var driverTmpDir: Option[String] = None
+
+  private val codecCreator = CompressionCodec.codecCreator(conf,
+    CompressionCodec.getCodecName(conf))
+
+  def createCompressionCodec: CompressionCodec = codecCreator()
 
   private[spark] def stop() {
 
@@ -150,6 +179,43 @@ object SparkEnv extends Logging {
    */
   def get: SparkEnv = {
     env
+  }
+
+  // Create an instance of the class with the given name, possibly initializing it with our conf
+  def instantiateClass[T](className: String, conf: SparkConf,
+      isDriver: Boolean): T = {
+    val cls = Utils.classForName(className)
+    // Look for a constructor taking a SparkConf and a boolean isDriver, then one taking just
+    // SparkConf, then one taking no arguments
+    try {
+      cls.getConstructor(classOf[SparkConf], java.lang.Boolean.TYPE)
+          .newInstance(conf, new java.lang.Boolean(isDriver))
+          .asInstanceOf[T]
+    } catch {
+      case _: NoSuchMethodException =>
+        try {
+          cls.getConstructor(classOf[SparkConf]).newInstance(conf).asInstanceOf[T]
+        } catch {
+          case _: NoSuchMethodException =>
+            cls.getConstructor().newInstance().asInstanceOf[T]
+        }
+    }
+  }
+
+  def getClosureSerializer(conf: SparkConf, doLog: Boolean = false): Serializer = {
+    val defaultClosureSerializerClass = classOf[JavaSerializer].getName
+    val closureSerializerClass = conf.get("spark.closure.serializer",
+      defaultClosureSerializerClass)
+    val closureSerializer = instantiateClass[Serializer](
+      closureSerializerClass, conf, isDriver = false)
+    if (doLog) {
+      if (closureSerializerClass != defaultClosureSerializerClass) {
+        logInfo(s"Using non-default closure serializer: $closureSerializerClass")
+      } else {
+        logDebug(s"Using closure serializer: $closureSerializerClass")
+      }
+    }
+    closureSerializer
   }
 
   /**
@@ -254,26 +320,9 @@ object SparkEnv extends Logging {
       conf.set("spark.driver.port", rpcEnv.address.port.toString)
     }
 
-    // Create an instance of the class with the given name, possibly initializing it with our conf
     def instantiateClass[T](className: String): T = {
-      val cls = Utils.classForName(className)
-      // Look for a constructor taking a SparkConf and a boolean isDriver, then one taking just
-      // SparkConf, then one taking no arguments
-      try {
-        cls.getConstructor(classOf[SparkConf], java.lang.Boolean.TYPE)
-          .newInstance(conf, new java.lang.Boolean(isDriver))
-          .asInstanceOf[T]
-      } catch {
-        case _: NoSuchMethodException =>
-          try {
-            cls.getConstructor(classOf[SparkConf]).newInstance(conf).asInstanceOf[T]
-          } catch {
-            case _: NoSuchMethodException =>
-              cls.getConstructor().newInstance().asInstanceOf[T]
-          }
-      }
+      SparkEnv.instantiateClass(className, conf, isDriver)
     }
-
     // Create an instance of the class named by the given SparkConf property, or defaultClassName
     // if the property is not set, possibly initializing it with our conf
     def instantiateClassFromConf[T](propertyName: String, defaultClassName: String): T = {
@@ -286,7 +335,7 @@ object SparkEnv extends Logging {
 
     val serializerManager = new SerializerManager(serializer, conf, ioEncryptionKey)
 
-    val closureSerializer = new JavaSerializer(conf)
+    val closureSerializer = getClosureSerializer(conf, doLog = true)
 
     def registerOrLookupEndpoint(
         name: String, endpointCreator: => RpcEndpoint):
@@ -322,14 +371,15 @@ object SparkEnv extends Logging {
       shortShuffleMgrNames.getOrElse(shuffleMgrName.toLowerCase(Locale.ROOT), shuffleMgrName)
     val shuffleManager = instantiateClass[ShuffleManager](shuffleMgrClass)
 
-    val useLegacyMemoryManager = conf.getBoolean("spark.memory.useLegacyMode", false)
+    val useLegacyMemoryManager = conf.getBoolean("spark.memory.useLegacyMode", defaultValue = false)
     val memoryManager: MemoryManager =
+    SparkSnappyUtils.loadSnappyManager(conf, numUsableCores).getOrElse {
       if (useLegacyMemoryManager) {
         new StaticMemoryManager(conf, numUsableCores)
       } else {
         UnifiedMemoryManager(conf, numUsableCores)
       }
-
+    }
     val blockManagerPort = if (isDriver) {
       conf.get(DRIVER_BLOCK_MANAGER_PORT)
     } else {
@@ -431,7 +481,8 @@ object SparkEnv extends Logging {
     // System properties that are not java classpaths
     val systemProperties = Utils.getSystemProperties.toSeq
     val otherProperties = systemProperties.filter { case (k, _) =>
-      k != "java.class.path" && !k.startsWith("spark.")
+      k != "java.class.path" && !k.startsWith("spark.") &&
+          !k.startsWith("snappydata.")
     }.sorted
 
     // Class paths including all added jars and files
@@ -448,4 +499,27 @@ object SparkEnv extends Logging {
       "System Properties" -> otherProperties,
       "Classpath Entries" -> classPaths)
   }
+}
+
+private[spark] class NamedLogger(override val logName: String) extends Logging with Serializable {
+
+  override def logInfo(msg: => String): Unit = super.logInfo(msg)
+
+  override def logDebug(msg: => String): Unit = super.logDebug(msg)
+
+  override def logTrace(msg: => String): Unit = super.logTrace(msg)
+
+  override def logWarning(msg: => String): Unit = super.logWarning(msg)
+
+  override def logError(msg: => String): Unit = super.logError(msg)
+
+  override def logInfo(msg: => String, t: Throwable): Unit = super.logInfo(msg, t)
+
+  override def logDebug(msg: => String, t: Throwable): Unit = super.logDebug(msg, t)
+
+  override def logTrace(msg: => String, t: Throwable): Unit = super.logTrace(msg, t)
+
+  override def logWarning(msg: => String, t: Throwable): Unit = super.logWarning(msg, t)
+
+  override def logError(msg: => String, t: Throwable): Unit = super.logError(msg, t)
 }

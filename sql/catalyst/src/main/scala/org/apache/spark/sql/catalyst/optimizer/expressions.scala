@@ -17,13 +17,9 @@
 
 package org.apache.spark.sql.catalyst.optimizer
 
-import scala.collection.immutable.HashSet
-import scala.collection.mutable.{ArrayBuffer, Stack}
-
 import org.apache.spark.sql.catalyst.analysis._
-import org.apache.spark.sql.catalyst.analysis.TypeCoercion.ImplicitTypeCasts
-import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.Literal.{FalseLiteral, TrueLiteral}
+import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate._
 import org.apache.spark.sql.catalyst.expressions.objects.AssertNotNull
 import org.apache.spark.sql.catalyst.plans._
@@ -31,6 +27,9 @@ import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.catalyst.rules._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types._
+
+import scala.collection.immutable.HashSet
+import scala.collection.mutable.{ArrayBuffer, Stack}
 
 /*
  * Optimization rules defined in this file should not affect the structure of the logical plan.
@@ -607,7 +606,9 @@ object FoldablePropagation extends Rule[LogicalPlan] {
  */
 object SimplifyCasts extends Rule[LogicalPlan] {
   def apply(plan: LogicalPlan): LogicalPlan = plan transformAllExpressions {
-    case Cast(e, dataType, _) if e.dataType == dataType => e
+    case Cast(e, dataType, _) if e.dataType == dataType ||
+        (e.dataType.getClass == dataType.getClass &&
+            e.dataType.asNullable == dataType) => e
     case c @ Cast(e, dataType, _) => (e.dataType, dataType) match {
       case (ArrayType(from, false), ArrayType(to, true)) if from == to => e
       case (MapType(fromKey, fromValue, false), MapType(toKey, toValue, true))

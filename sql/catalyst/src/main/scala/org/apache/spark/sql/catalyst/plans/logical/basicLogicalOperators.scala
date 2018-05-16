@@ -14,6 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for SnappyData data platform.
+ *
+ * Portions Copyright (c) 2017 SnappyData, Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark.sql.catalyst.plans.logical
 
@@ -21,6 +39,7 @@ import org.apache.spark.sql.catalyst.analysis.MultiInstanceRelation
 import org.apache.spark.sql.catalyst.catalog.{CatalogStorageFormat, CatalogTable}
 import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.aggregate.AggregateExpression
+import org.apache.spark.sql.catalyst.planning.ExtractEquiJoinKeys
 import org.apache.spark.sql.catalyst.plans._
 import org.apache.spark.sql.catalyst.plans.physical.{HashPartitioning, Partitioning,
   RangePartitioning, RoundRobinPartitioning}
@@ -129,6 +148,30 @@ case class Filter(condition: Expression, child: LogicalPlan)
   override def output: Seq[Attribute] = child.output
 
   override def maxRows: Option[Long] = child.maxRows
+
+  override lazy val stats: Statistics = {
+    // Expected filtering by expressions based on some constants for now.
+    def expectedFilterDivisor(cond: Expression): Int = cond match {
+      case EqualTo(_, _) => 10
+      case LessThan(_, _) | LessThanOrEqual(_, _) |
+           GreaterThan(_, _) | GreaterThanOrEqual(_, _) => 2
+      case In(_, _) => 2
+      case StartsWith(_, _) | EndsWith(_, _) => 5
+      case Contains(_, _) | Like(_, _) => 3
+      case And(left, right) =>
+        math.min(20, expectedFilterDivisor(left) * expectedFilterDivisor(right))
+      case Or(left, right) =>
+        val leftDivisor = expectedFilterDivisor(left)
+        val rightDivisor = expectedFilterDivisor(right)
+        math.max(2, (leftDivisor * rightDivisor) / (leftDivisor + rightDivisor))
+      case Not(e) => math.max(2, expectedFilterDivisor(e) / 5)
+      case IsNull(_) => 3
+      case _ => 1
+    }
+
+    child.stats.copy(sizeInBytes = child.stats.sizeInBytes /
+        expectedFilterDivisor(condition))
+  }
 
   override protected def validConstraints: Set[Expression] = {
     val predicates = splitConjunctivePredicates(condition)
@@ -341,6 +384,18 @@ case class Join(
     case UsingJoin(_, _) => false
     case _ => resolvedExceptNatural
   }
+
+  override lazy val stats: Statistics = joinType match {
+    case LeftAnti | LeftSemi =>
+      // LeftSemi and LeftAnti won't ever be bigger than left
+      left.stats.copy()
+    case _ if ExtractEquiJoinKeys.unapply(this).isDefined =>
+      Statistics(sizeInBytes = children.map(_.stats.sizeInBytes).sum)
+    case _ =>
+      // make sure we don't propagate isBroadcastable in other joins, because
+      // they could explode the size.
+      super.stats.copy(hints = HintInfo(broadcast = false))
+  }
 }
 
 /**
@@ -397,10 +452,11 @@ case class InsertIntoDir(
     provider: Option[String],
     child: LogicalPlan,
     overwrite: Boolean = true)
-  extends UnaryNode {
+  extends LogicalPlan {
 
   override def output: Seq[Attribute] = Seq.empty
   override lazy val resolved: Boolean = false
+  override def children: Seq[LogicalPlan] = child :: Nil
 }
 
 /**
@@ -545,6 +601,15 @@ case class Aggregate(
   override def validConstraints: Set[Expression] = {
     val nonAgg = aggregateExpressions.filter(_.find(_.isInstanceOf[AggregateExpression]).isEmpty)
     child.constraints.union(getAliasedConstraints(nonAgg))
+  }
+
+  override lazy val stats: Statistics = {
+    if (groupingExpressions.isEmpty) {
+      super.stats.copy(sizeInBytes = 1)
+    } else {
+      val stats = super.stats
+      stats.copy(sizeInBytes = stats.sizeInBytes / 2)
+    }
   }
 }
 

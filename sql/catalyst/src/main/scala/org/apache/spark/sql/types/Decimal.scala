@@ -35,7 +35,7 @@ import org.apache.spark.sql.AnalysisException
 final class Decimal extends Ordered[Decimal] with Serializable {
   import org.apache.spark.sql.types.Decimal._
 
-  private var decimalVal: BigDecimal = null
+  private var decimalVal: BigDecimal = _
   private var longVal: Long = 0L
   private var _precision: Int = 1
   private var _scale: Int = 0
@@ -190,10 +190,10 @@ final class Decimal extends Ordered[Decimal] with Serializable {
   def toJavaBigInteger: java.math.BigInteger = java.math.BigInteger.valueOf(toLong)
 
   def toUnscaledLong: Long = {
-    if (decimalVal.ne(null)) {
-      decimalVal.underlying().unscaledValue().longValueExact()
-    } else {
+    if (decimalVal eq null) {
       longVal
+    } else {
+      decimalVal.underlying().unscaledValue().longValueExact()
     }
   }
 
@@ -339,13 +339,30 @@ final class Decimal extends Ordered[Decimal] with Serializable {
   }
 
   override def equals(other: Any): Boolean = other match {
-    case d: Decimal =>
-      compare(d) == 0
-    case _ =>
-      false
+    case d: Decimal => equals(d)
+    case _ => false
   }
 
   override def hashCode(): Int = toBigDecimal.hashCode()
+
+  def equals(other: Decimal): Boolean = {
+    if (other ne null) {
+      if (_scale == other._scale) {
+        if ((decimalVal eq null) && (other.decimalVal eq null)) longVal == other.longVal
+        else toJavaBigDecimal.equals(other.toJavaBigDecimal)
+      } else toJavaBigDecimal.compareTo(other.toJavaBigDecimal) == 0
+    } else false
+  }
+
+  def fastHashCode(): Int = {
+    val decimalVal = this.decimalVal
+    if (decimalVal != null) {
+      decimalVal.bigDecimal.hashCode()
+    } else {
+      val longVal = this.longVal
+      (longVal ^ (longVal >>> 32)).toInt
+    }
+  }
 
   def isZero: Boolean = if (decimalVal.ne(null)) decimalVal == BIG_DEC_ZERO else longVal == 0
 
