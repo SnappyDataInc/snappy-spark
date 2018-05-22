@@ -223,6 +223,14 @@ class SQLBuilder private (
       throw new UnsupportedOperationException(s"unsupported plan $node")
   }
 
+  private def isChildPlanEnclosed(child: LogicalPlan): Boolean = child match {
+    case _: Aggregate => false
+    case _: Project => false
+    case _: Window => false
+    case _: Generate => false
+    case _: Union => false
+    case _ => true
+  }
   /**
    * Turns a bunch of string segments into a single string and separate each segment by a space.
    * The segments are trimmed so only a single space appears in the separation.
@@ -267,11 +275,14 @@ class SQLBuilder private (
 
   private def aggregateToSQL(plan: Aggregate): String = {
     val groupingSQL = plan.groupingExpressions.map(_.sql).mkString(", ")
+    val childPlanEnclosed = isChildPlanEnclosed(plan.child)
     build(
       "SELECT",
       plan.aggregateExpressions.map(_.sql).mkString(", "),
       if (plan.child == OneRowRelation) "" else "FROM",
+      if (childPlanEnclosed) "" else "(",
       toSQL(plan.child),
+      if (childPlanEnclosed) "" else ")",
       if (groupingSQL.isEmpty) "" else "GROUP BY",
       groupingSQL
     )
@@ -381,12 +392,14 @@ class SQLBuilder private (
         case e => Alias(e, normalizedName(aggExpr))(exprId = aggExpr.exprId)
       }
     }
-
+    val childPlanEnclosed = isChildPlanEnclosed(project.child)
     build(
       "SELECT",
       aggExprs.map(_.sql).mkString(", "),
       if (agg.child == OneRowRelation) "" else "FROM",
+      if (childPlanEnclosed) "" else "(",
       toSQL(project.child),
+      if (childPlanEnclosed) "" else ")",
       "GROUP BY",
       groupingSQL,
       groupingSetSQL
