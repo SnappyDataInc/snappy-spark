@@ -73,12 +73,17 @@ function convertSizeToHumanReadable(value){
   var ONE_MB = 1024 * 1024;
   var ONE_GB = 1024 * 1024 * 1024;
   var ONE_TB = 1024 * 1024 * 1024 * 1024;
+  var ONE_PB = 1024 * 1024 * 1024 * 1024 * 1024;
 
   var convertedValue = new Array();
   var newValue = value;
   var newUnit = "B";
 
-  if (value >= ONE_TB) {
+  if (value >= ONE_PB) {
+      // Convert to PBs
+      newValue = (value / ONE_PB);
+      newUnit = "PB";
+  } else if (value >= ONE_TB) {
     // Convert to TBs
     newValue = (value / ONE_TB);
     newUnit = "TB";
@@ -98,7 +103,7 @@ function convertSizeToHumanReadable(value){
 
   // converted value
   convertedValue.push(newValue.toFixed(2));
-  // B or KB or MB or GB or TB
+  // B or KB or MB or GB or TB or PB
   convertedValue.push(newUnit);
 
   return convertedValue;
