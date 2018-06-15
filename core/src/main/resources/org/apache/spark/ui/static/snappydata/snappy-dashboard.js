@@ -467,6 +467,7 @@ function loadClusterInfo() {
   $.ajax({
     url:"/snappy-api/services/clusterinfo",
     dataType: 'json',
+    timeout: 5000,
     success: function (response, status, jqXHR) {
 
       // Hide error message, if displayed
@@ -485,24 +486,7 @@ function loadClusterInfo() {
       extTableStatsGrid.clear().rows.add(extTableStatsGridData).draw();
 
     },
-    error: function (jqXHR, status, error) {
-      var displayMessage = "Could Not Fetch Cluster Stats Data. <br>Reason: ";
-      if (jqXHR.status == 401) {
-        displayMessage += "Unauthorized Access.";
-      } else if (jqXHR.status == 404) {
-        displayMessage += "Server Not Found.";
-      } else if (jqXHR.status == 408) {
-        displayMessage += "Request Timeout.";
-      } else if (jqXHR.status == 500) {
-        displayMessage += "Internal Server Error.";
-      } else if (jqXHR.status == 503) {
-        displayMessage += "Service Unavailable.";
-      } else {
-        displayMessage += "Unable to connect to server."
-      }
-
-      $("#AutoUpdateErrorMsg").html(displayMessage).show();
-    }
+    error: ajaxRequestErrorHandler
    });
 }
 

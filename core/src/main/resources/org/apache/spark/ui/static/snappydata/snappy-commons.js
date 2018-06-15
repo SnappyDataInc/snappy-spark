@@ -108,3 +108,37 @@ function convertSizeToHumanReadable(value){
 
   return convertedValue;
 }
+
+/*
+ * An event handler function to handle error events occurred in AJAX request.
+ *
+ */
+var ajaxRequestErrorHandler = function (jqXHR, status, error) {
+
+  var displayMessage = "Could Not Fetch Statistics. <br>Reason: ";
+  if (jqXHR.status == 401) {
+    displayMessage += "Unauthorized Access.";
+  } else if (jqXHR.status == 404) {
+    displayMessage += "Server Not Found.";
+  } else if (jqXHR.status == 408) {
+    displayMessage += "Request Timeout.";
+  } else if (jqXHR.status == 500) {
+    displayMessage += "Internal Server Error.";
+  } else if (jqXHR.status == 503) {
+    displayMessage += "Service Unavailable.";
+  }
+
+  if (status === "timeout") {
+    displayMessage += "Request Timeout.";
+  } else if (status === "error") {
+    displayMessage += "Error Occurred.";
+  } else if (status === "abort") {
+    displayMessage += "Request Aborted.";
+  } else if (status === "parsererror") {
+    displayMessage += "Parser Error.";
+  } else {
+    displayMessage += status + " : "+error;;
+  }
+
+  $("#AutoUpdateErrorMsg").html(displayMessage).show();
+}
