@@ -240,15 +240,17 @@ private[deploy] class Master(
         logInfo("Registering app " + description.name)
         val app = createApplication(description, driver)
         if (nameToApp.get(app.desc.name.toLowerCase).isDefined) {
-          val msg = s"An application with name ${app.desc.name} is already running"
+          val msg = s"An application with name ${app.desc.name} is already running" +
+              s" with app id ${app.id}"
           logError(msg)
           driver.send(ApplicationRemoved(msg))
+        } else {
+          registerApplication(app)
+          logInfo("Registered app " + description.name + " with ID " + app.id)
+          persistenceEngine.addApplication(app)
+          driver.send(RegisteredApplication(app.id, self))
+          schedule()
         }
-        registerApplication(app)
-        logInfo("Registered app " + description.name + " with ID " + app.id)
-        persistenceEngine.addApplication(app)
-        driver.send(RegisteredApplication(app.id, self))
-        schedule()
       }
 
     case ExecutorStateChanged(appId, execId, state, message, exitStatus) =>
