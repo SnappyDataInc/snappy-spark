@@ -1,6 +1,10 @@
 
+var isGoogleChartLoaded = false;
 var isMemberCellExpanded = {};
 
+function updateCoreDetails(coresInfo) {
+  $("#totalCores").html(coresInfo.totalCores);
+}
 
 function toggleCellDetails(detailsId) {
 
@@ -348,6 +352,14 @@ function getExternalTableStatsGridConf() {
 }
 
 function updateUsageCharts(statsData){
+
+  // Load charts library if not already loaded
+  if(!isGoogleChartLoaded) {
+    // Set error message
+    $("#googleChartsErrorMsg").show();
+    return;
+  }
+
   var cpuChartData = new google.visualization.DataTable();
   cpuChartData.addColumn('datetime', 'Time of Day');
   cpuChartData.addColumn('number', 'CPU');
@@ -454,19 +466,39 @@ function updateUsageCharts(statsData){
     diskSpaceUsageChart.draw(diskSpaceUsageChartData, diskSpaceUsageChartOptions);
 }
 
-function loadGoogleCharts(){
-  google.charts.load('current', {'packages':['corechart']});
-  google.charts.setOnLoadCallback(googleChartsLoaded);
+function loadGoogleCharts() {
+
+  if((typeof google === 'object' && typeof google.charts === 'object')) {
+    $("#googleChartsErrorMsg").hide();
+    google.charts.load('current', {'packages':['corechart']});
+    google.charts.setOnLoadCallback(googleChartsLoaded);
+    isGoogleChartLoaded = true;
+  } else {
+    $("#googleChartsErrorMsg").show();
+  }
+
 }
 
-function googleChartsLoaded(){
+function googleChartsLoaded() {
   loadClusterInfo();
 }
 
 function loadClusterInfo() {
+
+  if(!isGoogleChartLoaded) {
+    $.ajax({
+      url: "https://www.gstatic.com/charts/loader.js",
+      dataType: "script",
+      success: function() {
+        loadGoogleCharts()
+      }
+    });
+  }
+
   $.ajax({
     url:"/snappy-api/services/clusterinfo",
     dataType: 'json',
+    // timeout: 5000,
     success: function (response, status, jqXHR) {
 
       // Hide error message, if displayed
@@ -477,43 +509,46 @@ function loadClusterInfo() {
 
       memberStatsGridData = response[0].membersInfo;
       membersStatsGrid.clear().rows.add(memberStatsGridData).draw();
+      if (membersStatsGrid.page.info().pages > membersStatsGridCurrPage) {
+        membersStatsGrid.page(membersStatsGridCurrPage).draw(false);
+      } else {
+        membersStatsGridCurrPage = 0;
+      }
 
       tableStatsGridData = response[0].tablesInfo;
       tableStatsGrid.clear().rows.add(tableStatsGridData).draw();
+      if (tableStatsGrid.page.info().pages > tableStatsGridCurrPage) {
+        tableStatsGrid.page(tableStatsGridCurrPage).draw(false);
+      } else {
+        tableStatsGridCurrPage = 0;
+      }
 
       extTableStatsGridData = response[0].externalTablesInfo;
       extTableStatsGrid.clear().rows.add(extTableStatsGridData).draw();
-
-    },
-    error: function (jqXHR, status, error) {
-      var displayMessage = "Could Not Fetch Cluster Stats Data. <br>Reason: ";
-      if (jqXHR.status == 401) {
-        displayMessage += "Unauthorized Access.";
-      } else if (jqXHR.status == 404) {
-        displayMessage += "Server Not Found.";
-      } else if (jqXHR.status == 408) {
-        displayMessage += "Request Timeout.";
-      } else if (jqXHR.status == 500) {
-        displayMessage += "Internal Server Error.";
-      } else if (jqXHR.status == 503) {
-        displayMessage += "Service Unavailable.";
+      if (extTableStatsGrid.page.info().pages > extTableStatsGridCurrPage) {
+        extTableStatsGrid.page(extTableStatsGridCurrPage).draw(false);
       } else {
-        displayMessage += "Unable to connect to server."
+        extTableStatsGridCurrPage = 0;
       }
 
-      $("#AutoUpdateErrorMsg").html(displayMessage).show();
-    }
+      updateCoreDetails(clusterInfo.coresInfo);
+
+    },
+    error: ajaxRequestErrorHandler
    });
 }
 
 var memberStatsGridData = [];
 var membersStatsGrid;
+var membersStatsGridCurrPage = 0;
 
 var tableStatsGridData = [];
 var tableStatsGrid;
+var tableStatsGridCurrPage = 0;
 
 var extTableStatsGridData = [];
 var extTableStatsGrid;
+var extTableStatsGridCurrPage = 0;
 
 $(document).ready(function() {
 
@@ -526,11 +561,21 @@ $(document).ready(function() {
   // Members Grid Data Table
   membersStatsGrid = $('#memberStatsGrid').DataTable( getMemberStatsGridConf() );
 
+  membersStatsGrid.on( 'page.dt', function () {
+    membersStatsGridCurrPage = membersStatsGrid.page.info().page;
+  });
+
   // Tables Grid Data Table
   tableStatsGrid = $('#tableStatsGrid').DataTable( getTableStatsGridConf() );
+  tableStatsGrid.on( 'page.dt', function () {
+    tableStatsGridCurrPage = tableStatsGrid.page.info().page;
+  });
 
   // External Tables Grid Data Table
   extTableStatsGrid = $('#extTableStatsGrid').DataTable( getExternalTableStatsGridConf() );
+  extTableStatsGrid.on( 'page.dt', function () {
+    extTableStatsGridCurrPage = extTableStatsGrid.page.info().page;
+  });
 
   var clusterStatsUpdateInterval = setInterval(function() {
     // todo: need to provision when to stop and start update feature
