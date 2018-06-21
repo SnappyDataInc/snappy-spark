@@ -178,9 +178,9 @@ private[spark] object UIUtils extends Logging {
       <link rel="stylesheet" href={prependBaseUri("/static/snappydata/snappy-dashboard.css")}
             type="text/css"/>
       <script src={prependBaseUri("/static/snappydata/d3.js")}></script>
+      <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
       <script src={prependBaseUri("/static/snappydata/liquidFillGauge.js")}></script>
-      <script src={prependBaseUri("/static/snappydata/snappy-dashboard.js")}></script>
-      <script src={prependBaseUri("/static/snappydata/snappy-memberdetails.js")}></script>
+      <script src={prependBaseUri("/static/snappydata/snappy-commons.js")}></script>
   }
 
   def vizHeaderNodes: Seq[Node] = {
@@ -213,7 +213,8 @@ private[spark] object UIUtils extends Logging {
       refreshInterval: Option[Int] = None,
       helpText: Option[String] = None,
       showVisualization: Boolean = false,
-      useDataTables: Boolean = false): Seq[Node] = {
+      useDataTables: Boolean = false,
+      isSnappyPage: Boolean = false): Seq[Node] = {
 
     val appName = activeTab.appName
     // val shortAppName = if (appName.length < 36) appName else appName.take(32) + "..."
@@ -224,9 +225,21 @@ private[spark] object UIUtils extends Logging {
     }
     val helpButton: Seq[Node] = helpText.map(tooltip(_, "bottom")).getOrElse(Seq.empty)
 
+    val pageTitleNodes: Seq[Node] = {
+      <div class="row-fluid">
+        <div class="span12">
+          <h3 style="vertical-align: bottom; display: inline-block;">
+            {title}
+            {helpButton}
+          </h3>
+        </div>
+      </div>
+    }
+
     <html>
       <head>
         {commonHeaderNodes}
+        {if (isSnappyPage) commonHeaderNodesSnappy else Seq.empty}
         {if (showVisualization) vizHeaderNodes else Seq.empty}
         {if (useDataTables) dataTablesHeaderNodes else Seq.empty}
         <title>{appName} - {title}</title>
@@ -250,64 +263,7 @@ private[spark] object UIUtils extends Logging {
           </div>
         </div>
         <div class="container-fluid">
-          <div class="row-fluid">
-            <div class="span12">
-              <h3 style="vertical-align: bottom; display: inline-block;">
-                {title}
-                {helpButton}
-              </h3>
-            </div>
-          </div>
-          {content}
-        </div>
-      </body>
-    </html>
-  }
-
-  /** Returns a simple spark page with correctly formatted tabs */
-  def simpleSparkPageWithTabs(
-      title: String,
-      content: => Seq[Node],
-      activeTab: SparkUITab,
-      refreshInterval: Option[Int] = None,
-      helpText: Option[String] = None,
-      showVisualization: Boolean = false): Seq[Node] = {
-
-    val appName = activeTab.appName
-    // val shortAppName = if (appName.length < 36) appName else appName.take(32) + "..."
-    val header = activeTab.headerTabs.map { tab =>
-      <li class={if (tab == activeTab) "active" else ""}>
-        <a href={prependBaseUri(activeTab.basePath, "/" + tab.prefix + "/")}>{tab.name}</a>
-      </li>
-    }
-    // val helpButton: Seq[Node] = helpText.map(tooltip(_, "bottom")).getOrElse(Seq.empty)
-
-    <html>
-      <head>
-        {commonHeaderNodes}
-        {commonHeaderNodesSnappy}
-        {if (showVisualization) vizHeaderNodes else Seq.empty}
-        <title>{appName} - {title}</title>
-      </head>
-      <body>
-        <div class="navbar navbar-static-top">
-          <div class="navbar-inner">
-            <div class="product-brand">
-              <a href={prependBaseUri("/")} class="brand">
-                <img src={prependBaseUri("/static/snappydata/pulse-snappydata-152X50.png")} />
-              </a>
-            </div>
-            <div class="brand" style="line-height: 2.5;">
-              <a href={prependBaseUri("/")} class="brand" style="float: left;">
-                <img src={prependBaseUri("/static/snappydata/snappydata-175X28.png")} />
-              </a>
-              {getProductVersionNode}
-            </div>
-            {getProductDocLinkNode()}
-            <ul class="nav">{header}</ul>
-          </div>
-        </div>
-        <div class="container-fluid">
+          {if (!isSnappyPage) pageTitleNodes else Seq.empty }
           {content}
         </div>
       </body>
