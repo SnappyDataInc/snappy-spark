@@ -31,8 +31,9 @@ import org.apache.spark.internal.config.ConfigEntry
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.catalyst._
 import org.apache.spark.sql.catalyst.expressions._
+import org.apache.spark.sql.catalyst.util.ArrayData
 import org.apache.spark.sql.execution.command.ShowTablesCommand
-import org.apache.spark.sql.internal.{SessionState, SharedState, SQLConf}
+import org.apache.spark.sql.internal.{SQLConf, SessionState, SharedState}
 import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.streaming.{DataStreamReader, StreamingQueryManager}
 import org.apache.spark.sql.types._
@@ -1124,7 +1125,24 @@ object SQLContext {
           (desc, (x: Any) => {
             val arr = Array.tabulate[Any](struct.length)(i =>
               extractors(i)._2(extractors(i)._1.getReadMethod.invoke(x)))
-            new GenericInternalRow(arr)
+            InternalRow(arr: _*)
+          })
+        case ArrayType(st: StructType, _) => val extractors = getExtractors(
+          Introspector.getBeanInfo(desc.getPropertyType.getComponentType), st.toAttributes)
+          (desc, (x: Any) => {
+            if (x != null) {
+              ArrayData.toArrayData(x.asInstanceOf[Array[_]].map(elem => {
+                if (elem != null) {
+                  val arr = Array.tabulate[Any](st.length)(i =>
+                    extractors(i)._2(extractors(i)._1.getReadMethod.invoke(elem)))
+                  InternalRow(arr: _*)
+                } else {
+                  null
+                }
+              }))
+            } else {
+              null
+            }
           })
         case _ => (desc, CatalystTypeConverters.createToCatalystConverter(attr.dataType))
       }
