@@ -36,7 +36,8 @@ private[spark] object UIUtils extends Logging {
 
   // SimpleDateFormat is not thread-safe. Don't expose it to avoid improper use.
   private val dateFormat = new ThreadLocal[SimpleDateFormat]() {
-    override def initialValue(): SimpleDateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss")
+    override def initialValue(): SimpleDateFormat =
+      new SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.US)
   }
 
   def formatDate(date: Date): String = dateFormat.get.format(date)
@@ -170,6 +171,16 @@ private[spark] object UIUtils extends Logging {
     <script src={prependBaseUri("/static/timeline-view.js")}></script>
     <script src={prependBaseUri("/static/log-view.js")}></script>
     <script src={prependBaseUri("/static/webui.js")}></script>
+    <script>setUIRoot('{UIUtils.uiRoot}')</script>
+  }
+
+  def commonHeaderNodesSnappy: Seq[Node] = {
+      <link rel="stylesheet" href={prependBaseUri("/static/snappydata/snappy-dashboard.css")}
+            type="text/css"/>
+      <script src={prependBaseUri("/static/snappydata/d3.js")}></script>
+      <script src={prependBaseUri("/static/snappydata/liquidFillGauge.js")}></script>
+      <script src={prependBaseUri("/static/snappydata/snappy-dashboard.js")}></script>
+      <script src={prependBaseUri("/static/snappydata/snappy-memberdetails.js")}></script>
   }
 
   def vizHeaderNodes: Seq[Node] = {
@@ -205,7 +216,7 @@ private[spark] object UIUtils extends Logging {
       useDataTables: Boolean = false): Seq[Node] = {
 
     val appName = activeTab.appName
-    val shortAppName = if (appName.length < 36) appName else appName.take(32) + "..."
+    // val shortAppName = if (appName.length < 36) appName else appName.take(32) + "..."
     val header = activeTab.headerTabs.map { tab =>
       <li class={if (tab == activeTab) "active" else ""}>
         <a href={prependBaseUri(activeTab.basePath, "/" + tab.prefix + "/")}>{tab.name}</a>
@@ -223,15 +234,18 @@ private[spark] object UIUtils extends Logging {
       <body>
         <div class="navbar navbar-static-top">
           <div class="navbar-inner">
-            <div class="brand">
+            <div class="product-brand">
               <a href={prependBaseUri("/")} class="brand">
-                <img src={prependBaseUri("/static/spark-logo-77x50px-hd.png")} />
-                <span class="version">{org.apache.spark.SPARK_VERSION}</span>
+                <img src={prependBaseUri("/static/snappydata/pulse-snappydata-152X50.png")} />
               </a>
             </div>
-            <p class="navbar-text pull-right">
-              <strong title={appName}>{shortAppName}</strong> application UI
-            </p>
+            <div class="brand" style="line-height: 2.5;">
+              <a href={prependBaseUri("/")} class="brand" style="float: left;">
+                <img src={prependBaseUri("/static/snappydata/snappydata-175X28.png")} />
+              </a>
+              {getProductVersionNode}
+            </div>
+            {getProductDocLinkNode()}
             <ul class="nav">{header}</ul>
           </div>
         </div>
@@ -244,6 +258,56 @@ private[spark] object UIUtils extends Logging {
               </h3>
             </div>
           </div>
+          {content}
+        </div>
+      </body>
+    </html>
+  }
+
+  /** Returns a simple spark page with correctly formatted tabs */
+  def simpleSparkPageWithTabs(
+      title: String,
+      content: => Seq[Node],
+      activeTab: SparkUITab,
+      refreshInterval: Option[Int] = None,
+      helpText: Option[String] = None,
+      showVisualization: Boolean = false): Seq[Node] = {
+
+    val appName = activeTab.appName
+    // val shortAppName = if (appName.length < 36) appName else appName.take(32) + "..."
+    val header = activeTab.headerTabs.map { tab =>
+      <li class={if (tab == activeTab) "active" else ""}>
+        <a href={prependBaseUri(activeTab.basePath, "/" + tab.prefix + "/")}>{tab.name}</a>
+      </li>
+    }
+    // val helpButton: Seq[Node] = helpText.map(tooltip(_, "bottom")).getOrElse(Seq.empty)
+
+    <html>
+      <head>
+        {commonHeaderNodes}
+        {commonHeaderNodesSnappy}
+        {if (showVisualization) vizHeaderNodes else Seq.empty}
+        <title>{appName} - {title}</title>
+      </head>
+      <body>
+        <div class="navbar navbar-static-top">
+          <div class="navbar-inner">
+            <div class="product-brand">
+              <a href={prependBaseUri("/")} class="brand">
+                <img src={prependBaseUri("/static/snappydata/pulse-snappydata-152X50.png")} />
+              </a>
+            </div>
+            <div class="brand" style="line-height: 2.5;">
+              <a href={prependBaseUri("/")} class="brand" style="float: left;">
+                <img src={prependBaseUri("/static/snappydata/snappydata-175X28.png")} />
+              </a>
+              {getProductVersionNode}
+            </div>
+            {getProductDocLinkNode()}
+            <ul class="nav">{header}</ul>
+          </div>
+        </div>
+        <div class="container-fluid">
           {content}
         </div>
       </body>
@@ -420,8 +484,8 @@ private[spark] object UIUtils extends Logging {
    * the whole string will rendered as a simple escaped text.
    *
    * Note: In terms of security, only anchor tags with root relative links are supported. So any
-   * attempts to embed links outside Spark UI, or other tags like <script> will cause in the whole
-   * description to be treated as plain text.
+   * attempts to embed links outside Spark UI, or other tags like {@code <script>} will cause in
+   * the whole description to be treated as plain text.
    *
    * @param desc        the original job or stage description string, which may contain html tags.
    * @param basePathUri with which to prepend the relative links; this is used when plainText is
@@ -510,4 +574,49 @@ private[spark] object UIUtils extends Logging {
 
   def getTimeZoneOffset() : Int =
     TimeZone.getDefault().getOffset(System.currentTimeMillis()) / 1000 / 60
+
+  /**
+  * Return the correct Href after checking if master is running in the
+  * reverse proxy mode or not.
+  */
+  def makeHref(proxy: Boolean, id: String, origHref: String): String = {
+    if (proxy) {
+      s"/proxy/$id"
+    } else {
+      origHref
+    }
+  }
+
+  def getProductVersionNode(): Node = {
+    val versionDetails = SparkUI.getProductVersion
+    val versionTooltipText =
+      "SnappyData Ver. " + versionDetails.getOrElse("productVersion", "") +
+          " ( Underlying Spark Ver. " + org.apache.spark.SPARK_VERSION + " )"
+
+    <div class="popup">
+      <span class="version" style="font-size: 14px; color: #202020;"
+            data-toggle="tooltip" data-placement="bottom" data-original-title={versionTooltipText}
+            onclick="displayVersionDetails()" >{
+          versionDetails.getOrElse("productVersion", "")
+        }
+      </span>
+      <div class="popuptext" id="sdVersionDetails">
+        Product Name : {versionDetails.getOrElse("productName", "")} <br/>
+        Product Version : {versionDetails.getOrElse("productVersion", "")} <br/>
+        Build : {
+          versionDetails.getOrElse("buildId", "") + " " +
+          versionDetails.getOrElse("buildDate", "")
+        } <br/>
+        Source Revision : {versionDetails.getOrElse("sourceRevision", "")} <br/>
+        Spark Version : {org.apache.spark.SPARK_VERSION}
+      </div>
+    </div>
+  }
+
+  def getProductDocLinkNode(): Node = {
+    <p class="navbar-text pull-right " style="padding-right:20px;">
+      <a href="http://snappydatainc.github.io/snappydata/" target="_blank">Docs</a>
+    </p>
+  }
+
 }

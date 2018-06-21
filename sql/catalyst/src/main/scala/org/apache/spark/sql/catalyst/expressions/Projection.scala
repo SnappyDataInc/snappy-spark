@@ -14,15 +14,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for SnappyData data platform.
+ *
+ * Portions Copyright (c) 2017 SnappyData, Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark.sql.catalyst.expressions
 
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.codegen.{GenerateSafeProjection, GenerateUnsafeProjection}
-import org.apache.spark.sql.types.{DataType, StructType}
+import org.apache.spark.sql.types._
 
 /**
  * A [[Projection]] that is calculated by calling the `eval` of each of the specified expressions.
+ *
  * @param expressions a sequence of expressions that determine the value of each column of the
  *                    output row.
  */
@@ -30,10 +49,12 @@ class InterpretedProjection(expressions: Seq[Expression]) extends Projection {
   def this(expressions: Seq[Expression], inputSchema: Seq[Attribute]) =
     this(expressions.map(BindReferences.bindReference(_, inputSchema)))
 
-  expressions.foreach(_.foreach {
-    case n: Nondeterministic => n.setInitialValues()
-    case _ =>
-  })
+  override def initialize(partitionIndex: Int): Unit = {
+    expressions.foreach(_.foreach {
+      case n: Nondeterministic => n.initialize(partitionIndex)
+      case _ =>
+    })
+  }
 
   // null check is required for when Kryo invokes the no-arg constructor.
   protected val exprArray = if (expressions != null) expressions.toArray else null
@@ -54,6 +75,7 @@ class InterpretedProjection(expressions: Seq[Expression]) extends Projection {
 /**
  * A [[MutableProjection]] that is calculated by calling `eval` on each of the specified
  * expressions.
+ *
  * @param expressions a sequence of expressions that determine the value of each column of the
  *                    output row.
  */
@@ -63,17 +85,51 @@ case class InterpretedMutableProjection(expressions: Seq[Expression]) extends Mu
 
   private[this] val buffer = new Array[Any](expressions.size)
 
-  expressions.foreach(_.foreach {
-    case n: Nondeterministic => n.setInitialValues()
-    case _ =>
-  })
+  override def initialize(partitionIndex: Int): Unit = {
+    expressions.foreach(_.foreach {
+      case n: Nondeterministic => n.initialize(partitionIndex)
+      case _ =>
+    })
+  }
 
+  private var targetUnsafe = false
+  type UnsafeSetter = (UnsafeRow, Any) => Unit
+  private var setters: Array[UnsafeSetter] = _
   private[this] val exprArray = expressions.toArray
-  private[this] var mutableRow: MutableRow = new GenericMutableRow(exprArray.length)
+  private[this] var mutableRow: InternalRow = new GenericInternalRow(exprArray.length)
   def currentValue: InternalRow = mutableRow
 
-  override def target(row: MutableRow): MutableProjection = {
+  override def target(row: InternalRow): MutableProjection = {
     mutableRow = row
+    targetUnsafe = row match {
+      case _: UnsafeRow =>
+        if (setters == null) {
+          setters = Array.ofDim[UnsafeSetter](exprArray.length)
+          for (i <- exprArray.indices) {
+            setters(i) = exprArray(i).dataType match {
+              case IntegerType => (target: UnsafeRow, value: Any) =>
+                target.setInt(i, value.asInstanceOf[Int])
+              case LongType => (target: UnsafeRow, value: Any) =>
+                target.setLong(i, value.asInstanceOf[Long])
+              case DoubleType => (target: UnsafeRow, value: Any) =>
+                target.setDouble(i, value.asInstanceOf[Double])
+              case FloatType => (target: UnsafeRow, value: Any) =>
+                target.setFloat(i, value.asInstanceOf[Float])
+              case NullType => (target: UnsafeRow, value: Any) =>
+                target.setNullAt(i)
+              case BooleanType => (target: UnsafeRow, value: Any) =>
+                target.setBoolean(i, value.asInstanceOf[Boolean])
+              case ByteType => (target: UnsafeRow, value: Any) =>
+                target.setByte(i, value.asInstanceOf[Byte])
+              case ShortType => (target: UnsafeRow, value: Any) =>
+                target.setShort(i, value.asInstanceOf[Short])
+            }
+          }
+        }
+        true
+      case _ => false
+    }
+
     this
   }
 
@@ -86,7 +142,11 @@ case class InterpretedMutableProjection(expressions: Seq[Expression]) extends Mu
     }
     i = 0
     while (i < exprArray.length) {
-      mutableRow(i) = buffer(i)
+      if (targetUnsafe) {
+        setters(i)(mutableRow.asInstanceOf[UnsafeRow], buffer(i))
+      } else {
+        mutableRow(i) = buffer(i)
+      }
       i += 1
     }
     mutableRow
@@ -119,7 +179,6 @@ object UnsafeProjection {
    */
   def create(exprs: Seq[Expression]): UnsafeProjection = {
     val unsafeExprs = exprs.map(_ transform {
-      case CreateStruct(children) => CreateStructUnsafe(children)
       case CreateNamedStruct(children) => CreateNamedStructUnsafe(children)
     })
     GenerateUnsafeProjection.generate(unsafeExprs)
@@ -145,7 +204,6 @@ object UnsafeProjection {
       subexpressionEliminationEnabled: Boolean): UnsafeProjection = {
     val e = exprs.map(BindReferences.bindReference(_, inputSchema))
       .map(_ transform {
-        case CreateStruct(children) => CreateStructUnsafe(children)
         case CreateNamedStruct(children) => CreateNamedStructUnsafe(children)
     })
     GenerateUnsafeProjection.generate(e, subexpressionEliminationEnabled)

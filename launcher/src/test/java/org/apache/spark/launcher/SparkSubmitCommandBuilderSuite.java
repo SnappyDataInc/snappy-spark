@@ -173,6 +173,24 @@ public class SparkSubmitCommandBuilderSuite extends BaseSuite {
   }
 
   @Test
+  public void testSparkRShell() throws Exception {
+    List<String> sparkSubmitArgs = Arrays.asList(
+      SparkSubmitCommandBuilder.SPARKR_SHELL,
+      "--master=foo",
+      "--deploy-mode=bar",
+      "--conf", "spark.r.shell.command=/usr/bin/R");
+
+    Map<String, String> env = new HashMap<>();
+    List<String> cmd = buildCommand(sparkSubmitArgs, env);
+    assertEquals("/usr/bin/R", cmd.get(cmd.size() - 1));
+    assertEquals(
+      String.format(
+        "\"%s\" \"foo\" \"%s\" \"bar\" \"--conf\" \"spark.r.shell.command=/usr/bin/R\" \"%s\"",
+        parser.MASTER, parser.DEPLOY_MODE, SparkSubmitCommandBuilder.SPARKR_SHELL_RESOURCE),
+      env.get("SPARKR_SUBMIT_ARGS"));
+  }
+
+  @Test
   public void testExamplesRunner() throws Exception {
     List<String> sparkSubmitArgs = Arrays.asList(
       SparkSubmitCommandBuilder.RUN_EXAMPLE,
@@ -218,7 +236,11 @@ public class SparkSubmitCommandBuilderSuite extends BaseSuite {
       launcher.conf.put(SparkLauncher.DRIVER_EXTRA_JAVA_OPTIONS, "-Ddriver -XX:MaxPermSize=256m");
       launcher.conf.put(SparkLauncher.DRIVER_EXTRA_LIBRARY_PATH, "/native");
     } else {
-      launcher.childEnv.put("SPARK_CONF_DIR", System.getProperty("spark.test.home")
+      String projectHome = System.getProperty("spark.project.home");
+      if (projectHome == null) {
+        projectHome = System.getProperty("spark.test.home");
+      }
+      launcher.childEnv.put("SPARK_CONF_DIR", projectHome
           + "/launcher/src/test/resources");
     }
 

@@ -296,9 +296,7 @@ private[spark] abstract class MockBackend(
    * updates some internal state for this mock.
    */
   def taskSuccess(task: TaskDescription, result: Any): Unit = {
-    val ser = env.serializer.newInstance()
-    val resultBytes = ser.serialize(result)
-    val directResult = new DirectTaskResult(resultBytes, Seq()) // no accumulator updates
+    val directResult = new DirectTaskResult(result, Seq()) // no accumulator updates
     taskUpdate(task, TaskState.FINISHED, directResult)
   }
 
@@ -315,7 +313,8 @@ private[spark] abstract class MockBackend(
   }
 
   def taskUpdate(task: TaskDescription, state: TaskState, result: Any): Unit = {
-    val ser = env.serializer.newInstance()
+    val ser = if (state == TaskState.FINISHED) env.serializer.newInstance()
+    else env.closureSerializer.newInstance()
     val resultBytes = ser.serialize(result)
     // statusUpdate is safe to call from multiple threads, its protected inside taskScheduler
     taskScheduler.statusUpdate(task.taskId, state, resultBytes)
@@ -366,13 +365,13 @@ private[spark] abstract class MockBackend(
    */
   def executorIdToExecutor: Map[String, ExecutorTaskStatus]
 
-  private def generateOffers(): Seq[WorkerOffer] = {
+  private def generateOffers(): IndexedSeq[WorkerOffer] = {
     executorIdToExecutor.values.filter { exec =>
       exec.freeCores > 0
     }.map { exec =>
       WorkerOffer(executorId = exec.executorId, host = exec.host,
         cores = exec.freeCores)
-    }.toSeq
+    }.toIndexedSeq
   }
 
   /**
@@ -381,8 +380,7 @@ private[spark] abstract class MockBackend(
    * scheduling.
    */
   override def reviveOffers(): Unit = {
-    val offers: Seq[WorkerOffer] = generateOffers()
-    val newTaskDescriptions = taskScheduler.resourceOffers(offers).flatten
+    val newTaskDescriptions = taskScheduler.resourceOffers(generateOffers()).flatten
     // get the task now, since that requires a lock on TaskSchedulerImpl, to prevent individual
     // tests from introducing a race if they need it
     val newTasks = taskScheduler.synchronized {
@@ -621,9 +619,9 @@ class BasicSchedulerIntegrationSuite extends SchedulerIntegrationSuite[SingleCor
       val duration = Duration(1, SECONDS)
       awaitJobTermination(jobFuture, duration)
     }
+    assertDataStructuresEmpty()
     assert(results === (0 until 10).map { idx => idx -> (42 + idx) }.toMap)
     assert(stageToAttempts === Map(0 -> Set(0, 1), 1 -> Set(0, 1)))
-    assertDataStructuresEmpty()
   }
 
   testScheduler("job failure after 4 attempts") {
@@ -635,7 +633,7 @@ class BasicSchedulerIntegrationSuite extends SchedulerIntegrationSuite[SingleCor
       val jobFuture = submit(new MockRDD(sc, 10, Nil), (0 until 10).toArray)
       val duration = Duration(1, SECONDS)
       awaitJobTermination(jobFuture, duration)
-      failure.getMessage.contains("test task failure")
+      assert(failure.getMessage.contains("test task failure"))
     }
     assertDataStructuresEmpty(noFailure = false)
   }

@@ -32,6 +32,7 @@ import com.google.common.base.Objects;
 import org.junit.*;
 import org.junit.rules.ExpectedException;
 
+import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.*;
 import org.apache.spark.sql.*;
@@ -816,6 +817,208 @@ public class JavaDatasetSuite implements Serializable {
     }
   }
 
+  public static class NestedBean implements Serializable {
+
+    private int id;
+    private String name;
+    private long longField;
+    private short shortField;
+    private byte byteField;
+    private double doubleField;
+    private float floatField;
+    private boolean booleanField;
+    private byte[] binaryField;
+    private Date date;
+    private Timestamp timestamp;
+    private Address address;
+
+    public NestedBean(int id, String name, long longValue, short shortValue, byte byteValue,
+        double doubleValue, float floatValue, boolean booleanValue, byte[] binaryValue,
+        Date date, Timestamp timestamp, Address address) {
+      this.id = id;
+      this.name = name;
+      this.longField = longValue;
+      this.shortField = shortValue;
+      this.byteField = byteValue;
+      this.doubleField = doubleValue;
+      this.floatField = floatValue;
+      this.booleanField = booleanValue;
+      this.binaryField = binaryValue;
+      this.date = date;
+      this.timestamp = timestamp;
+      this.address = address;
+    }
+
+    public NestedBean() {
+      this(0, null, 0, (short)0, (byte)0, 0d, 0f, false, null, null, null, null);
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public int getId() {
+      return id;
+    }
+
+    public long getLongField() {
+      return longField;
+    }
+
+    public short getShortField() {
+      return shortField;
+    }
+
+    public byte getByteField() {
+      return byteField;
+    }
+
+    public double getDoubleField() {
+      return doubleField;
+    }
+
+    public float getFloatField() {
+      return floatField;
+    }
+
+    public boolean getBooleanField() {
+      return booleanField;
+    }
+
+    public byte[] getBinaryField() {
+      return binaryField;
+    }
+
+    public Date getDate() {
+      return date;
+    }
+
+    public Timestamp getTimestamp() {
+      return timestamp;
+    }
+
+    public Address getAddress() {
+      return address;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public void setId(int id) {
+      this.id = id;
+    }
+
+    public void setLongField(long longValue) {
+      this.longField = longValue;
+    }
+
+    public void setShortField(short shortValue) {
+      this.shortField = shortValue;
+    }
+
+    public void setByteField(byte byteValue) {
+      this.byteField = byteValue;
+    }
+
+    public void setDoubleField(double doubleValue) {
+      this.doubleField = doubleValue;
+    }
+
+    public void setFloatField(float floatValue) {
+      this.floatField = floatValue;
+    }
+
+    public void setBooleanField(boolean booleanValue) {
+      this.booleanField = booleanValue;
+    }
+
+    public void setBinaryField(byte[] binaryValue) {
+      this.binaryField = binaryValue;
+    }
+
+    public void setDate(Date date) {
+      this.date = date;
+    }
+
+    public void setTimestamp(Timestamp timestamp) {
+      this.timestamp = timestamp;
+    }
+
+    public void setAddress(Address address) {
+      this.address = address;
+    }
+  }
+
+  public static class Address implements Serializable {
+
+    private String street;
+    private int zip;
+
+    public Address(String street, int zip) {
+      this.street = street;
+      this.zip = zip;
+    }
+
+    public Address() {
+      this(null, -1);
+    }
+
+    public String getStreet() {
+      return this.street;
+    }
+
+    public int getZip() {
+      return this.zip;
+    }
+
+    public void setStreet(String street) {
+      this.street = street;
+    }
+
+    public void setZip(int zip) {
+      this.zip = zip;
+    }
+  }
+
+  private void checkNestedBeansResult(List<Row> rows) {
+    Set<Integer> keys = new HashSet<>(100);
+    for (int k = 1; k <= 100; k++) {
+      keys.add(k);
+    }
+    for (Row row : rows) {
+      int k = row.<Integer>getAs("id");
+      Assert.assertTrue(keys.remove(k));
+      Assert.assertEquals("String field match not as expected",
+          "name_" + k, row.<String>getAs("name"));
+      Assert.assertEquals("Long field match not as expected",
+          (long)k, row.<Long>getAs("longField").longValue());
+      Assert.assertEquals("Short field match not as expected",
+          (short)k, row.<Short>getAs("shortField").shortValue());
+      Assert.assertEquals("Byte field match not as expected",
+          (byte)k, row.<Byte>getAs("byteField").byteValue());
+      Assert.assertEquals("Double field match not as expected",
+          k * 86.7543d, row.<Double>getAs("doubleField"), 0.0);
+      Assert.assertEquals("Float field match not as expected",
+          k * 7.31f, row.<Float>getAs("floatField"), 0.0f);
+      Assert.assertTrue("Boolean field match not as expected",
+          row.<Boolean>getAs("booleanField"));
+      byte[] bytesValue = new byte[k];
+      Arrays.fill(bytesValue, (byte)k);
+      Assert.assertTrue(Arrays.equals(bytesValue, (byte[])row.getAs("binaryField")));
+      Assert.assertEquals("Date field match not as expected",
+          new Date(7836L * k * 1000L).toString(), row.<Date>getAs("date").toString());
+      Assert.assertEquals("TimeStamp field match not as expected",
+          new Timestamp(7896L * k * 1000L), row.<Timestamp>getAs("timestamp"));
+      Row addressStruct = row.getAs("address");
+      Assert.assertEquals("Address.street field match not as expected",
+          "12320 sw horizon," + k, addressStruct.<String>getAs("street"));
+      Assert.assertEquals("Address.zip field match not as expected",
+          97007 * k, addressStruct.<Integer>getAs("zip").intValue());
+    }
+    assert (keys.isEmpty());
+  }
+
   @Rule
   public transient ExpectedException nullabilityCheck = ExpectedException.none();
 
@@ -875,5 +1078,535 @@ public class JavaDatasetSuite implements Serializable {
 
       ds.collect();
     }
+  }
+
+  public static class Nesting3 implements Serializable {
+    private Integer field3_1;
+    private Double field3_2;
+    private String field3_3;
+
+    public Nesting3() {
+    }
+
+    public Nesting3(Integer field3_1, Double field3_2, String field3_3) {
+      this.field3_1 = field3_1;
+      this.field3_2 = field3_2;
+      this.field3_3 = field3_3;
+    }
+
+    private Nesting3(Builder builder) {
+      setField3_1(builder.field3_1);
+      setField3_2(builder.field3_2);
+      setField3_3(builder.field3_3);
+    }
+
+    public static Builder newBuilder() {
+      return new Builder();
+    }
+
+    public Integer getField3_1() {
+      return field3_1;
+    }
+
+    public void setField3_1(Integer field3_1) {
+      this.field3_1 = field3_1;
+    }
+
+    public Double getField3_2() {
+      return field3_2;
+    }
+
+    public void setField3_2(Double field3_2) {
+      this.field3_2 = field3_2;
+    }
+
+    public String getField3_3() {
+      return field3_3;
+    }
+
+    public void setField3_3(String field3_3) {
+      this.field3_3 = field3_3;
+    }
+
+    public static final class Builder {
+      private Integer field3_1 = 0;
+      private Double field3_2 = 0.0;
+      private String field3_3 = "value";
+
+      private Builder() {
+      }
+
+      public Builder field3_1(Integer field3_1) {
+        this.field3_1 = field3_1;
+        return this;
+      }
+
+      public Builder field3_2(Double field3_2) {
+        this.field3_2 = field3_2;
+        return this;
+      }
+
+      public Builder field3_3(String field3_3) {
+        this.field3_3 = field3_3;
+        return this;
+      }
+
+      public Nesting3 build() {
+        return new Nesting3(this);
+      }
+    }
+  }
+
+  public static class Nesting2 implements Serializable {
+    private Nesting3 field2_1;
+    private Nesting3 field2_2;
+    private Nesting3 field2_3;
+
+    public Nesting2() {
+    }
+
+    public Nesting2(Nesting3 field2_1, Nesting3 field2_2, Nesting3 field2_3) {
+      this.field2_1 = field2_1;
+      this.field2_2 = field2_2;
+      this.field2_3 = field2_3;
+    }
+
+    private Nesting2(Builder builder) {
+      setField2_1(builder.field2_1);
+      setField2_2(builder.field2_2);
+      setField2_3(builder.field2_3);
+    }
+
+    public static Builder newBuilder() {
+      return new Builder();
+    }
+
+    public Nesting3 getField2_1() {
+      return field2_1;
+    }
+
+    public void setField2_1(Nesting3 field2_1) {
+      this.field2_1 = field2_1;
+    }
+
+    public Nesting3 getField2_2() {
+      return field2_2;
+    }
+
+    public void setField2_2(Nesting3 field2_2) {
+      this.field2_2 = field2_2;
+    }
+
+    public Nesting3 getField2_3() {
+      return field2_3;
+    }
+
+    public void setField2_3(Nesting3 field2_3) {
+      this.field2_3 = field2_3;
+    }
+
+
+    public static final class Builder {
+      private Nesting3 field2_1 = Nesting3.newBuilder().build();
+      private Nesting3 field2_2 = Nesting3.newBuilder().build();
+      private Nesting3 field2_3 = Nesting3.newBuilder().build();
+
+      private Builder() {
+      }
+
+      public Builder field2_1(Nesting3 field2_1) {
+        this.field2_1 = field2_1;
+        return this;
+      }
+
+      public Builder field2_2(Nesting3 field2_2) {
+        this.field2_2 = field2_2;
+        return this;
+      }
+
+      public Builder field2_3(Nesting3 field2_3) {
+        this.field2_3 = field2_3;
+        return this;
+      }
+
+      public Nesting2 build() {
+        return new Nesting2(this);
+      }
+    }
+  }
+
+  public static class Nesting1 implements Serializable {
+    private Nesting2 field1_1;
+    private Nesting2 field1_2;
+    private Nesting2 field1_3;
+
+    public Nesting1() {
+    }
+
+    public Nesting1(Nesting2 field1_1, Nesting2 field1_2, Nesting2 field1_3) {
+      this.field1_1 = field1_1;
+      this.field1_2 = field1_2;
+      this.field1_3 = field1_3;
+    }
+
+    private Nesting1(Builder builder) {
+      setField1_1(builder.field1_1);
+      setField1_2(builder.field1_2);
+      setField1_3(builder.field1_3);
+    }
+
+    public static Builder newBuilder() {
+      return new Builder();
+    }
+
+    public Nesting2 getField1_1() {
+      return field1_1;
+    }
+
+    public void setField1_1(Nesting2 field1_1) {
+      this.field1_1 = field1_1;
+    }
+
+    public Nesting2 getField1_2() {
+      return field1_2;
+    }
+
+    public void setField1_2(Nesting2 field1_2) {
+      this.field1_2 = field1_2;
+    }
+
+    public Nesting2 getField1_3() {
+      return field1_3;
+    }
+
+    public void setField1_3(Nesting2 field1_3) {
+      this.field1_3 = field1_3;
+    }
+
+
+    public static final class Builder {
+      private Nesting2 field1_1 = Nesting2.newBuilder().build();
+      private Nesting2 field1_2 = Nesting2.newBuilder().build();
+      private Nesting2 field1_3 = Nesting2.newBuilder().build();
+
+      private Builder() {
+      }
+
+      public Builder field1_1(Nesting2 field1_1) {
+        this.field1_1 = field1_1;
+        return this;
+      }
+
+      public Builder field1_2(Nesting2 field1_2) {
+        this.field1_2 = field1_2;
+        return this;
+      }
+
+      public Builder field1_3(Nesting2 field1_3) {
+        this.field1_3 = field1_3;
+        return this;
+      }
+
+      public Nesting1 build() {
+        return new Nesting1(this);
+      }
+    }
+  }
+
+  public static class NestedComplicatedJavaBean implements Serializable {
+    private Nesting1 field1;
+    private Nesting1 field2;
+    private Nesting1 field3;
+    private Nesting1 field4;
+    private Nesting1 field5;
+    private Nesting1 field6;
+    private Nesting1 field7;
+    private Nesting1 field8;
+    private Nesting1 field9;
+    private Nesting1 field10;
+
+    public NestedComplicatedJavaBean() {
+    }
+
+    private NestedComplicatedJavaBean(Builder builder) {
+      setField1(builder.field1);
+      setField2(builder.field2);
+      setField3(builder.field3);
+      setField4(builder.field4);
+      setField5(builder.field5);
+      setField6(builder.field6);
+      setField7(builder.field7);
+      setField8(builder.field8);
+      setField9(builder.field9);
+      setField10(builder.field10);
+    }
+
+    public static Builder newBuilder() {
+      return new Builder();
+    }
+
+    public Nesting1 getField1() {
+      return field1;
+    }
+
+    public void setField1(Nesting1 field1) {
+      this.field1 = field1;
+    }
+
+    public Nesting1 getField2() {
+      return field2;
+    }
+
+    public void setField2(Nesting1 field2) {
+      this.field2 = field2;
+    }
+
+    public Nesting1 getField3() {
+      return field3;
+    }
+
+    public void setField3(Nesting1 field3) {
+      this.field3 = field3;
+    }
+
+    public Nesting1 getField4() {
+      return field4;
+    }
+
+    public void setField4(Nesting1 field4) {
+      this.field4 = field4;
+    }
+
+    public Nesting1 getField5() {
+      return field5;
+    }
+
+    public void setField5(Nesting1 field5) {
+      this.field5 = field5;
+    }
+
+    public Nesting1 getField6() {
+      return field6;
+    }
+
+    public void setField6(Nesting1 field6) {
+      this.field6 = field6;
+    }
+
+    public Nesting1 getField7() {
+      return field7;
+    }
+
+    public void setField7(Nesting1 field7) {
+      this.field7 = field7;
+    }
+
+    public Nesting1 getField8() {
+      return field8;
+    }
+
+    public void setField8(Nesting1 field8) {
+      this.field8 = field8;
+    }
+
+    public Nesting1 getField9() {
+      return field9;
+    }
+
+    public void setField9(Nesting1 field9) {
+      this.field9 = field9;
+    }
+
+    public Nesting1 getField10() {
+      return field10;
+    }
+
+    public void setField10(Nesting1 field10) {
+      this.field10 = field10;
+    }
+
+    public static final class Builder {
+      private Nesting1 field1 = Nesting1.newBuilder().build();
+      private Nesting1 field2 = Nesting1.newBuilder().build();
+      private Nesting1 field3 = Nesting1.newBuilder().build();
+      private Nesting1 field4 = Nesting1.newBuilder().build();
+      private Nesting1 field5 = Nesting1.newBuilder().build();
+      private Nesting1 field6 = Nesting1.newBuilder().build();
+      private Nesting1 field7 = Nesting1.newBuilder().build();
+      private Nesting1 field8 = Nesting1.newBuilder().build();
+      private Nesting1 field9 = Nesting1.newBuilder().build();
+      private Nesting1 field10 = Nesting1.newBuilder().build();
+
+      private Builder() {
+      }
+
+      public Builder field1(Nesting1 field1) {
+        this.field1 = field1;
+        return this;
+      }
+
+      public Builder field2(Nesting1 field2) {
+        this.field2 = field2;
+        return this;
+      }
+
+      public Builder field3(Nesting1 field3) {
+        this.field3 = field3;
+        return this;
+      }
+
+      public Builder field4(Nesting1 field4) {
+        this.field4 = field4;
+        return this;
+      }
+
+      public Builder field5(Nesting1 field5) {
+        this.field5 = field5;
+        return this;
+      }
+
+      public Builder field6(Nesting1 field6) {
+        this.field6 = field6;
+        return this;
+      }
+
+      public Builder field7(Nesting1 field7) {
+        this.field7 = field7;
+        return this;
+      }
+
+      public Builder field8(Nesting1 field8) {
+        this.field8 = field8;
+        return this;
+      }
+
+      public Builder field9(Nesting1 field9) {
+        this.field9 = field9;
+        return this;
+      }
+
+      public Builder field10(Nesting1 field10) {
+        this.field10 = field10;
+        return this;
+      }
+
+      public NestedComplicatedJavaBean build() {
+        return new NestedComplicatedJavaBean(this);
+      }
+    }
+  }
+
+  @Test
+  public void test() {
+    /* SPARK-15285 Large numbers of Nested JavaBeans generates more than 64KB java bytecode */
+    List<NestedComplicatedJavaBean> data = new ArrayList<NestedComplicatedJavaBean>();
+    data.add(NestedComplicatedJavaBean.newBuilder().build());
+
+    NestedComplicatedJavaBean obj3 = new NestedComplicatedJavaBean();
+
+    Dataset<NestedComplicatedJavaBean> ds =
+      spark.createDataset(data, Encoders.bean(NestedComplicatedJavaBean.class));
+    ds.collectAsList();
+  }
+
+  @Test(expected = RuntimeException.class)
+  public void testNullInTopLevelBean() {
+    NestedSmallBean bean = new NestedSmallBean();
+    // We cannot set null in top-level bean
+    spark.createDataset(Arrays.asList(bean, null), Encoders.bean(NestedSmallBean.class));
+  }
+
+  @Test
+  public void testSerializeNull() {
+    NestedSmallBean bean = new NestedSmallBean();
+    Encoder<NestedSmallBean> encoder = Encoders.bean(NestedSmallBean.class);
+    List<NestedSmallBean> beans = Arrays.asList(bean);
+    Dataset<NestedSmallBean> ds1 = spark.createDataset(beans, encoder);
+    Assert.assertEquals(beans, ds1.collectAsList());
+    Dataset<NestedSmallBean> ds2 =
+      ds1.map(new MapFunction<NestedSmallBean, NestedSmallBean>() {
+        @Override
+        public NestedSmallBean call(NestedSmallBean b) throws Exception {
+          return b;
+        }
+      }, encoder);
+    Assert.assertEquals(beans, ds2.collectAsList());
+  }
+
+  // see SNAP-2061
+  @Test
+  public void testNestedBeanInDataFrameFromRDD() {
+    List<NestedBean> beanCollection = new ArrayList<>(100);
+    for (int k = 1; k <= 100; k++) {
+      byte[] bytesValue = new byte[k];
+      Arrays.fill(bytesValue, (byte)k);
+      beanCollection.add(new NestedBean(k, "name_" + k, (long)k, (short)k,
+          (byte)k, (double)k * 86.7543d, (float)k * 7.31f, true,
+          bytesValue, new Date(7836L * k * 1000L), new Timestamp(7896L * k * 1000L),
+          new Address("12320 sw horizon," + k, 97007 * k)));
+    }
+
+    JavaRDD<NestedBean> beanRDD = jsc.parallelize(beanCollection);
+    Dataset<Row> df = spark.createDataFrame(beanRDD, NestedBean.class);
+    checkNestedBeansResult(df.collectAsList());
+  }
+
+  // see SNAP-2061
+  @Test
+  public void testNestedBeanInDatasetFromRDD() {
+    List<NestedBean> beansCollection = new ArrayList<>(100);
+    for (int k = 1; k <= 100; k++) {
+      byte[] bytesValue = new byte[k];
+      Arrays.fill(bytesValue, (byte)k);
+      beansCollection.add(new NestedBean(k, "name_" + k, (long)k, (short)k,
+          (byte)k, (double)k * 86.7543d, (float)k * 7.31f, true,
+          bytesValue, new Date(7836L * k * 1000L), new Timestamp(7896L * k * 1000L),
+          new Address("12320 sw horizon," + k, 97007 * k)));
+    }
+
+    Encoder<NestedBean> encoder = Encoders.bean(NestedBean.class);
+    Dataset<NestedBean> beansDataset = spark.createDataset(beansCollection, encoder);
+    checkNestedBeansResult(beansDataset.toDF().collectAsList());
+
+    beansDataset.createOrReplaceTempView("tempPersonsTable");
+    List<Row> rows = spark.sql("select * from tempPersonsTable").collectAsList();
+    checkNestedBeansResult(rows);
+
+    // test Dataset.as[Person]
+    JavaRDD<Row> beansRDD = jsc.parallelize(rows);
+    Dataset<Row> beansDF = spark.createDataFrame(beansRDD, beansDataset.schema());
+    List<NestedBean> results = beansDF.as(encoder).collectAsList();
+    Set<Integer> keys = new HashSet<>(100);
+    for (int k = 1; k <= 100; k++) {
+      keys.add(k);
+    }
+    for (NestedBean bean : results) {
+      int k = bean.getId();
+      Assert.assertTrue(keys.remove(k));
+      Assert.assertEquals("String field match not as expected", "name_" + k, bean.getName());
+      Assert.assertEquals("Long field match not as expected", k, bean.getLongField());
+      Assert.assertEquals("Short field match not as expected", (short)k, bean.getShortField());
+      Assert.assertEquals("Byte field match not as expected", (byte)k, bean.getByteField());
+      Assert.assertEquals("Double field match not as expected",
+          k * 86.7543d, bean.getDoubleField(), 0.0);
+      Assert.assertEquals("Float field match not as expected",
+          k * 7.31f, bean.getFloatField(), 0.0f);
+      Assert.assertTrue("Boolean field match not as expected", bean.getBooleanField());
+      byte[] bytesValue = new byte[k];
+      Arrays.fill(bytesValue, (byte)k);
+      Assert.assertTrue(Arrays.equals(bytesValue, bean.getBinaryField()));
+      Assert.assertEquals("Date field match not as expected",
+          new Date(7836L * k * 1000L).toString(), bean.getDate().toString());
+      Assert.assertEquals("TimeStamp field match not as expected",
+          new Timestamp(7896L * k * 1000L), bean.getTimestamp());
+      Address address = bean.getAddress();
+      Assert.assertEquals("Address.street field match not as expected",
+          "12320 sw horizon," + k, address.getStreet());
+      Assert.assertEquals("Address.zip field match not as expected",
+          97007 * k, address.getZip());
+    }
+    assert (keys.isEmpty());
+
+    spark.catalog().dropTempView("tempPersonsTable");
   }
 }

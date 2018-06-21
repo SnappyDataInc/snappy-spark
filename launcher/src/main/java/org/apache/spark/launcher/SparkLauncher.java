@@ -14,6 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for SnappyData data platform.
+ *
+ * Portions Copyright (c) 2017 SnappyData, Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark.launcher;
 
@@ -63,6 +81,12 @@ public class SparkLauncher {
   public static final String EXECUTOR_EXTRA_LIBRARY_PATH = "spark.executor.extraLibraryPath";
   /** Configuration key for the number of executor CPU cores. */
   public static final String EXECUTOR_CORES = "spark.executor.cores";
+
+  static final String PYSPARK_DRIVER_PYTHON = "spark.pyspark.driver.python";
+
+  static final String PYSPARK_PYTHON = "spark.pyspark.python";
+
+  static final String SPARKR_R_SHELL = "spark.r.shell.command";
 
   /** Logger name to use when launching a child process. */
   public static final String CHILD_PROCESS_LOGGER_NAME = "spark.launcher.childProcLoggerName";
@@ -171,7 +195,8 @@ public class SparkLauncher {
   public SparkLauncher setConf(String key, String value) {
     checkNotNull(key, "key");
     checkNotNull(value, "value");
-    checkArgument(key.startsWith("spark."), "'key' must start with 'spark.'");
+    checkArgument(key.startsWith("spark.") || key.startsWith("snappydata."),
+        "'key' must start with 'spark.' or 'snappydata.'");
     builder.conf.put(key, value);
     return this;
   }

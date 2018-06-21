@@ -24,7 +24,7 @@ import org.apache.spark.sql.catalyst.util.TypeUtils
 import org.apache.spark.sql.types._
 
 @ExpressionDescription(
-  usage = "_FUNC_(x) - Returns the mean calculated from values of a group.")
+  usage = "_FUNC_(expr) - Returns the mean calculated from values of a group.")
 case class Average(child: Expression) extends DeclarativeAggregate {
 
   override def prettyName: String = "avg"
@@ -53,7 +53,7 @@ case class Average(child: Expression) extends DeclarativeAggregate {
   }
 
   private lazy val sum = AttributeReference("sum", sumDataType)()
-  private lazy val count = AttributeReference("count", LongType)()
+  private lazy val count = AttributeReference("count", LongType, nullable = false)()
 
   override lazy val aggBufferAttributes = sum :: count :: Nil
 

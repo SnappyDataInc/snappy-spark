@@ -14,10 +14,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for SnappyData data platform.
+ *
+ * Portions Copyright (c) 2017 SnappyData, Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark.storage
 
 import java.nio.{ByteBuffer, MappedByteBuffer}
+import java.util.UUID
 
 import scala.collection.Map
 import scala.collection.mutable
@@ -71,7 +90,7 @@ class StorageStatus(val blockManagerId: BlockManagerId, val maxMem: Long) {
   /**
    * Return the blocks stored in this block manager.
    *
-   * Note that this is somewhat expensive, as it involves cloning the underlying maps and then
+   * @note This is somewhat expensive, as it involves cloning the underlying maps and then
    * concatenating them together. Much faster alternatives exist for common operations such as
    * contains, get, and size.
    */
@@ -80,7 +99,7 @@ class StorageStatus(val blockManagerId: BlockManagerId, val maxMem: Long) {
   /**
    * Return the RDD blocks stored in this block manager.
    *
-   * Note that this is somewhat expensive, as it involves cloning the underlying maps and then
+   * @note This is somewhat expensive, as it involves cloning the underlying maps and then
    * concatenating them together. Much faster alternatives exist for common operations such as
    * getting the memory, disk, and off-heap memory sizes occupied by this RDD.
    */
@@ -128,7 +147,8 @@ class StorageStatus(val blockManagerId: BlockManagerId, val maxMem: Long) {
 
   /**
    * Return whether the given block is stored in this block manager in O(1) time.
-   * Note that this is much faster than `this.blocks.contains`, which is O(blocks) time.
+   *
+   * @note This is much faster than `this.blocks.contains`, which is O(blocks) time.
    */
   def containsBlock(blockId: BlockId): Boolean = {
     blockId match {
@@ -141,7 +161,8 @@ class StorageStatus(val blockManagerId: BlockManagerId, val maxMem: Long) {
 
   /**
    * Return the given block stored in this block manager in O(1) time.
-   * Note that this is much faster than `this.blocks.get`, which is O(blocks) time.
+   *
+   * @note This is much faster than `this.blocks.get`, which is O(blocks) time.
    */
   def getBlock(blockId: BlockId): Option[BlockStatus] = {
     blockId match {
@@ -154,19 +175,22 @@ class StorageStatus(val blockManagerId: BlockManagerId, val maxMem: Long) {
 
   /**
    * Return the number of blocks stored in this block manager in O(RDDs) time.
-   * Note that this is much faster than `this.blocks.size`, which is O(blocks) time.
+   *
+   * @note This is much faster than `this.blocks.size`, which is O(blocks) time.
    */
   def numBlocks: Int = _nonRddBlocks.size + numRddBlocks
 
   /**
    * Return the number of RDD blocks stored in this block manager in O(RDDs) time.
-   * Note that this is much faster than `this.rddBlocks.size`, which is O(RDD blocks) time.
+   *
+   * @note This is much faster than `this.rddBlocks.size`, which is O(RDD blocks) time.
    */
   def numRddBlocks: Int = _rddBlocks.values.map(_.size).sum
 
   /**
    * Return the number of blocks that belong to the given RDD in O(1) time.
-   * Note that this is much faster than `this.rddBlocksById(rddId).size`, which is
+   *
+   * @note This is much faster than `this.rddBlocksById(rddId).size`, which is
    * O(blocks in this RDD) time.
    */
   def numRddBlocksById(rddId: Int): Int = _rddBlocks.get(rddId).map(_.size).getOrElse(0)
@@ -231,19 +255,57 @@ class StorageStatus(val blockManagerId: BlockManagerId, val maxMem: Long) {
 
 /** Helper methods for storage-related objects. */
 private[spark] object StorageUtils extends Logging {
+  // Ewwww... Reflection!!! See the unmap method for justification
+  private val memoryMappedBufferFileDescriptorField = {
+    val mappedBufferClass = classOf[java.nio.MappedByteBuffer]
+    val fdField = mappedBufferClass.getDeclaredField("fd")
+    fdField.setAccessible(true)
+    fdField
+  }
 
   /**
-   * Attempt to clean up a ByteBuffer if it is memory-mapped. This uses an *unsafe* Sun API that
-   * might cause errors if one attempts to read from the unmapped buffer, but it's better than
-   * waiting for the GC to find it because that could lead to huge numbers of open files. There's
-   * unfortunately no standard API to do this.
+   * Attempt to clean up a ByteBuffer if it is direct or memory-mapped. This uses an *unsafe* Sun
+   * API that will cause errors if one attempts to read from the disposed buffer. However, neither
+   * the bytes allocated to direct buffers nor file descriptors opened for memory-mapped buffers put
+   * pressure on the garbage collector. Waiting for garbage collection may lead to the depletion of
+   * off-heap memory or huge numbers of open files. There's unfortunately no standard API to
+   * manually dispose of these kinds of buffers.
+   *
+   * See also [[unmap]]
    */
   def dispose(buffer: ByteBuffer): Unit = {
     if (buffer != null && buffer.isInstanceOf[MappedByteBuffer]) {
-      logTrace(s"Unmapping $buffer")
-      if (buffer.asInstanceOf[DirectBuffer].cleaner() != null) {
-        buffer.asInstanceOf[DirectBuffer].cleaner().clean()
+      logTrace(s"Disposing of $buffer")
+      cleanDirectBuffer(buffer.asInstanceOf[DirectBuffer])
+    }
+  }
+
+  /**
+   * Attempt to unmap a ByteBuffer if it is memory-mapped. This uses an *unsafe* Sun API that will
+   * cause errors if one attempts to read from the unmapped buffer. However, the file descriptors of
+   * memory-mapped buffers do not put pressure on the garbage collector. Waiting for garbage
+   * collection may lead to huge numbers of open files. There's unfortunately no standard API to
+   * manually unmap memory-mapped buffers.
+   *
+   * See also [[dispose]]
+   */
+  def unmap(buffer: ByteBuffer): Unit = {
+    if (buffer != null && buffer.isInstanceOf[MappedByteBuffer]) {
+      // Note that direct buffers are instances of MappedByteBuffer. As things stand in Java 8, the
+      // JDK does not provide a public API to distinguish between direct buffers and memory-mapped
+      // buffers. As an alternative, we peek beneath the curtains and look for a non-null file
+      // descriptor in mappedByteBuffer
+      if (memoryMappedBufferFileDescriptorField.get(buffer) != null) {
+        logTrace(s"Unmapping $buffer")
+        cleanDirectBuffer(buffer.asInstanceOf[DirectBuffer])
       }
+    }
+  }
+
+  private def cleanDirectBuffer(buffer: DirectBuffer) = {
+    val cleaner = buffer.cleaner()
+    if (cleaner != null) {
+      cleaner.clean()
     }
   }
 
@@ -282,4 +344,52 @@ private[spark] object StorageUtils extends Logging {
     blockLocations
   }
 
+  /** static random number generator for UUIDs */
+  private val uuidRnd = new java.util.Random
+
+  /**
+   * Generate a random UUID for file names etc. Uses non-secure version
+   * of random number generator to be more efficient given that its not
+   * critical to have this unique.
+   *
+   * Adapted from Android's java.util.UUID source.
+   */
+  final def newNonSecureRandomUUID(): UUID = {
+    val randomBytes: Array[Byte] = new Array[Byte](16)
+    uuidRnd.nextBytes(randomBytes)
+
+    var msb = getLong(randomBytes, 0)
+    var lsb = getLong(randomBytes, 8)
+    // Set the version field to 4.
+    msb &= ~(0xfL << 12)
+    msb |= (4L << 12)
+    // Set the variant field to 2. Note that the variant field is
+    // variable-width, so supporting other variants is not just a matter
+    // of changing the constant 2 below!
+    lsb &= ~(0x3L << 62)
+    lsb |= 2L << 62
+    new UUID(msb, lsb)
+  }
+
+  final def getLong(src: Array[Byte], offset: Int): Long = {
+    var index = offset
+    var h: Int = (src(index) & 0xff) << 24
+    index += 1
+    h |= (src(index) & 0xff) << 16
+    index += 1
+    h |= (src(index) & 0xff) << 8
+    index += 1
+    h |= (src(index) & 0xff)
+    index += 1
+
+    var l = (src(index) & 0xff) << 24
+    index += 1
+    l |= (src(index) & 0xff) << 16
+    index += 1
+    l |= (src(index) & 0xff) << 8
+    index += 1
+    l |= (src(index) & 0xff)
+
+    (h.toLong << 32L) | (l.toLong & 0xffffffffL)
+  }
 }

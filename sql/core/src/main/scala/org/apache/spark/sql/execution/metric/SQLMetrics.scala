@@ -18,18 +18,29 @@
 package org.apache.spark.sql.execution.metric
 
 import java.text.NumberFormat
+import java.util.Locale
+
+import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
+import com.esotericsoftware.kryo.io.{Input, Output}
 
 import org.apache.spark.SparkContext
 import org.apache.spark.scheduler.AccumulableInfo
-import org.apache.spark.util.{AccumulatorContext, AccumulatorV2, Utils}
+import org.apache.spark.sql.execution.ui.SparkListenerDriverAccumUpdates
+import org.apache.spark.util.{AccumulatorContext, AccumulatorV2, AccumulatorV2Kryo, Utils}
 
 
-class SQLMetric(val metricType: String, initValue: Long = 0L) extends AccumulatorV2[Long, Long] {
+/**
+ * A metric used in a SQL query plan. This is implemented as an [[AccumulatorV2]]. Updates on
+ * the executor side are automatically propagated and shown in the SQL UI through metrics. Updates
+ * on the driver side must be explicitly posted using [[SQLMetrics.postDriverMetricUpdates()]].
+ */
+final class SQLMetric(var metricType: String, initValue: Long = 0L)
+    extends AccumulatorV2Kryo[Long, Long] with KryoSerializable {
   // This is a workaround for SPARK-11013.
   // We may use -1 as initial value of the accumulator, if the accumulator is valid, we will
   // update it at the end of task and the value will be at least 0. Then we can filter out the -1
   // values before calculate max, min, etc.
-  private[this] var _value = initValue
+  private var _value = initValue
   private var _zeroValue = initValue
 
   override def copy(): SQLMetric = {
@@ -50,22 +61,39 @@ class SQLMetric(val metricType: String, initValue: Long = 0L) extends Accumulato
 
   override def add(v: Long): Unit = _value += v
 
+  // avoid the runtime generic Object conversion of add(), value()
+  final def addLong(v: Long): Unit = _value += v
+
+  final def longValue: Long = _value
+
   def +=(v: Long): Unit = _value += v
 
   override def value: Long = _value
 
   // Provide special identifier as metadata so we can tell that this is a `SQLMetric` later
-  private[spark] override def toInfo(update: Option[Any], value: Option[Any]): AccumulableInfo = {
+  override def toInfo(update: Option[Any], value: Option[Any]): AccumulableInfo = {
     new AccumulableInfo(
       id, name, update, value, true, true, Some(AccumulatorContext.SQL_ACCUM_IDENTIFIER))
+  }
+
+  override def writeKryo(kryo: Kryo, output: Output): Unit = {
+    output.writeString(metricType)
+    output.writeLong(_value)
+    output.writeLong(_zeroValue)
+  }
+
+  override def readKryo(kryo: Kryo, input: Input): Unit = {
+    metricType = input.readString()
+    _value = input.readLong()
+    _zeroValue = input.readLong()
   }
 }
 
 
-private[sql] object SQLMetrics {
-  private[sql] val SUM_METRIC = "sum"
-  private[sql] val SIZE_METRIC = "size"
-  private[sql] val TIMING_METRIC = "timing"
+object SQLMetrics {
+  private val SUM_METRIC = "sum"
+  private val SIZE_METRIC = "size"
+  private val TIMING_METRIC = "timing"
 
   def createMetric(sc: SparkContext, name: String): SQLMetric = {
     val acc = new SQLMetric(SUM_METRIC)
@@ -101,8 +129,7 @@ private[sql] object SQLMetrics {
    */
   def stringValue(metricsType: String, values: Seq[Long]): String = {
     if (metricsType == SUM_METRIC) {
-      val numberFormat = NumberFormat.getInstance()
-      numberFormat.setGroupingUsed(false)
+      val numberFormat = NumberFormat.getIntegerInstance(Locale.US)
       numberFormat.format(values.sum)
     } else {
       val strFormat: Long => String = if (metricsType == SIZE_METRIC) {
@@ -124,6 +151,20 @@ private[sql] object SQLMetrics {
         metric.map(strFormat)
       }
       s"\n$sum ($min, $med, $max)"
+    }
+  }
+
+  /**
+   * Updates metrics based on the driver side value. This is useful for certain metrics that
+   * are only updated on the driver, e.g. subquery execution time, or number of files.
+   */
+  def postDriverMetricUpdates(
+      sc: SparkContext, executionId: String, metrics: Seq[SQLMetric]): Unit = {
+    // There are some cases we don't care about the metrics and call `SparkPlan.doExecute`
+    // directly without setting an execution id. We should be tolerant to it.
+    if (executionId != null) {
+      sc.listenerBus.post(
+        SparkListenerDriverAccumUpdates(executionId.toLong, metrics.map(m => m.id -> m.value)))
     }
   }
 }

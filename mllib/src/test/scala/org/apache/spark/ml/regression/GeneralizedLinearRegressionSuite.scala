@@ -24,16 +24,19 @@ import org.apache.spark.ml.classification.LogisticRegressionSuite._
 import org.apache.spark.ml.feature.Instance
 import org.apache.spark.ml.feature.LabeledPoint
 import org.apache.spark.ml.linalg.{BLAS, DenseVector, Vector, Vectors}
-import org.apache.spark.ml.param.ParamsSuite
+import org.apache.spark.ml.param.{ParamMap, ParamsSuite}
 import org.apache.spark.ml.util.{DefaultReadWriteTest, MLTestingUtils}
 import org.apache.spark.ml.util.TestingUtils._
 import org.apache.spark.mllib.random._
 import org.apache.spark.mllib.util.MLlibTestSparkContext
 import org.apache.spark.sql.{DataFrame, Row}
 import org.apache.spark.sql.functions._
+import org.apache.spark.sql.types.FloatType
 
 class GeneralizedLinearRegressionSuite
   extends SparkFunSuite with MLlibTestSparkContext with DefaultReadWriteTest {
+
+  import testImplicits._
 
   private val seed: Int = 42
   @transient var datasetGaussianIdentity: DataFrame = _
@@ -41,6 +44,7 @@ class GeneralizedLinearRegressionSuite
   @transient var datasetGaussianInverse: DataFrame = _
   @transient var datasetBinomial: DataFrame = _
   @transient var datasetPoissonLog: DataFrame = _
+  @transient var datasetPoissonLogWithZero: DataFrame = _
   @transient var datasetPoissonIdentity: DataFrame = _
   @transient var datasetPoissonSqrt: DataFrame = _
   @transient var datasetGammaInverse: DataFrame = _
@@ -52,23 +56,20 @@ class GeneralizedLinearRegressionSuite
 
     import GeneralizedLinearRegressionSuite._
 
-    datasetGaussianIdentity = spark.createDataFrame(
-      sc.parallelize(generateGeneralizedLinearRegressionInput(
-        intercept = 2.5, coefficients = Array(2.2, 0.6), xMean = Array(2.9, 10.5),
-        xVariance = Array(0.7, 1.2), nPoints = 10000, seed, noiseLevel = 0.01,
-        family = "gaussian", link = "identity"), 2))
+    datasetGaussianIdentity = generateGeneralizedLinearRegressionInput(
+      intercept = 2.5, coefficients = Array(2.2, 0.6), xMean = Array(2.9, 10.5),
+      xVariance = Array(0.7, 1.2), nPoints = 10000, seed, noiseLevel = 0.01,
+      family = "gaussian", link = "identity").toDF()
 
-    datasetGaussianLog = spark.createDataFrame(
-      sc.parallelize(generateGeneralizedLinearRegressionInput(
-        intercept = 0.25, coefficients = Array(0.22, 0.06), xMean = Array(2.9, 10.5),
-        xVariance = Array(0.7, 1.2), nPoints = 10000, seed, noiseLevel = 0.01,
-        family = "gaussian", link = "log"), 2))
+    datasetGaussianLog = generateGeneralizedLinearRegressionInput(
+      intercept = 0.25, coefficients = Array(0.22, 0.06), xMean = Array(2.9, 10.5),
+      xVariance = Array(0.7, 1.2), nPoints = 10000, seed, noiseLevel = 0.01,
+      family = "gaussian", link = "log").toDF()
 
-    datasetGaussianInverse = spark.createDataFrame(
-      sc.parallelize(generateGeneralizedLinearRegressionInput(
-        intercept = 2.5, coefficients = Array(2.2, 0.6), xMean = Array(2.9, 10.5),
-        xVariance = Array(0.7, 1.2), nPoints = 10000, seed, noiseLevel = 0.01,
-        family = "gaussian", link = "inverse"), 2))
+    datasetGaussianInverse = generateGeneralizedLinearRegressionInput(
+      intercept = 2.5, coefficients = Array(2.2, 0.6), xMean = Array(2.9, 10.5),
+      xVariance = Array(0.7, 1.2), nPoints = 10000, seed, noiseLevel = 0.01,
+      family = "gaussian", link = "inverse").toDF()
 
     datasetBinomial = {
       val nPoints = 10000
@@ -80,44 +81,47 @@ class GeneralizedLinearRegressionSuite
         generateMultinomialLogisticInput(coefficients, xMean, xVariance,
           addIntercept = true, nPoints, seed)
 
-      spark.createDataFrame(sc.parallelize(testData, 2))
+      testData.toDF()
     }
 
-    datasetPoissonLog = spark.createDataFrame(
-      sc.parallelize(generateGeneralizedLinearRegressionInput(
-        intercept = 0.25, coefficients = Array(0.22, 0.06), xMean = Array(2.9, 10.5),
-        xVariance = Array(0.7, 1.2), nPoints = 10000, seed, noiseLevel = 0.01,
-        family = "poisson", link = "log"), 2))
+    datasetPoissonLog = generateGeneralizedLinearRegressionInput(
+      intercept = 0.25, coefficients = Array(0.22, 0.06), xMean = Array(2.9, 10.5),
+      xVariance = Array(0.7, 1.2), nPoints = 10000, seed, noiseLevel = 0.01,
+      family = "poisson", link = "log").toDF()
 
-    datasetPoissonIdentity = spark.createDataFrame(
-      sc.parallelize(generateGeneralizedLinearRegressionInput(
-        intercept = 2.5, coefficients = Array(2.2, 0.6), xMean = Array(2.9, 10.5),
-        xVariance = Array(0.7, 1.2), nPoints = 10000, seed, noiseLevel = 0.01,
-        family = "poisson", link = "identity"), 2))
+    datasetPoissonLogWithZero = Seq(
+      LabeledPoint(0.0, Vectors.dense(18, 1.0)),
+      LabeledPoint(1.0, Vectors.dense(12, 0.0)),
+      LabeledPoint(0.0, Vectors.dense(15, 0.0)),
+      LabeledPoint(0.0, Vectors.dense(13, 2.0)),
+      LabeledPoint(0.0, Vectors.dense(15, 1.0)),
+      LabeledPoint(1.0, Vectors.dense(16, 1.0))
+    ).toDF()
 
-    datasetPoissonSqrt = spark.createDataFrame(
-      sc.parallelize(generateGeneralizedLinearRegressionInput(
-        intercept = 2.5, coefficients = Array(2.2, 0.6), xMean = Array(2.9, 10.5),
-        xVariance = Array(0.7, 1.2), nPoints = 10000, seed, noiseLevel = 0.01,
-        family = "poisson", link = "sqrt"), 2))
+    datasetPoissonIdentity = generateGeneralizedLinearRegressionInput(
+      intercept = 2.5, coefficients = Array(2.2, 0.6), xMean = Array(2.9, 10.5),
+      xVariance = Array(0.7, 1.2), nPoints = 10000, seed, noiseLevel = 0.01,
+      family = "poisson", link = "identity").toDF()
 
-    datasetGammaInverse = spark.createDataFrame(
-      sc.parallelize(generateGeneralizedLinearRegressionInput(
-        intercept = 2.5, coefficients = Array(2.2, 0.6), xMean = Array(2.9, 10.5),
-        xVariance = Array(0.7, 1.2), nPoints = 10000, seed, noiseLevel = 0.01,
-        family = "gamma", link = "inverse"), 2))
+    datasetPoissonSqrt = generateGeneralizedLinearRegressionInput(
+      intercept = 2.5, coefficients = Array(2.2, 0.6), xMean = Array(2.9, 10.5),
+      xVariance = Array(0.7, 1.2), nPoints = 10000, seed, noiseLevel = 0.01,
+      family = "poisson", link = "sqrt").toDF()
 
-    datasetGammaIdentity = spark.createDataFrame(
-      sc.parallelize(generateGeneralizedLinearRegressionInput(
-        intercept = 2.5, coefficients = Array(2.2, 0.6), xMean = Array(2.9, 10.5),
-        xVariance = Array(0.7, 1.2), nPoints = 10000, seed, noiseLevel = 0.01,
-        family = "gamma", link = "identity"), 2))
+    datasetGammaInverse = generateGeneralizedLinearRegressionInput(
+      intercept = 2.5, coefficients = Array(2.2, 0.6), xMean = Array(2.9, 10.5),
+      xVariance = Array(0.7, 1.2), nPoints = 10000, seed, noiseLevel = 0.01,
+      family = "gamma", link = "inverse").toDF()
 
-    datasetGammaLog = spark.createDataFrame(
-      sc.parallelize(generateGeneralizedLinearRegressionInput(
-        intercept = 0.25, coefficients = Array(0.22, 0.06), xMean = Array(2.9, 10.5),
-        xVariance = Array(0.7, 1.2), nPoints = 10000, seed, noiseLevel = 0.01,
-        family = "gamma", link = "log"), 2))
+    datasetGammaIdentity = generateGeneralizedLinearRegressionInput(
+      intercept = 2.5, coefficients = Array(2.2, 0.6), xMean = Array(2.9, 10.5),
+      xVariance = Array(0.7, 1.2), nPoints = 10000, seed, noiseLevel = 0.01,
+      family = "gamma", link = "identity").toDF()
+
+    datasetGammaLog = generateGeneralizedLinearRegressionInput(
+      intercept = 0.25, coefficients = Array(0.22, 0.06), xMean = Array(2.9, 10.5),
+      xVariance = Array(0.7, 1.2), nPoints = 10000, seed, noiseLevel = 0.01,
+      family = "gamma", link = "log").toDF()
   }
 
   /**
@@ -145,6 +149,10 @@ class GeneralizedLinearRegressionSuite
       label + "," + features.toArray.mkString(",")
     }.repartition(1).saveAsTextFile(
       "target/tmp/GeneralizedLinearRegressionSuite/datasetPoissonLog")
+    datasetPoissonLogWithZero.rdd.map { case Row(label: Double, features: Vector) =>
+      label + "," + features.toArray.mkString(",")
+    }.repartition(1).saveAsTextFile(
+      "target/tmp/GeneralizedLinearRegressionSuite/datasetPoissonLogWithZero")
     datasetPoissonIdentity.rdd.map { case Row(label: Double, features: Vector) =>
       label + "," + features.toArray.mkString(",")
     }.repartition(1).saveAsTextFile(
@@ -189,6 +197,11 @@ class GeneralizedLinearRegressionSuite
 
     // copied model must have the same parent.
     MLTestingUtils.checkCopy(model)
+    assert(model.hasSummary)
+    val copiedModel = model.copy(ParamMap.empty)
+    assert(copiedModel.hasSummary)
+    model.setSummary(None)
+    assert(!model.hasSummary)
 
     assert(model.getFeaturesCol === "features")
     assert(model.getPredictionCol === "prediction")
@@ -459,6 +472,40 @@ class GeneralizedLinearRegressionSuite
     }
   }
 
+  test("generalized linear regression: poisson family against glm (with zero values)") {
+    /*
+       R code:
+       f1 <- data$V1 ~ data$V2 + data$V3 - 1
+       f2 <- data$V1 ~ data$V2 + data$V3
+
+       data <- read.csv("path", header=FALSE)
+       for (formula in c(f1, f2)) {
+         model <- glm(formula, family="poisson", data=data)
+         print(as.vector(coef(model)))
+       }
+       [1] -0.0457441 -0.6833928
+       [1] 1.8121235  -0.1747493  -0.5815417
+     */
+    val expected = Seq(
+      Vectors.dense(0.0, -0.0457441, -0.6833928),
+      Vectors.dense(1.8121235, -0.1747493, -0.5815417))
+
+    import GeneralizedLinearRegression._
+
+    var idx = 0
+    val link = "log"
+    val dataset = datasetPoissonLogWithZero
+    for (fitIntercept <- Seq(false, true)) {
+      val trainer = new GeneralizedLinearRegression().setFamily("poisson").setLink(link)
+        .setFitIntercept(fitIntercept).setLinkPredictionCol("linkPrediction")
+      val model = trainer.fit(dataset)
+      val actual = Vectors.dense(model.intercept, model.coefficients(0), model.coefficients(1))
+      assert(actual ~= expected(idx) absTol 1e-4, "Model mismatch: GLM with poisson family, " +
+        s"$link link and fitIntercept = $fitIntercept (with zero values).")
+      idx += 1
+    }
+  }
+
   test("generalized linear regression: gamma family against glm") {
     /*
        R code:
@@ -506,7 +553,7 @@ class GeneralizedLinearRegressionSuite
     for ((link, dataset) <- Seq(("inverse", datasetGammaInverse),
       ("identity", datasetGammaIdentity), ("log", datasetGammaLog))) {
       for (fitIntercept <- Seq(false, true)) {
-        val trainer = new GeneralizedLinearRegression().setFamily("gamma").setLink(link)
+        val trainer = new GeneralizedLinearRegression().setFamily("Gamma").setLink(link)
           .setFitIntercept(fitIntercept).setLinkPredictionCol("linkPrediction")
         val model = trainer.fit(dataset)
         val actual = Vectors.dense(model.intercept, model.coefficients(0), model.coefficients(1))
@@ -540,12 +587,12 @@ class GeneralizedLinearRegressionSuite
        w <- c(1, 2, 3, 4)
        df <- as.data.frame(cbind(A, b))
      */
-    val datasetWithWeight = spark.createDataFrame(sc.parallelize(Seq(
+    val datasetWithWeight = Seq(
       Instance(17.0, 1.0, Vectors.dense(0.0, 5.0).toSparse),
       Instance(19.0, 2.0, Vectors.dense(1.0, 7.0)),
       Instance(23.0, 3.0, Vectors.dense(2.0, 11.0)),
       Instance(29.0, 4.0, Vectors.dense(3.0, 13.0))
-    ), 2))
+    ).toDF()
     /*
        R code:
 
@@ -668,12 +715,12 @@ class GeneralizedLinearRegressionSuite
        w <- c(1, 2, 3, 4)
        df <- as.data.frame(cbind(A, b))
      */
-    val datasetWithWeight = spark.createDataFrame(sc.parallelize(Seq(
+    val datasetWithWeight = Seq(
       Instance(1.0, 1.0, Vectors.dense(0.0, 5.0).toSparse),
       Instance(0.0, 2.0, Vectors.dense(1.0, 2.0)),
       Instance(1.0, 3.0, Vectors.dense(2.0, 1.0)),
       Instance(0.0, 4.0, Vectors.dense(3.0, 3.0))
-    ), 2))
+    ).toDF()
     /*
        R code:
 
@@ -710,7 +757,7 @@ class GeneralizedLinearRegressionSuite
        0.5554219 -0.4034267  0.6567520 -0.2611382
      */
     val trainer = new GeneralizedLinearRegression()
-      .setFamily("binomial")
+      .setFamily("Binomial")
       .setWeightCol("weight")
       .setFitIntercept(false)
 
@@ -782,12 +829,12 @@ class GeneralizedLinearRegressionSuite
        w <- c(1, 2, 3, 4)
        df <- as.data.frame(cbind(A, b))
      */
-    val datasetWithWeight = spark.createDataFrame(sc.parallelize(Seq(
+    val datasetWithWeight = Seq(
       Instance(2.0, 1.0, Vectors.dense(0.0, 5.0).toSparse),
       Instance(8.0, 2.0, Vectors.dense(1.0, 7.0)),
       Instance(3.0, 3.0, Vectors.dense(2.0, 11.0)),
       Instance(9.0, 4.0, Vectors.dense(3.0, 13.0))
-    ), 2))
+    ).toDF()
     /*
        R code:
 
@@ -827,7 +874,7 @@ class GeneralizedLinearRegressionSuite
        -0.4378554  0.2189277  0.1459518 -0.1094638
      */
     val trainer = new GeneralizedLinearRegression()
-      .setFamily("poisson")
+      .setFamily("Poisson")
       .setWeightCol("weight")
       .setFitIntercept(true)
 
@@ -899,12 +946,12 @@ class GeneralizedLinearRegressionSuite
        w <- c(1, 2, 3, 4)
        df <- as.data.frame(cbind(A, b))
      */
-    val datasetWithWeight = spark.createDataFrame(sc.parallelize(Seq(
+    val datasetWithWeight = Seq(
       Instance(2.0, 1.0, Vectors.dense(0.0, 5.0).toSparse),
       Instance(8.0, 2.0, Vectors.dense(1.0, 7.0)),
       Instance(3.0, 3.0, Vectors.dense(2.0, 11.0)),
       Instance(9.0, 4.0, Vectors.dense(3.0, 13.0))
-    ), 2))
+    ).toDF()
     /*
        R code:
 
@@ -942,7 +989,7 @@ class GeneralizedLinearRegressionSuite
        -0.6344390  0.3172195  0.2114797 -0.1586097
      */
     val trainer = new GeneralizedLinearRegression()
-      .setFamily("gamma")
+      .setFamily("Gamma")
       .setWeightCol("weight")
 
     val model = trainer.fit(datasetWithWeight)
@@ -1004,6 +1051,27 @@ class GeneralizedLinearRegressionSuite
     assert(summary.solver === "irls")
   }
 
+  test("glm handle collinear features") {
+    val collinearInstances = Seq(
+      Instance(1.0, 1.0, Vectors.dense(1.0, 2.0)),
+      Instance(2.0, 1.0, Vectors.dense(2.0, 4.0)),
+      Instance(3.0, 1.0, Vectors.dense(3.0, 6.0)),
+      Instance(4.0, 1.0, Vectors.dense(4.0, 8.0))
+    ).toDF()
+    val trainer = new GeneralizedLinearRegression()
+    val model = trainer.fit(collinearInstances)
+    // to make it clear that underlying WLS did not solve analytically
+    intercept[UnsupportedOperationException] {
+      model.summary.coefficientStandardErrors
+    }
+    intercept[UnsupportedOperationException] {
+      model.summary.pValues
+    }
+    intercept[UnsupportedOperationException] {
+      model.summary.tValues
+    }
+  }
+
   test("read/write") {
     def checkModelData(
         model: GeneralizedLinearRegressionModel,
@@ -1033,6 +1101,70 @@ class GeneralizedLinearRegressionSuite
     new GeneralizedLinearRegression()
       .setFamily("gaussian")
       .fit(datasetGaussianIdentity.as[LabeledPoint])
+  }
+
+  test("generalized linear regression: regularization parameter") {
+    /*
+      R code:
+
+      a1 <- c(0, 1, 2, 3)
+      a2 <- c(5, 2, 1, 3)
+      b <- c(1, 0, 1, 0)
+      data <- as.data.frame(cbind(a1, a2, b))
+      df <- suppressWarnings(createDataFrame(data))
+
+      for (regParam in c(0.0, 0.1, 1.0)) {
+        model <- spark.glm(df, b ~ a1 + a2, regParam = regParam)
+        print(as.vector(summary(model)$aic))
+      }
+
+      [1] 12.88188
+      [1] 12.92681
+      [1] 13.32836
+     */
+    val dataset = Seq(
+      LabeledPoint(1, Vectors.dense(5, 0)),
+      LabeledPoint(0, Vectors.dense(2, 1)),
+      LabeledPoint(1, Vectors.dense(1, 2)),
+      LabeledPoint(0, Vectors.dense(3, 3))
+    ).toDF()
+    val expected = Seq(12.88188, 12.92681, 13.32836)
+
+    var idx = 0
+    for (regParam <- Seq(0.0, 0.1, 1.0)) {
+      val trainer = new GeneralizedLinearRegression()
+        .setRegParam(regParam)
+        .setLabelCol("label")
+        .setFeaturesCol("features")
+      val model = trainer.fit(dataset)
+      val actual = model.summary.aic
+      assert(actual ~= expected(idx) absTol 1e-4, "Model mismatch: GLM with regParam = $regParam.")
+      idx += 1
+    }
+  }
+
+  test("evaluate with labels that are not doubles") {
+    // Evaulate with a dataset that contains Labels not as doubles to verify correct casting
+    val dataset = Seq(
+      Instance(17.0, 1.0, Vectors.dense(0.0, 5.0).toSparse),
+      Instance(19.0, 1.0, Vectors.dense(1.0, 7.0)),
+      Instance(23.0, 1.0, Vectors.dense(2.0, 11.0)),
+      Instance(29.0, 1.0, Vectors.dense(3.0, 13.0))
+    ).toDF()
+
+    val trainer = new GeneralizedLinearRegression()
+      .setMaxIter(1)
+    val model = trainer.fit(dataset)
+    assert(model.hasSummary)
+    val summary = model.summary
+
+    val longLabelDataset = dataset.select(col(model.getLabelCol).cast(FloatType),
+      col(model.getFeaturesCol))
+    val evalSummary = model.evaluate(longLabelDataset)
+    // The calculations below involve pattern matching with Label as a double
+    assert(evalSummary.nullDeviance === summary.nullDeviance)
+    assert(evalSummary.deviance === summary.deviance)
+    assert(evalSummary.aic === summary.aic)
   }
 }
 

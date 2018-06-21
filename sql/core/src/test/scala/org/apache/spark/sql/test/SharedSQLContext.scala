@@ -17,27 +17,32 @@
 
 package org.apache.spark.sql.test
 
-import org.apache.spark.SparkConf
+import scala.concurrent.duration._
+
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.concurrent.Eventually
+
+import org.apache.spark.{DebugFilesystem, SparkConf}
 import org.apache.spark.sql.{SparkSession, SQLContext}
 
 
 /**
- * Helper trait for SQL test suites where all tests share a single [[TestSparkSession]].
+ * Helper trait for SQL test suites where all tests share a single [[SparkSession]].
  */
-trait SharedSQLContext extends SQLTestUtils {
+trait SharedSQLContext extends SQLTestUtils with BeforeAndAfterEach with Eventually {
 
   protected val sparkConf = new SparkConf()
 
   /**
-   * The [[TestSparkSession]] to use for all tests in this suite.
+   * The [[SparkSession]] to use for all tests in this suite.
    *
    * By default, the underlying [[org.apache.spark.SparkContext]] will be run in local
    * mode with the default test configurations.
    */
-  private var _spark: TestSparkSession = null
+  private var _spark: SparkSession = null
 
   /**
-   * The [[TestSparkSession]] to use for all tests in this suite.
+   * The [[SparkSession]] to use for all tests in this suite.
    */
   protected implicit def spark: SparkSession = _spark
 
@@ -46,13 +51,18 @@ trait SharedSQLContext extends SQLTestUtils {
    */
   protected implicit def sqlContext: SQLContext = _spark.sqlContext
 
+  protected def createSparkSession: SparkSession = {
+    new TestSparkSession(
+      sparkConf.set("spark.hadoop.fs.file.impl", classOf[DebugFilesystem].getName))
+  }
+
   /**
-   * Initialize the [[TestSparkSession]].
+   * Initialize the [[SparkSession]].
    */
   protected override def beforeAll(): Unit = {
     SparkSession.sqlListener.set(null)
     if (_spark == null) {
-      _spark = new TestSparkSession(sparkConf)
+      _spark = createSparkSession
     }
     // Ensure we have initialized the context before calling parent code
     super.beforeAll()
@@ -69,6 +79,20 @@ trait SharedSQLContext extends SQLTestUtils {
       }
     } finally {
       super.afterAll()
+    }
+  }
+
+  protected override def beforeEach(): Unit = {
+    super.beforeEach()
+    DebugFilesystem.clearOpenStreams()
+  }
+
+  protected override def afterEach(): Unit = {
+    super.afterEach()
+    // files can be closed from other threads, so wait a bit
+    // normally this doesn't take more than 1s
+    eventually(timeout(10.seconds)) {
+      DebugFilesystem.assertNoOpenStreams()
     }
   }
 }

@@ -75,12 +75,12 @@ class SQLBuilder private (
     val aliasedOutput = canonicalizedPlan.output.zip(outputNames).map {
       case (attr, name) => Alias(attr.withQualifier(None), name)()
     }
-    val finalPlan = Project(aliasedOutput, SubqueryAlias(finalName, canonicalizedPlan))
+    val finalPlan = Project(aliasedOutput, SubqueryAlias(finalName, canonicalizedPlan, None))
 
     try {
       val replaced = finalPlan.transformAllExpressions {
         case s: SubqueryExpression =>
-          val query = new SQLBuilder(s.query, nextSubqueryId, nextGenAttrId, exprIdMap).toSQL
+          val query = new SQLBuilder(s.plan, nextSubqueryId, nextGenAttrId, exprIdMap).toSQL
           val sql = s match {
             case _: ListQuery => query
             case _: Exists => s"EXISTS($query)"
@@ -138,8 +138,13 @@ class SQLBuilder private (
     case g: Generate =>
       generateToSQL(g)
 
-    case Limit(limitExpr, child) =>
+    // This prevents a pattern of `((...) AS gen_subquery_0 LIMIT 1)` which does not work.
+    // For example, `SELECT * FROM (SELECT id FROM tbl TABLESAMPLE (2 ROWS))` makes this plan.
+    case Limit(limitExpr, child: SubqueryAlias) =>
       s"${toSQL(child)} LIMIT ${limitExpr.sql}"
+
+    case Limit(limitExpr, child) =>
+      s"(${toSQL(child)} LIMIT ${limitExpr.sql})"
 
     case Filter(condition, child) =>
       val whereOrHaving = child match {
@@ -205,6 +210,12 @@ class SQLBuilder private (
     case p: ScriptTransformation =>
       scriptTransformationToSQL(p)
 
+    case p: LocalRelation =>
+      p.toSQL(newSubqueryName())
+
+    case p: Range =>
+      p.toSQL()
+
     case OneRowRelation =>
       ""
 
@@ -212,6 +223,14 @@ class SQLBuilder private (
       throw new UnsupportedOperationException(s"unsupported plan $node")
   }
 
+  private def isChildPlanEnclosed(child: LogicalPlan): Boolean = child match {
+    case _: Aggregate => false
+    case _: Project => false
+    case _: Window => false
+    case _: Generate => false
+    case _: Union => false
+    case _ => true
+  }
   /**
    * Turns a bunch of string segments into a single string and separate each segment by a space.
    * The segments are trimmed so only a single space appears in the separation.
@@ -256,11 +275,14 @@ class SQLBuilder private (
 
   private def aggregateToSQL(plan: Aggregate): String = {
     val groupingSQL = plan.groupingExpressions.map(_.sql).mkString(", ")
+    val childPlanEnclosed = isChildPlanEnclosed(plan.child)
     build(
       "SELECT",
       plan.aggregateExpressions.map(_.sql).mkString(", "),
       if (plan.child == OneRowRelation) "" else "FROM",
+      if (childPlanEnclosed) "" else "(",
       toSQL(plan.child),
+      if (childPlanEnclosed) "" else ")",
       if (groupingSQL.isEmpty) "" else "GROUP BY",
       groupingSQL
     )
@@ -370,12 +392,14 @@ class SQLBuilder private (
         case e => Alias(e, normalizedName(aggExpr))(exprId = aggExpr.exprId)
       }
     }
-
+    val childPlanEnclosed = isChildPlanEnclosed(project.child)
     build(
       "SELECT",
       aggExprs.map(_.sql).mkString(", "),
       if (agg.child == OneRowRelation) "" else "FROM",
+      if (childPlanEnclosed) "" else "(",
       toSQL(project.child),
+      if (childPlanEnclosed) "" else ")",
       "GROUP BY",
       groupingSQL,
       groupingSetSQL
@@ -440,7 +464,7 @@ class SQLBuilder private (
 
     object RemoveSubqueriesAboveSQLTable extends Rule[LogicalPlan] {
       override def apply(plan: LogicalPlan): LogicalPlan = plan transformUp {
-        case SubqueryAlias(_, t @ ExtractSQLTable(_)) => t
+        case SubqueryAlias(_, t @ ExtractSQLTable(_), _) => t
       }
     }
 
@@ -557,7 +581,7 @@ class SQLBuilder private (
     }
 
     private def addSubquery(plan: LogicalPlan): SubqueryAlias = {
-      SubqueryAlias(newSubqueryName(), plan)
+      SubqueryAlias(newSubqueryName(), plan, None)
     }
 
     private def addSubqueryIfNeeded(plan: LogicalPlan): LogicalPlan = plan match {
@@ -584,8 +608,12 @@ class SQLBuilder private (
 
   object ExtractSQLTable {
     def unapply(plan: LogicalPlan): Option[SQLTable] = plan match {
-      case l @ LogicalRelation(_, _, Some(TableIdentifier(table, Some(database)))) =>
-        Some(SQLTable(database, table, l.output.map(_.withQualifier(None))))
+      case l @ LogicalRelation(_, _, Some(catalogTable))
+          if catalogTable.identifier.database.isDefined =>
+        Some(SQLTable(
+          catalogTable.identifier.database.get,
+          catalogTable.identifier.table,
+          l.output.map(_.withQualifier(None))))
 
       case relation: CatalogRelation =>
         val m = relation.catalogTable

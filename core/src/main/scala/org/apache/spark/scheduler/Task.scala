@@ -21,14 +21,19 @@ import java.io.{DataInputStream, DataOutputStream}
 import java.nio.ByteBuffer
 import java.util.Properties
 
+import scala.collection.mutable
 import scala.collection.mutable.HashMap
 
+import com.esotericsoftware.kryo.Kryo
+import com.esotericsoftware.kryo.io.{Input, Output}
+
 import org.apache.spark._
+import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.executor.TaskMetrics
 import org.apache.spark.memory.{MemoryMode, TaskMemoryManager}
 import org.apache.spark.metrics.MetricsSystem
 import org.apache.spark.serializer.SerializerInstance
-import org.apache.spark.util.{AccumulatorV2, ByteBufferInputStream, ByteBufferOutputStream, Utils}
+import org.apache.spark.util._
 
 /**
  * A unit of execution. We have two kinds of Task's in Spark:
@@ -41,19 +46,49 @@ import org.apache.spark.util.{AccumulatorV2, ByteBufferInputStream, ByteBufferOu
  * and sends the task output back to the driver application. A ShuffleMapTask executes the task
  * and divides the task output to multiple buckets (based on the task's partitioner).
  *
- * @param stageId id of the stage this task belongs to
- * @param stageAttemptId attempt id of the stage this task belongs to
- * @param partitionId index of the number in the RDD
- * @param metrics a [[TaskMetrics]] that is created at driver side and sent to executor side.
+ * @param _stageId id of the stage this task belongs to
+ * @param _stageAttemptId attempt id of the stage this task belongs to
+ * @param _partitionId index of the number in the RDD
+ * @param _metrics a [[TaskMetrics]] that is created at driver side and sent to executor side.
  * @param localProperties copy of thread-local properties set by the user on the driver side.
+ * The parameters below are optional:
+ * @param _jobId id of the job this task belongs to
+ * @param _appId id of the app this task belongs to
+ * @param _appAttemptId attempt id of the app this task belongs to
  */
 private[spark] abstract class Task[T](
-    val stageId: Int,
-    val stageAttemptId: Int,
-    val partitionId: Int,
+    private var _stageId: Int,
+    private var _stageAttemptId: Int,
+    private var _partitionId: Int,
+    @transient private[spark] var taskData: TaskData = TaskData.EMPTY,
     // The default value is only used in tests.
-    val metrics: TaskMetrics = TaskMetrics.registered,
-    @transient var localProperties: Properties = new Properties) extends Serializable {
+    protected var taskBinary: Option[Broadcast[Array[Byte]]] = None,
+    private var _metrics: TaskMetrics = TaskMetrics.registered,
+    @transient var localProperties: Properties = new Properties,
+    private var _jobId: Int = -1,
+    private var _appId: Option[String] = None,
+    private var _appAttemptId: Option[String] = None) extends Serializable {
+
+  final def stageId: Int = _stageId
+
+  final def stageAttemptId: Int = _stageAttemptId
+
+  final def partitionId: Int = _partitionId
+
+  final def jobId: Int = _jobId
+
+  final def metrics: TaskMetrics = _metrics
+
+  final def appId: String = if (_appId.isDefined) _appId.get else null
+
+  final def appAttemptId: String = if (_appAttemptId.isDefined) _appAttemptId.get else null
+
+  @transient private[spark] var taskDataBytes: Array[Byte] = _
+
+  protected final def getTaskBytes: Array[Byte] = {
+    val bytes = taskDataBytes
+    if ((bytes ne null) && bytes.length > 0) bytes else taskBinary.get.value
+  }
 
   /**
    * Called by [[org.apache.spark.executor.Executor]] to run this task.
@@ -78,9 +113,15 @@ private[spark] abstract class Task[T](
       metrics)
     TaskContext.setTaskContext(context)
     taskThread = Thread.currentThread()
+
     if (_killed) {
       kill(interruptThread = false)
     }
+
+    new CallerContext("TASK", _appId, _appAttemptId, Some(jobId), Some(stageId),
+      Some(stageAttemptId), Some(taskAttemptId), Some(attemptNumber))
+      .setCurrentContext()
+
     try {
       runTask(context)
     } catch {
@@ -114,7 +155,7 @@ private[spark] abstract class Task[T](
     }
   }
 
-  private var taskMemoryManager: TaskMemoryManager = _
+  @transient private var taskMemoryManager: TaskMemoryManager = _
 
   def setTaskMemoryManager(taskMemoryManager: TaskMemoryManager): Unit = {
     this.taskMemoryManager = taskMemoryManager
@@ -138,6 +179,7 @@ private[spark] abstract class Task[T](
   @volatile @transient private var _killed = false
 
   protected var _executorDeserializeTime: Long = 0
+  protected var _executorDeserializeCpuTime: Long = 0
 
   /**
    * Whether the task has been killed.
@@ -145,9 +187,10 @@ private[spark] abstract class Task[T](
   def killed: Boolean = _killed
 
   /**
-   * Returns the amount of time spent deserializing the RDD and function to be run.
+   * Returns the amount of time spent deserializing the RDD and function to be run in nanos.
    */
   def executorDeserializeTime: Long = _executorDeserializeTime
+  def executorDeserializeCpuTime: Long = _executorDeserializeCpuTime
 
   /**
    * Collect the latest values of accumulators used in this task. If the task failed,
@@ -183,6 +226,48 @@ private[spark] abstract class Task[T](
       taskThread.interrupt()
     }
   }
+
+  protected def writeKryo(kryo: Kryo, output: Output): Unit = {
+    output.writeInt(_stageId)
+    output.writeVarInt(_stageAttemptId, true)
+    output.writeVarInt(_partitionId, true)
+    output.writeVarInt(_jobId, true)
+    output.writeLong(epoch)
+    output.writeLong(_executorDeserializeTime)
+    output.writeLong(_executorDeserializeCpuTime)
+    if ((taskData ne null) && taskData.uncompressedLen > 0) {
+      // actual bytes will be shipped in TaskDescription
+      output.writeBoolean(true)
+    } else {
+      output.writeBoolean(false)
+      kryo.writeClassAndObject(output, taskBinary.get)
+    }
+    _metrics.write(kryo, output)
+    output.writeString(appId)
+    output.writeString(appAttemptId)
+  }
+
+  def readKryo(kryo: Kryo, input: Input): Unit = {
+    _stageId = input.readInt()
+    _stageAttemptId = input.readVarInt(true)
+    _partitionId = input.readVarInt(true)
+    _jobId = input.readVarInt(true)
+    epoch = input.readLong()
+    _executorDeserializeTime = input.readLong()
+    _executorDeserializeCpuTime = input.readLong()
+    // actual bytes are shipped in TaskDescription
+    taskData = TaskData.EMPTY
+    if (input.readBoolean()) {
+      taskBinary = None
+    } else {
+      taskBinary = Some(kryo.readClassAndObject(input)
+        .asInstanceOf[Broadcast[Array[Byte]]])
+    }
+    _metrics = new TaskMetrics
+    _metrics.read(kryo, input)
+    _appId = Option(input.readString())
+    _appAttemptId = Option(input.readString())
+  }
 }
 
 /**
@@ -198,8 +283,8 @@ private[spark] object Task {
    */
   def serializeWithDependencies(
       task: Task[_],
-      currentFiles: HashMap[String, Long],
-      currentJars: HashMap[String, Long],
+      currentFiles: mutable.Map[String, Long],
+      currentJars: mutable.Map[String, Long],
       serializer: SerializerInstance)
     : ByteBuffer = {
 
@@ -207,28 +292,44 @@ private[spark] object Task {
     val dataOut = new DataOutputStream(out)
 
     // Write currentFiles
-    dataOut.writeInt(currentFiles.size)
-    for ((name, timestamp) <- currentFiles) {
-      dataOut.writeUTF(name)
-      dataOut.writeLong(timestamp)
+    val numFiles = currentFiles.size
+    dataOut.writeInt(numFiles)
+    if (numFiles > 0) {
+      for ((name, timestamp) <- currentFiles) {
+        dataOut.writeUTF(name)
+        dataOut.writeLong(timestamp)
+      }
     }
 
     // Write currentJars
-    dataOut.writeInt(currentJars.size)
-    for ((name, timestamp) <- currentJars) {
-      dataOut.writeUTF(name)
-      dataOut.writeLong(timestamp)
+    val numJars = currentJars.size
+    dataOut.writeInt(numJars)
+    if (numJars > 0) {
+      for ((name, timestamp) <- currentJars) {
+        dataOut.writeUTF(name)
+        dataOut.writeLong(timestamp)
+      }
     }
 
     // Write the task properties separately so it is available before full task deserialization.
-    val propBytes = Utils.serialize(task.localProperties)
-    dataOut.writeInt(propBytes.length)
-    dataOut.write(propBytes)
+    val props = task.localProperties
+    val numProps = props.size()
+
+    dataOut.writeInt(numProps)
+    if (numProps > 0) {
+      val keys = props.keys()
+      while (keys.hasMoreElements) {
+        val key = keys.nextElement().asInstanceOf[String]
+        dataOut.writeUTF(key)
+        dataOut.writeUTF(props.getProperty(key))
+      }
+    }
 
     // Write the task itself and finish
     dataOut.flush()
     val taskBytes = serializer.serialize(task)
     Utils.writeByteBuffer(taskBytes, out)
+    out.close()
     out.toByteBuffer
   }
 
@@ -237,7 +338,7 @@ private[spark] object Task {
    * and return the task itself as a serialized ByteBuffer. The caller can then update its
    * ClassLoaders and deserialize the task.
    *
-   * @return (taskFiles, taskJars, taskBytes)
+   * @return (taskFiles, taskJars, taskProps, taskBytes)
    */
   def deserializeWithDependencies(serializedTask: ByteBuffer)
     : (HashMap[String, Long], HashMap[String, Long], Properties, ByteBuffer) = {
@@ -258,14 +359,86 @@ private[spark] object Task {
     for (i <- 0 until numJars) {
       taskJars(dataIn.readUTF()) = dataIn.readLong()
     }
+    val taskProps = new Properties
+    var numProps = dataIn.readInt()
 
-    val propLength = dataIn.readInt()
-    val propBytes = new Array[Byte](propLength)
-    dataIn.readFully(propBytes, 0, propLength)
-    val taskProps = Utils.deserialize[Properties](propBytes)
+    while (numProps > 0) {
+      val key = dataIn.readUTF()
+      taskProps.setProperty(key, dataIn.readUTF())
+      numProps -= 1
+    }
 
     // Create a sub-buffer for the rest of the data, which is the serialized Task object
     val subBuffer = serializedTask.slice()  // ByteBufferInputStream will have read just up to task
     (taskFiles, taskJars, taskProps, subBuffer)
+  }
+}
+
+private[spark] final class TaskData private(var compressedBytes: Array[Byte],
+    var uncompressedLen: Int, var reference: Int) extends Serializable {
+
+  def this(compressedBytes: Array[Byte], uncompressedLen: Int) =
+    this(compressedBytes, uncompressedLen, TaskData.NO_REF)
+
+  @transient private var decompressed: Array[Byte] = _
+
+  /** decompress the common task data if present */
+  def decompress(env: SparkEnv = SparkEnv.get): (Array[Byte], Long) = {
+    if (uncompressedLen > 0) {
+      if (decompressed eq null) {
+        val startDecompression = System.nanoTime()
+        decompressed = env.createCompressionCodec.decompress(compressedBytes,
+          0, compressedBytes.length, uncompressedLen)
+        decompressed -> math.max(System.nanoTime() - startDecompression, 0L)
+      } else decompressed -> 0L
+    } else TaskData.EMPTY_BYTES -> 0L
+  }
+
+  override def hashCode(): Int = java.util.Arrays.hashCode(compressedBytes)
+
+  override def equals(obj: Any): Boolean = obj match {
+    case d: TaskData =>
+      uncompressedLen == d.uncompressedLen &&
+        reference == d.reference &&
+        java.util.Arrays.equals(compressedBytes, d.compressedBytes)
+    case _ => false
+  }
+}
+
+private[spark] object TaskData {
+
+  private val NO_REF: Int = -1
+  private val EMPTY_BYTES: Array[Byte] = Array.empty[Byte]
+  private val FIRST: TaskData = new TaskData(EMPTY_BYTES, 0, 0)
+  val EMPTY: TaskData = new TaskData(EMPTY_BYTES, 0, -2)
+
+  def apply(reference: Int): TaskData = {
+    if (reference == 0) FIRST
+    else if (reference > 0) new TaskData(EMPTY_BYTES, 0, reference)
+    else EMPTY
+  }
+
+  def write(data: TaskData, output: Output): Unit = Utils.tryOrIOException {
+    if (data.reference != NO_REF) {
+      output.writeVarInt(data.reference, false)
+    } else {
+      val bytes = data.compressedBytes
+      assert(bytes != null)
+      output.writeVarInt(NO_REF, false)
+      output.writeVarInt(data.uncompressedLen, true)
+      output.writeVarInt(bytes.length, true)
+      output.writeBytes(bytes)
+    }
+  }
+
+  def read(input: Input): TaskData = Utils.tryOrIOException {
+    val reference = input.readVarInt(false)
+    if (reference != NO_REF) {
+      TaskData(reference)
+    } else {
+      val uncompressedLen = input.readVarInt(true)
+      val bytesLen = input.readVarInt(true)
+      new TaskData(input.readBytes(bytesLen), uncompressedLen)
+    }
   }
 }

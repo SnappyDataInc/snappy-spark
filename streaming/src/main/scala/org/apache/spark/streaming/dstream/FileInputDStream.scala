@@ -14,6 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for SnappyData data platform.
+ *
+ * Portions Copyright (c) 2017 SnappyData, Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark.streaming.dstream
 
@@ -230,7 +248,7 @@ class FileInputDStream[K, V, F <: NewInputFormat[K, V]](
    * - It must pass the user-provided file filter.
    * - It must be newer than the ignore threshold. It is assumed that files older than the ignore
    *   threshold have already been considered or are existing files before start
-   *   (when newFileOnly = true).
+   *   (when newFilesOnly = true).
    * - It must not be present in the recently selected files that this class remembers.
    * - It must not be newer than the time of the batch (i.e. `currentTime` for which this
    *   file is being tested. This can occur if the driver was recovered, and the missing batches
@@ -315,7 +333,8 @@ class FileInputDStream[K, V, F <: NewInputFormat[K, V]](
   private def readObject(ois: ObjectInputStream): Unit = Utils.tryOrIOException {
     logDebug(this.getClass().getSimpleName + ".readObject used")
     ois.defaultReadObject()
-    generatedRDDs = new mutable.HashMap[Time, RDD[(K, V)]]()
+    // generatedRDDs = new mutable.HashMap[Time, RDD[(K, V)]]()
+    initGeneratedRDDs()
     batchTimeToSelectedFiles = new mutable.HashMap[Time, Array[String]]
     recentlySelectedFiles = new mutable.HashSet[String]()
     fileToModTime = new TimeStampedHashMap[String, Long](true)

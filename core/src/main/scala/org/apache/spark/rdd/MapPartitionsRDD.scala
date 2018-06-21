@@ -34,6 +34,9 @@ private[spark] class MapPartitionsRDD[U: ClassTag, T: ClassTag](
 
   override def getPartitions: Array[Partition] = firstParent[T].partitions
 
+  override def getPreferredLocations(
+      split: Partition): Seq[String] = firstParent[T].preferredLocations(split)
+
   override def compute(split: Partition, context: TaskContext): Iterator[U] =
     f(context, split.index, firstParent[T].iterator(split, context))
 

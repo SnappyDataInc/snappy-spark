@@ -30,6 +30,7 @@ import com.esotericsoftware.kryo.KryoSerializable;
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
 
+import org.apache.spark.unsafe.Native;
 import org.apache.spark.unsafe.Platform;
 import org.apache.spark.unsafe.array.ByteArrayMethods;
 import org.apache.spark.unsafe.hash.Murmur3_x86_32;
@@ -54,6 +55,9 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
   private long offset;
   private int numBytes;
 
+  private transient int hash;
+  private transient boolean isAscii;
+
   public Object getBaseObject() { return base; }
   public long getBaseOffset() { return offset; }
 
@@ -64,7 +68,8 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
     5, 5, 5, 5,
     6, 6};
 
-  private static boolean isLittleEndian = ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
+  private static final boolean IS_LITTLE_ENDIAN =
+      ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN;
 
   private static final UTF8String COMMA_UTF8 = UTF8String.fromString(",");
   public static final UTF8String EMPTY_UTF8 = UTF8String.fromString("");
@@ -152,6 +157,7 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
    * @param b The first byte of a code point
    */
   private static int numBytesForFirstByte(final byte b) {
+    if (b >= 0) return 1;
     final int offset = (b & 0xFF) - 192;
     return (offset >= 0) ? bytesOfCodePointInUTF8[offset] : 1;
   }
@@ -167,10 +173,14 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
    * Returns the number of code points in it.
    */
   public int numChars() {
+    if (isAscii) return numBytes;
+    final long endOffset = offset + numBytes;
     int len = 0;
-    for (int i = 0; i < numBytes; i += numBytesForFirstByte(getByte(i))) {
-      len += 1;
+    for (long offset = this.offset; offset < endOffset;
+         offset += numBytesForFirstByte(Platform.getByte(base, offset))) {
+      len++;
     }
+    if (len == numBytes) isAscii = true;
     return len;
   }
 
@@ -186,7 +196,7 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
     // After getting the data, we use a mask to mask out data that is not part of the string.
     long p;
     long mask = 0;
-    if (isLittleEndian) {
+    if (IS_LITTLE_ENDIAN) {
       if (numBytes >= 8) {
         p = Platform.getLong(base, offset);
       } else if (numBytes > 4) {
@@ -281,15 +291,25 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
    * Returns whether this contains `substring` or not.
    */
   public boolean contains(final UTF8String substring) {
-    if (substring.numBytes == 0) {
+    final int slen = substring.numBytes;
+    if (slen == 0) {
       return true;
     }
 
-    byte first = substring.getByte(0);
-    for (int i = 0; i <= numBytes - substring.numBytes; i++) {
-      if (getByte(i) == first && matchAt(substring, i)) {
-        return true;
-      }
+    final Object base = this.base;
+    final int len = this.numBytes;
+    // noinspection ConstantConditions
+    if (base == null && len >= Native.MIN_JNI_SIZE &&
+        substring.base == null && Native.isLoaded()) {
+      return Native.containsString(offset, len, substring.offset, slen);
+    }
+
+    final byte first = substring.getByte(0);
+    long offset = this.offset;
+    final long end = offset + len - slen;
+    for (; offset <= end; offset++) {
+      if (Platform.getByte(base, offset) == first && ByteArrayMethods.arrayEquals(
+          base, offset, substring.base, substring.offset, slen)) return true;
     }
     return false;
   }
@@ -297,7 +317,7 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
   /**
    * Returns the byte at position `i`.
    */
-  private byte getByte(int i) {
+  public byte getByte(int i) {
     return Platform.getByte(base, offset + i);
   }
 
@@ -465,12 +485,12 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
     int s = 0;
     int e = this.numBytes - 1;
     // skip all of the space (0x20) in the left side
-    while (s < this.numBytes && getByte(s) <= 0x20 && getByte(s) >= 0x00) s++;
+    while (s < this.numBytes && getByte(s) == 0x20) s++;
     // skip all of the space (0x20) in the right side
-    while (e >= 0 && getByte(e) <= 0x20 && getByte(e) >= 0x00) e--;
+    while (e >= 0 && getByte(e) == 0x20) e--;
     if (s > e) {
       // empty string
-      return UTF8String.fromBytes(new byte[0]);
+      return EMPTY_UTF8;
     } else {
       return copyUTF8String(s, e);
     }
@@ -479,10 +499,10 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
   public UTF8String trimLeft() {
     int s = 0;
     // skip all of the space (0x20) in the left side
-    while (s < this.numBytes && getByte(s) <= 0x20 && getByte(s) >= 0x00) s++;
+    while (s < this.numBytes && getByte(s) == 0x20) s++;
     if (s == this.numBytes) {
       // empty string
-      return UTF8String.fromBytes(new byte[0]);
+      return EMPTY_UTF8;
     } else {
       return copyUTF8String(s, this.numBytes - 1);
     }
@@ -491,11 +511,11 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
   public UTF8String trimRight() {
     int e = numBytes - 1;
     // skip all of the space (0x20) in the right side
-    while (e >= 0 && getByte(e) <= 0x20 && getByte(e) >= 0x00) e--;
+    while (e >= 0 && getByte(e) == 0x20) e--;
 
     if (e < 0) {
       // empty string
-      return UTF8String.fromBytes(new byte[0]);
+      return EMPTY_UTF8;
     } else {
       return copyUTF8String(0, e);
     }
@@ -761,7 +781,7 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
 
     if (numInputs == 0) {
       // Return an empty string if there is no input, or all the inputs are null.
-      return fromBytes(new byte[0]);
+      return EMPTY_UTF8;
     }
 
     // Allocate a new byte array, and copy the inputs one by one into it.
@@ -816,6 +836,190 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
     return fromString(sb.toString());
   }
 
+  private int getDigit(byte b) {
+    if (b >= '0' && b <= '9') {
+      return b - '0';
+    }
+    throw new NumberFormatException(toString());
+  }
+
+  /**
+   * Parses this UTF8String to long.
+   *
+   * Note that, in this method we accumulate the result in negative format, and convert it to
+   * positive format at the end, if this string is not started with '-'. This is because min value
+   * is bigger than max value in digits, e.g. Integer.MAX_VALUE is '2147483647' and
+   * Integer.MIN_VALUE is '-2147483648'.
+   *
+   * This code is mostly copied from LazyLong.parseLong in Hive.
+   */
+  public long toLong() {
+    if (numBytes == 0) {
+      throw new NumberFormatException("Empty string");
+    }
+
+    byte b = getByte(0);
+    final boolean negative = b == '-';
+    int offset = 0;
+    if (negative || b == '+') {
+      offset++;
+      if (numBytes == 1) {
+        throw new NumberFormatException(toString());
+      }
+    }
+
+    final byte separator = '.';
+    final int radix = 10;
+    final long stopValue = Long.MIN_VALUE / radix;
+    long result = 0;
+
+    while (offset < numBytes) {
+      b = getByte(offset);
+      offset++;
+      if (b == separator) {
+        // We allow decimals and will return a truncated integral in that case.
+        // Therefore we won't throw an exception here (checking the fractional
+        // part happens below.)
+        break;
+      }
+
+      int digit = getDigit(b);
+      // We are going to process the new digit and accumulate the result. However, before doing
+      // this, if the result is already smaller than the stopValue(Long.MIN_VALUE / radix), then
+      // result * 10 will definitely be smaller than minValue, and we can stop and throw exception.
+      if (result < stopValue) {
+        throw new NumberFormatException(toString());
+      }
+
+      result = result * radix - digit;
+      // Since the previous result is less than or equal to stopValue(Long.MIN_VALUE / radix), we
+      // can just use `result > 0` to check overflow. If result overflows, we should stop and throw
+      // exception.
+      if (result > 0) {
+        throw new NumberFormatException(toString());
+      }
+    }
+
+    // This is the case when we've encountered a decimal separator. The fractional
+    // part will not change the number, but we will verify that the fractional part
+    // is well formed.
+    while (offset < numBytes) {
+      if (getDigit(getByte(offset)) == -1) {
+        throw new NumberFormatException(toString());
+      }
+      offset++;
+    }
+
+    if (!negative) {
+      result = -result;
+      if (result < 0) {
+        throw new NumberFormatException(toString());
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Parses this UTF8String to int.
+   *
+   * Note that, in this method we accumulate the result in negative format, and convert it to
+   * positive format at the end, if this string is not started with '-'. This is because min value
+   * is bigger than max value in digits, e.g. Integer.MAX_VALUE is '2147483647' and
+   * Integer.MIN_VALUE is '-2147483648'.
+   *
+   * This code is mostly copied from LazyInt.parseInt in Hive.
+   *
+   * Note that, this method is almost same as `toLong`, but we leave it duplicated for performance
+   * reasons, like Hive does.
+   */
+  public int toInt() {
+    if (numBytes == 0) {
+      throw new NumberFormatException("Empty string");
+    }
+
+    byte b = getByte(0);
+    final boolean negative = b == '-';
+    int offset = 0;
+    if (negative || b == '+') {
+      offset++;
+      if (numBytes == 1) {
+        throw new NumberFormatException(toString());
+      }
+    }
+
+    final byte separator = '.';
+    final int radix = 10;
+    final int stopValue = Integer.MIN_VALUE / radix;
+    int result = 0;
+
+    while (offset < numBytes) {
+      b = getByte(offset);
+      offset++;
+      if (b == separator) {
+        // We allow decimals and will return a truncated integral in that case.
+        // Therefore we won't throw an exception here (checking the fractional
+        // part happens below.)
+        break;
+      }
+
+      int digit = getDigit(b);
+      // We are going to process the new digit and accumulate the result. However, before doing
+      // this, if the result is already smaller than the stopValue(Integer.MIN_VALUE / radix), then
+      // result * 10 will definitely be smaller than minValue, and we can stop and throw exception.
+      if (result < stopValue) {
+        throw new NumberFormatException(toString());
+      }
+
+      result = result * radix - digit;
+      // Since the previous result is less than or equal to stopValue(Integer.MIN_VALUE / radix),
+      // we can just use `result > 0` to check overflow. If result overflows, we should stop and
+      // throw exception.
+      if (result > 0) {
+        throw new NumberFormatException(toString());
+      }
+    }
+
+    // This is the case when we've encountered a decimal separator. The fractional
+    // part will not change the number, but we will verify that the fractional part
+    // is well formed.
+    while (offset < numBytes) {
+      if (getDigit(getByte(offset)) == -1) {
+        throw new NumberFormatException(toString());
+      }
+      offset++;
+    }
+
+    if (!negative) {
+      result = -result;
+      if (result < 0) {
+        throw new NumberFormatException(toString());
+      }
+    }
+
+    return result;
+  }
+
+  public short toShort() {
+    int intValue = toInt();
+    short result = (short) intValue;
+    if (result != intValue) {
+      throw new NumberFormatException(toString());
+    }
+
+    return result;
+  }
+
+  public byte toByte() {
+    int intValue = toInt();
+    byte result = (byte) intValue;
+    if (result != intValue) {
+      throw new NumberFormatException(toString());
+    }
+
+    return result;
+  }
+
   @Override
   public String toString() {
     return new String(getBytes(), StandardCharsets.UTF_8);
@@ -823,25 +1027,58 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
 
   @Override
   public UTF8String clone() {
-    return fromBytes(getBytes());
+    UTF8String newString = fromBytes(getBytes());
+    if (isAscii) {
+      newString.isAscii = true;
+    }
+    return newString;
+  }
+
+  public UTF8String cloneIfRequired() {
+    if (offset == BYTE_ARRAY_OFFSET &&
+        ((byte[])base).length == numBytes) {
+      return this;
+    } else {
+      final int numBytes = this.numBytes;
+      final byte[] bytes = new byte[numBytes];
+      copyMemory(base, offset, bytes, BYTE_ARRAY_OFFSET, numBytes);
+      UTF8String newString = fromAddress(bytes, BYTE_ARRAY_OFFSET, numBytes);
+      if (isAscii) {
+        newString.isAscii = true;
+      }
+      return newString;
+    }
   }
 
   @Override
   public int compareTo(@Nonnull final UTF8String other) {
+    return compare(other);
+  }
+
+  public final int compare(final UTF8String other) {
     int len = Math.min(numBytes, other.numBytes);
-    // TODO: compare 8 bytes as unsigned long
-    for (int i = 0; i < len; i ++) {
+    int wordMax = (len / 8) * 8;
+    long roffset = other.offset;
+    Object rbase = other.base;
+    for (int i = 0; i < wordMax; i += 8) {
+      long left = getLong(base, offset + i);
+      long right = getLong(rbase, roffset + i);
+      if (left != right) {
+        if (IS_LITTLE_ENDIAN) {
+          return Long.compareUnsigned(Long.reverseBytes(left), Long.reverseBytes(right));
+        } else {
+          return Long.compareUnsigned(left, right);
+        }
+      }
+    }
+    for (int i = wordMax; i < len; i++) {
       // In UTF-8, the byte should be unsigned, so we should compare them as unsigned int.
-      int res = (getByte(i) & 0xFF) - (other.getByte(i) & 0xFF);
+      int res = (getByte(i) & 0xFF) - (Platform.getByte(rbase, roffset + i) & 0xFF);
       if (res != 0) {
         return res;
       }
     }
     return numBytes - other.numBytes;
-  }
-
-  public int compare(final UTF8String other) {
-    return compareTo(other);
   }
 
   @Override
@@ -855,6 +1092,12 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
     } else {
       return false;
     }
+  }
+
+  public boolean equals(final UTF8String o) {
+    final int numBytes = this.numBytes;
+    return o != null && numBytes == o.numBytes && ByteArrayMethods.arrayEquals(
+        base, offset, o.base, o.offset, numBytes);
   }
 
   /**
@@ -923,7 +1166,10 @@ public final class UTF8String implements Comparable<UTF8String>, Externalizable,
 
   @Override
   public int hashCode() {
-    return Murmur3_x86_32.hashUnsafeBytes(base, offset, numBytes, 42);
+    final int h = this.hash;
+    if (h != 0) return h;
+    return (this.hash = Murmur3_x86_32.hashUnsafeBytes(
+        base, offset, numBytes, 42));
   }
 
   /**

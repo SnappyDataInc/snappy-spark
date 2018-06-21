@@ -18,6 +18,7 @@
 package org.apache.spark.streaming
 
 import java.io.{File, NotSerializableException}
+import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.util.concurrent.atomic.AtomicInteger
 
 import scala.collection.mutable.ArrayBuffer
@@ -750,12 +751,17 @@ class StreamingContextSuite extends SparkFunSuite with BeforeAndAfter with Timeo
 
     ssc.start()
     require(ssc.getState() === StreamingContextState.ACTIVE)
+    /* SNAP: allowed in SnappyData
     testForException("no error on adding input after start", "start") {
       addInputStream(ssc) }
     testForException("no error on adding transformation after start", "start") {
       input.map { x => x * 2 } }
     testForException("no error on adding output operation after start", "start") {
       transformed.foreachRDD { rdd => rdd.collect() } }
+    */
+    addInputStream(ssc)
+    input.map { x => x * 2 }
+    transformed.foreachRDD { rdd => rdd.collect() }
 
     ssc.stop()
     require(ssc.getState() === StreamingContextState.STOPPED)
@@ -804,6 +810,36 @@ class StreamingContextSuite extends SparkFunSuite with BeforeAndAfter with Timeo
     // Throw the exception if crash
     ssc.awaitTerminationOrTimeout(1)
     ssc.stop()
+  }
+
+  test("SPARK-18560 Receiver data should be deserialized properly.") {
+    // Start a two nodes cluster, so receiver will use one node, and Spark jobs will use the
+    // other one. Then Spark jobs need to fetch remote blocks and it will trigger SPARK-18560.
+    val conf = new SparkConf().setMaster("local-cluster[2,1,1024]").setAppName(appName)
+    ssc = new StreamingContext(conf, Milliseconds(100))
+    val input = ssc.receiverStream(new TestReceiver)
+    val latch = new CountDownLatch(1)
+    @volatile var stopping = false
+    input.count().foreachRDD { rdd =>
+      // Make sure we can read from BlockRDD
+      if (rdd.collect().headOption.getOrElse(0L) > 0 && !stopping) {
+        // Stop StreamingContext to unblock "awaitTerminationOrTimeout"
+        stopping = true
+        new Thread() {
+          setDaemon(true)
+          override def run(): Unit = {
+            ssc.stop(stopSparkContext = true, stopGracefully = false)
+            latch.countDown()
+          }
+        }.start()
+      }
+    }
+    ssc.start()
+    ssc.awaitTerminationOrTimeout(60000)
+    // Wait until `ssc.top` returns. Otherwise, we may finish this test too fast and leak an active
+    // SparkContext. Note: the stop codes in `after` will just do nothing if `ssc.stop` in this test
+    // is running.
+    assert(latch.await(60, TimeUnit.SECONDS))
   }
 
   def addInputStream(s: StreamingContext): DStream[Int] = {

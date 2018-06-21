@@ -18,6 +18,7 @@
 package org.apache.spark
 
 import java.io.File
+import java.net.{MalformedURLException, URI}
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.TimeUnit
 
@@ -25,6 +26,8 @@ import scala.concurrent.Await
 import scala.concurrent.duration.Duration
 
 import com.google.common.io.Files
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.io.{BytesWritable, LongWritable, Text}
 import org.apache.hadoop.mapred.TextInputFormat
 import org.apache.hadoop.mapreduce.lib.input.{TextInputFormat => NewTextInputFormat}
@@ -173,6 +176,27 @@ class SparkContextSuite extends SparkFunSuite with LocalSparkContext {
     }
   }
 
+  test("SPARK-17650: malformed url's throw exceptions before bricking Executors") {
+    try {
+      sc = new SparkContext(new SparkConf().setAppName("test").setMaster("local"))
+      Seq("http", "https", "ftp").foreach { scheme =>
+        val badURL = s"$scheme://user:pwd/path"
+        val e1 = intercept[MalformedURLException] {
+          sc.addFile(badURL)
+        }
+        assert(e1.getMessage.contains(badURL))
+        val e2 = intercept[MalformedURLException] {
+          sc.addJar(badURL)
+        }
+        assert(e2.getMessage.contains(badURL))
+        assert(sc.addedFiles.isEmpty)
+        assert(sc.addedJars.isEmpty)
+      }
+    } finally {
+      sc.stop()
+    }
+  }
+
   test("addFile recursive works") {
     val pluto = Utils.createTempDir()
     val neptune = Utils.createTempDir(pluto.getAbsolutePath)
@@ -214,6 +238,73 @@ class SparkContextSuite extends SparkFunSuite with LocalSparkContext {
     } finally {
       sc.stop()
     }
+  }
+
+  test("cannot call addFile with different paths that have the same filename") {
+    val dir = Utils.createTempDir()
+    try {
+      val subdir1 = new File(dir, "subdir1")
+      val subdir2 = new File(dir, "subdir2")
+      assert(subdir1.mkdir())
+      assert(subdir2.mkdir())
+      val file1 = new File(subdir1, "file")
+      val file2 = new File(subdir2, "file")
+      Files.write("old", file1, StandardCharsets.UTF_8)
+      Files.write("new", file2, StandardCharsets.UTF_8)
+      sc = new SparkContext("local-cluster[1,1,1024]", "test")
+      sc.addFile(file1.getAbsolutePath)
+      def getAddedFileContents(): String = {
+        sc.parallelize(Seq(0)).map { _ =>
+          scala.io.Source.fromFile(SparkFiles.get("file")).mkString
+        }.first()
+      }
+      assert(getAddedFileContents() === "old")
+      intercept[IllegalArgumentException] {
+        sc.addFile(file2.getAbsolutePath)
+      }
+      assert(getAddedFileContents() === "old")
+    } finally {
+      Utils.deleteRecursively(dir)
+    }
+  }
+
+  // Regression tests for SPARK-16787
+  for (
+    schedulingMode <- Seq("local-mode", "non-local-mode");
+    method <- Seq("addJar", "addFile")
+  ) {
+    val jarPath = Thread.currentThread().getContextClassLoader.getResource("TestUDTF.jar").toString
+    val master = schedulingMode match {
+      case "local-mode" => "local"
+      case "non-local-mode" => "local-cluster[1,1,1024]"
+    }
+    test(s"$method can be called twice with same file in $schedulingMode (SPARK-16787)") {
+      sc = new SparkContext(master, "test")
+      method match {
+        case "addJar" =>
+          sc.addJar(jarPath)
+          sc.addJar(jarPath)
+        case "addFile" =>
+          sc.addFile(jarPath)
+          sc.addFile(jarPath)
+      }
+    }
+  }
+
+  test("add jar with invalid path") {
+    val tmpDir = Utils.createTempDir()
+    val tmpJar = File.createTempFile("test", ".jar", tmpDir)
+
+    sc = new SparkContext(new SparkConf().setAppName("test").setMaster("local"))
+    sc.addJar(tmpJar.getAbsolutePath)
+
+    // Invaid jar path will only print the error log, will not add to file server.
+    sc.addJar("dummy.jar")
+    sc.addJar("")
+    sc.addJar(tmpDir.getAbsolutePath)
+
+    sc.listJars().size should be (1)
+    sc.listJars().head should include (tmpJar.getName)
   }
 
   test("Cancelling job group should not cause SparkContext to shutdown (SPARK-6414)") {
@@ -377,5 +468,21 @@ class SparkContextSuite extends SparkFunSuite with LocalSparkContext {
       assert(org.apache.log4j.Logger.getRootLogger().getLevel === originalLevel)
       sc.stop()
     }
+  }
+
+  test("SPARK-19446: DebugFilesystem.assertNoOpenStreams should report " +
+    "open streams to help debugging") {
+    val fs = new DebugFilesystem()
+    fs.initialize(new URI("file:///"), new Configuration())
+    val file = File.createTempFile("SPARK19446", "temp")
+    Files.write(Array.ofDim[Byte](1000), file)
+    val path = new Path("file:///" + file.getCanonicalPath)
+    val stream = fs.open(path)
+    val exc = intercept[RuntimeException] {
+      DebugFilesystem.assertNoOpenStreams()
+    }
+    assert(exc != null)
+    assert(exc.getCause() != null)
+    stream.close()
   }
 }

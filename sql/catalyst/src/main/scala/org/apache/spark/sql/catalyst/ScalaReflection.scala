@@ -251,6 +251,9 @@ object ScalaReflection extends ScalaReflection {
       case t if t <:< localTypeOf[java.lang.String] =>
         Invoke(getPath, "toString", ObjectType(classOf[String]))
 
+      case t if t <:< localTypeOf[UTF8String] =>
+        Invoke(getPath, "cloneIfRequired", ObjectType(classOf[UTF8String]))
+
       case t if t <:< localTypeOf[java.math.BigDecimal] =>
         Invoke(getPath, "toJavaBigDecimal", ObjectType(classOf[java.math.BigDecimal]))
 
@@ -342,7 +345,7 @@ object ScalaReflection extends ScalaReflection {
 
         StaticInvoke(
           ArrayBasedMapData.getClass,
-          ObjectType(classOf[Map[_, _]]),
+          ObjectType(classOf[scala.collection.immutable.Map[_, _]]),
           "toScalaMap",
           keyData :: valueData :: Nil)
 
@@ -441,6 +444,22 @@ object ScalaReflection extends ScalaReflection {
           val newPath = s"""- array element class: "$clsName"""" +: walkedTypePath
           MapObjects(serializerFor(_, elementType, newPath), input, dt)
 
+         case dt @ (BooleanType | ByteType | ShortType | IntegerType | LongType |
+                    FloatType | DoubleType) =>
+          val cls = input.dataType.asInstanceOf[ObjectType].cls
+          if (cls.isArray && cls.getComponentType.isPrimitive) {
+            StaticInvoke(
+              classOf[UnsafeArrayData],
+              ArrayType(dt, false),
+              "fromPrimitiveArray",
+              input :: Nil)
+          } else {
+            NewInstance(
+              classOf[GenericArrayData],
+              input :: Nil,
+              dataType = ArrayType(dt, schemaFor(elementType).nullable))
+          }
+
         case dt =>
           NewInstance(
             classOf[GenericArrayData],
@@ -490,6 +509,12 @@ object ScalaReflection extends ScalaReflection {
           StringType,
           "fromString",
           inputObject :: Nil)
+
+      case t if t <:< localTypeOf[UTF8String] =>
+        Invoke(
+          inputObject,
+          "cloneIfRequired",
+          StringType)
 
       case t if t <:< localTypeOf[java.sql.Timestamp] =>
         StaticInvoke(
@@ -590,6 +615,19 @@ object ScalaReflection extends ScalaReflection {
   }
 
   /**
+   * Returns true if the given type is option of product type, e.g. `Option[Tuple2]`. Note that,
+   * we also treat [[DefinedByConstructorParams]] as product type.
+   */
+  def optionOfProductType(tpe: `Type`): Boolean = ScalaReflectionLock.synchronized {
+    tpe match {
+      case t if t <:< localTypeOf[Option[_]] =>
+        val TypeRef(_, _, Seq(optType)) = t
+        definedByConstructorParams(optType)
+      case _ => false
+    }
+  }
+
+  /**
    * Returns the parameter names and types for the primary constructor of this class.
    *
    * Note that it only works for scala classes with primary constructor, and currently doesn't
@@ -628,7 +666,7 @@ object ScalaReflection extends ScalaReflection {
   /*
    * Retrieves the runtime class corresponding to the provided type.
    */
-  def getClassFromType(tpe: Type): Class[_] = mirror.runtimeClass(tpe.erasure.typeSymbol.asClass)
+  def getClassFromType(tpe: Type): Class[_] = mirror.runtimeClass(tpe.typeSymbol.asClass)
 
   case class Schema(dataType: DataType, nullable: Boolean)
 
@@ -669,6 +707,7 @@ object ScalaReflection extends ScalaReflection {
         Schema(MapType(schemaFor(keyType).dataType,
           valueDataType, valueContainsNull = valueNullable), nullable = true)
       case t if t <:< localTypeOf[String] => Schema(StringType, nullable = true)
+      case t if t <:< localTypeOf[UTF8String] => Schema(StringType, nullable = true)
       case t if t <:< localTypeOf[java.sql.Timestamp] => Schema(TimestampType, nullable = true)
       case t if t <:< localTypeOf[java.sql.Date] => Schema(DateType, nullable = true)
       case t if t <:< localTypeOf[BigDecimal] => Schema(DecimalType.SYSTEM_DEFAULT, nullable = true)
@@ -708,7 +747,7 @@ object ScalaReflection extends ScalaReflection {
   /**
    * Whether the fields of the given type is defined entirely by its constructor parameters.
    */
-  private[sql] def definedByConstructorParams(tpe: Type): Boolean = {
+  def definedByConstructorParams(tpe: Type): Boolean = {
     tpe <:< localTypeOf[Product] || tpe <:< localTypeOf[DefinedByConstructorParams]
   }
 
@@ -735,7 +774,6 @@ trait ScalaReflection {
 
   // The Predef.Map is scala.collection.immutable.Map.
   // Since the map values can be mutable, we explicitly import scala.collection.Map at here.
-  import scala.collection.Map
 
   /**
    * Return the Scala Type for `T` in the current classloader mirror.

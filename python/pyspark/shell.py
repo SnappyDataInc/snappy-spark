@@ -15,6 +15,25 @@
 # limitations under the License.
 #
 
+#
+# Changes for SnappyData data platform.
+#
+# Portions Copyright (c) 2017 SnappyData, Inc. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you
+# may not use this file except in compliance with the License. You
+# may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied. See the License for the specific language governing
+# permissions and limitations under the License. See accompanying
+# LICENSE file.
+#
+
 """
 An interactive shell.
 
@@ -30,6 +49,7 @@ import py4j
 import pyspark
 from pyspark.context import SparkContext
 from pyspark.sql import SparkSession, SQLContext
+from pyspark.sql.snappy import SnappySession
 from pyspark.storagelevel import StorageLevel
 
 if os.environ.get("SPARK_EXECUTOR_URI"):
@@ -48,12 +68,14 @@ except py4j.protocol.Py4JError:
 except TypeError:
     spark = SparkSession.builder.getOrCreate()
 
+
 sc = spark.sparkContext
-sql = spark.sql
+snappy = SnappySession(sc)
+sql = snappy.sql
 atexit.register(lambda: sc.stop())
 
 # for compatibility
-sqlContext = spark._wrapped
+sqlContext = snappy._wrapped
 sqlCtx = sqlContext
 
 print("""Welcome to
@@ -68,6 +90,7 @@ print("Using Python version %s (%s, %s)" % (
     platform.python_build()[0],
     platform.python_build()[1]))
 print("SparkSession available as 'spark'.")
+print("SnappySession available as 'snappy'.")
 
 # The ./bin/pyspark script stores the old PYTHONSTARTUP value in OLD_PYTHONSTARTUP,
 # which allows us to execute the user's PYTHONSTARTUP file:

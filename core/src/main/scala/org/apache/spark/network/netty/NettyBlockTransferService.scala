@@ -23,7 +23,7 @@ import scala.collection.JavaConverters._
 import scala.concurrent.{Future, Promise}
 import scala.reflect.ClassTag
 
-import org.apache.spark.{SecurityManager, SparkConf}
+import org.apache.spark.{SecurityManager, SparkConf, SparkEnv}
 import org.apache.spark.network._
 import org.apache.spark.network.buffer.ManagedBuffer
 import org.apache.spark.network.client.{RpcResponseCallback, TransportClientBootstrap, TransportClientFactory}
@@ -32,7 +32,6 @@ import org.apache.spark.network.server._
 import org.apache.spark.network.shuffle.{BlockFetchingListener, OneForOneBlockFetcher, RetryingBlockFetcher}
 import org.apache.spark.network.shuffle.protocol.UploadBlock
 import org.apache.spark.network.util.JavaUtils
-import org.apache.spark.serializer.JavaSerializer
 import org.apache.spark.storage.{BlockId, StorageLevel}
 import org.apache.spark.util.Utils
 
@@ -42,12 +41,14 @@ import org.apache.spark.util.Utils
 private[spark] class NettyBlockTransferService(
     conf: SparkConf,
     securityManager: SecurityManager,
+    bindAddress: String,
     override val hostName: String,
+    _port: Int,
     numCores: Int)
   extends BlockTransferService {
 
   // TODO: Don't use Java serialization, use a more cross-version compatible serialization format.
-  private val serializer = new JavaSerializer(conf)
+  private val serializer = SparkEnv.getClosureSerializer(conf)
   private val authEnabled = securityManager.isAuthenticationEnabled()
   private val transportConf = SparkTransportConf.fromSparkConf(conf, "shuffle", numCores)
 
@@ -75,12 +76,11 @@ private[spark] class NettyBlockTransferService(
   /** Creates and binds the TransportServer, possibly trying multiple ports. */
   private def createServer(bootstraps: List[TransportServerBootstrap]): TransportServer = {
     def startService(port: Int): (TransportServer, Int) = {
-      val server = transportContext.createServer(hostName, port, bootstraps.asJava)
+      val server = transportContext.createServer(bindAddress, port, bootstraps.asJava)
       (server, server.getPort)
     }
 
-    val portToTry = conf.getInt("spark.blockManager.port", 0)
-    Utils.startServiceOnPort(portToTry, startService, conf, getClass.getName)._1
+    Utils.startServiceOnPort(_port, startService, conf, getClass.getName)._1
   }
 
   override def fetchBlocks(
