@@ -817,6 +817,29 @@ public class JavaDatasetSuite implements Serializable {
     }
   }
 
+  public static class NestedBeanWithArray extends  NestedBean {
+    private Address[] addresses;
+
+    public NestedBeanWithArray() {}
+
+    public NestedBeanWithArray(int id, String name, long longValue, short shortValue, byte byteValue,
+        double doubleValue, float floatValue, boolean booleanValue, byte[] binaryValue,
+        Date date, Timestamp timestamp, Address address, Address[] addresses) {
+      super(id, name, longValue, shortValue, byteValue,
+      doubleValue, floatValue, booleanValue, binaryValue,
+      date, timestamp, address);
+      this.addresses = addresses;
+    }
+
+    public Address[] getAddresses() {
+      return addresses;
+    }
+
+    public void setAddresses(Address[] addresses) {
+      this.addresses = addresses;
+    }
+  }
+
   public static class NestedBean implements Serializable {
 
     private int id;
@@ -1015,6 +1038,53 @@ public class JavaDatasetSuite implements Serializable {
           "12320 sw horizon," + k, addressStruct.<String>getAs("street"));
       Assert.assertEquals("Address.zip field match not as expected",
           97007 * k, addressStruct.<Integer>getAs("zip").intValue());
+    }
+    assert (keys.isEmpty());
+  }
+
+  private void checkNestedBeansWithArrayResult(List<Row> rows) {
+    Set<Integer> keys = new HashSet<>(100);
+    for (int k = 1; k <= 100; k++) {
+      keys.add(k);
+    }
+    for (Row row : rows) {
+      int k = row.<Integer>getAs("id");
+      Assert.assertTrue(keys.remove(k));
+      Assert.assertEquals("String field match not as expected",
+          "name_" + k, row.<String>getAs("name"));
+      Assert.assertEquals("Long field match not as expected",
+          (long)k, row.<Long>getAs("longField").longValue());
+      Assert.assertEquals("Short field match not as expected",
+          (short)k, row.<Short>getAs("shortField").shortValue());
+      Assert.assertEquals("Byte field match not as expected",
+          (byte)k, row.<Byte>getAs("byteField").byteValue());
+      Assert.assertEquals("Double field match not as expected",
+          k * 86.7543d, row.<Double>getAs("doubleField"), 0.0);
+      Assert.assertEquals("Float field match not as expected",
+          k * 7.31f, row.<Float>getAs("floatField"), 0.0f);
+      Assert.assertTrue("Boolean field match not as expected",
+          row.<Boolean>getAs("booleanField"));
+      byte[] bytesValue = new byte[k];
+      Arrays.fill(bytesValue, (byte)k);
+      Assert.assertTrue(Arrays.equals(bytesValue, (byte[])row.getAs("binaryField")));
+      Assert.assertEquals("Date field match not as expected",
+          new Date(7836L * k * 1000L).toString(), row.<Date>getAs("date").toString());
+      Assert.assertEquals("TimeStamp field match not as expected",
+          new Timestamp(7896L * k * 1000L), row.<Timestamp>getAs("timestamp"));
+      Row addressStruct = row.getAs("address");
+      Assert.assertEquals("Address.street field match not as expected",
+          "12320 sw horizon," + k, addressStruct.<String>getAs("street"));
+      Assert.assertEquals("Address.zip field match not as expected",
+          97007 * k, addressStruct.<Integer>getAs("zip").intValue());
+      List<Row> addresses = row.getList(row.fieldIndex("addresses"));
+      Assert.assertEquals(10, addresses.size());
+      for(int j = 0; j < addresses.size(); ++j) {
+        Assert.assertEquals("Address.street field match not as expected",
+            "12320 sw horizon," + k + "_" + j, addresses.get(j).<String>getAs("street"));
+        Assert.assertEquals("Address.zip field match not as expected",
+            97007 * k * j, addresses.get(j).<Integer>getAs("zip").intValue());
+      }
+
     }
     assert (keys.isEmpty());
   }
@@ -1604,6 +1674,102 @@ public class JavaDatasetSuite implements Serializable {
           "12320 sw horizon," + k, address.getStreet());
       Assert.assertEquals("Address.zip field match not as expected",
           97007 * k, address.getZip());
+    }
+    assert (keys.isEmpty());
+
+    spark.catalog().dropTempView("tempPersonsTable");
+  }
+
+
+  // see SNAP-2384
+  @Test
+  public void testNestedBeanWithArrayInDataFrameFromRDD() {
+    List<NestedBeanWithArray> beanCollection = new ArrayList<>(100);
+    for (int k = 1; k <= 100; k++) {
+      byte[] bytesValue = new byte[k];
+      Arrays.fill(bytesValue, (byte)k);
+      Address[] addresses = new Address[10];
+      for(int i = 0; i < addresses.length; ++i) {
+        addresses[i] = new Address("12320 sw horizon," + k + "_" +i, 97007 * k*i);
+      }
+      beanCollection.add(new NestedBeanWithArray(k, "name_" + k, (long)k, (short)k,
+          (byte)k, (double)k * 86.7543d, (float)k * 7.31f, true,
+          bytesValue, new Date(7836L * k * 1000L), new Timestamp(7896L * k * 1000L),
+          new Address("12320 sw horizon," + k, 97007 * k), addresses));
+    }
+
+    JavaRDD<NestedBeanWithArray> beanRDD = jsc.parallelize(beanCollection);
+    Dataset<Row> df = spark.createDataFrame(beanRDD, NestedBeanWithArray.class);
+    checkNestedBeansWithArrayResult(df.collectAsList());
+  }
+
+  // see SNAP-2384
+  @Test
+  public void testNestedBeanInArray() {
+    List<NestedBeanWithArray> beansCollection = new ArrayList<>(100);
+    for (int k = 1; k <= 100; k++) {
+      byte[] bytesValue = new byte[k];
+      Arrays.fill(bytesValue, (byte)k);
+      Address[] addresses = new Address[10];
+      for(int i = 0; i < addresses.length; ++i) {
+        addresses[i] = new Address("12320 sw horizon," + k + "_" +i, 97007 * k*i);
+      }
+      beansCollection.add(new NestedBeanWithArray(k, "name_" + k, (long)k, (short)k,
+          (byte)k, (double)k * 86.7543d, (float)k * 7.31f, true,
+          bytesValue, new Date(7836L * k * 1000L), new Timestamp(7896L * k * 1000L),
+          new Address("12320 sw horizon," + k, 97007 * k), addresses));
+    }
+
+    Encoder<NestedBeanWithArray> encoder = Encoders.bean(NestedBeanWithArray.class);
+    Dataset<NestedBeanWithArray> beansDataset = spark.createDataset(beansCollection, encoder);
+    checkNestedBeansWithArrayResult(beansDataset.toDF().collectAsList());
+
+    beansDataset.createOrReplaceTempView("tempPersonsTable");
+    List<Row> rows = spark.sql("select * from tempPersonsTable").collectAsList();
+    checkNestedBeansWithArrayResult(rows);
+
+    // test Dataset.as[Person]
+    JavaRDD<Row> beansRDD = jsc.parallelize(rows);
+    Dataset<Row> beansDF = spark.createDataFrame(beansRDD, beansDataset.schema());
+    List<NestedBeanWithArray> results = beansDF.as(encoder).collectAsList();
+    Set<Integer> keys = new HashSet<>(100);
+    for (int k = 1; k <= 100; k++) {
+      keys.add(k);
+    }
+    for (NestedBeanWithArray bean : results) {
+      int k = bean.getId();
+      Assert.assertTrue(keys.remove(k));
+      Assert.assertEquals("String field match not as expected", "name_" + k, bean.getName());
+      Assert.assertEquals("Long field match not as expected", k, bean.getLongField());
+      Assert.assertEquals("Short field match not as expected", (short)k, bean.getShortField());
+      Assert.assertEquals("Byte field match not as expected", (byte)k, bean.getByteField());
+      Assert.assertEquals("Double field match not as expected",
+          k * 86.7543d, bean.getDoubleField(), 0.0);
+      Assert.assertEquals("Float field match not as expected",
+          k * 7.31f, bean.getFloatField(), 0.0f);
+      Assert.assertTrue("Boolean field match not as expected", bean.getBooleanField());
+      byte[] bytesValue = new byte[k];
+      Arrays.fill(bytesValue, (byte)k);
+      Assert.assertTrue(Arrays.equals(bytesValue, bean.getBinaryField()));
+      Assert.assertEquals("Date field match not as expected",
+          new Date(7836L * k * 1000L).toString(), bean.getDate().toString());
+      Assert.assertEquals("TimeStamp field match not as expected",
+          new Timestamp(7896L * k * 1000L), bean.getTimestamp());
+      Address address = bean.getAddress();
+      Assert.assertEquals("Address.street field match not as expected",
+          "12320 sw horizon," + k, address.getStreet());
+      Assert.assertEquals("Address.zip field match not as expected",
+          97007 * k, address.getZip());
+      Address[] addresses = bean.getAddresses();
+      Assert.assertEquals(10, addresses.length);
+      for(int j =0; j < addresses.length; ++j) {
+        Address child = addresses[j];
+        Assert.assertEquals("Address.street field match not as expected",
+            "12320 sw horizon," + k + "_" + j, child.getStreet());
+        Assert.assertEquals("Address.zip field match not as expected",
+            97007 * k * j , child.getZip());
+
+      }
     }
     assert (keys.isEmpty());
 
