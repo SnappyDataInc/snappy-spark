@@ -478,12 +478,27 @@ function loadClusterInfo() {
 
       memberStatsGridData = response[0].membersInfo;
       membersStatsGrid.clear().rows.add(memberStatsGridData).draw();
+      if (membersStatsGrid.page.info().pages > membersStatsGridCurrPage) {
+        membersStatsGrid.page(membersStatsGridCurrPage).draw(false);
+      } else {
+        membersStatsGridCurrPage = 0;
+      }
 
       tableStatsGridData = response[0].tablesInfo;
       tableStatsGrid.clear().rows.add(tableStatsGridData).draw();
+      if (tableStatsGrid.page.info().pages > tableStatsGridCurrPage) {
+        tableStatsGrid.page(tableStatsGridCurrPage).draw(false);
+      } else {
+        tableStatsGridCurrPage = 0;
+      }
 
       extTableStatsGridData = response[0].externalTablesInfo;
       extTableStatsGrid.clear().rows.add(extTableStatsGridData).draw();
+      if (extTableStatsGrid.page.info().pages > extTableStatsGridCurrPage) {
+        extTableStatsGrid.page(extTableStatsGridCurrPage).draw(false);
+      } else {
+        extTableStatsGridCurrPage = 0;
+      }
 
     },
     error: ajaxRequestErrorHandler
@@ -492,12 +507,15 @@ function loadClusterInfo() {
 
 var memberStatsGridData = [];
 var membersStatsGrid;
+var membersStatsGridCurrPage = 0;
 
 var tableStatsGridData = [];
 var tableStatsGrid;
+var tableStatsGridCurrPage = 0;
 
 var extTableStatsGridData = [];
 var extTableStatsGrid;
+var extTableStatsGridCurrPage = 0;
 
 $(document).ready(function() {
 
@@ -510,11 +528,21 @@ $(document).ready(function() {
   // Members Grid Data Table
   membersStatsGrid = $('#memberStatsGrid').DataTable( getMemberStatsGridConf() );
 
+  membersStatsGrid.on( 'page.dt', function () {
+    membersStatsGridCurrPage = membersStatsGrid.page.info().page;
+  });
+
   // Tables Grid Data Table
   tableStatsGrid = $('#tableStatsGrid').DataTable( getTableStatsGridConf() );
+  tableStatsGrid.on( 'page.dt', function () {
+    tableStatsGridCurrPage = tableStatsGrid.page.info().page;
+  });
 
   // External Tables Grid Data Table
   extTableStatsGrid = $('#extTableStatsGrid').DataTable( getExternalTableStatsGridConf() );
+  extTableStatsGrid.on( 'page.dt', function () {
+    extTableStatsGridCurrPage = extTableStatsGrid.page.info().page;
+  });
 
   var clusterStatsUpdateInterval = setInterval(function() {
     // todo: need to provision when to stop and start update feature
