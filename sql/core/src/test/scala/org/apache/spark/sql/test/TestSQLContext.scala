@@ -58,7 +58,10 @@ private[sql] object TestSQLContext {
   /**
    * A map used to store all confs that need to be overridden in sql/core unit tests.
    */
-  val overrideConfs: Map[String, String] =
+  /**
+    * SD changes. Made it a variable to set it in SD test cases
+    */
+  var overrideConfs: Map[String, String] =
     Map(
       // Fewer shuffle partitions to speed up testing.
       SQLConf.SHUFFLE_PARTITIONS.key -> "5")

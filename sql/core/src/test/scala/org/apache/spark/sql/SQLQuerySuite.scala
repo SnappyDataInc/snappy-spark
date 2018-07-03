@@ -258,7 +258,7 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
     )
   }
 
-  private def testCodeGen(sqlText: String, expectedResults: Seq[Row]): Unit = {
+  protected def testCodeGen(sqlText: String, expectedResults: Seq[Row]): Unit = {
     val df = sql(sqlText)
     // First, check if we have GeneratedAggregate.
     val hasGeneratedAgg = df.queryExecution.sparkPlan
