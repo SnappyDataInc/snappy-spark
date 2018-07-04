@@ -33,6 +33,13 @@ function generateProgressBarHtml(progressValue){
   return progressBarHtml;
 }
 
+function updateCoreDetails(coresInfo) {
+  $("#totalCores").html(coresInfo.totalCores);
+  $("#locatorCores").html(coresInfo.locatorCores);
+  $("#leadsCores").html(coresInfo.leadCores);
+  $("#dataServerCores").html(coresInfo.dataServerCores);
+}
+
 function getDetailsCellExpansionProps(key){
   var cellProps = {
         caretClass: 'caret-downward',
@@ -499,6 +506,8 @@ function loadClusterInfo() {
       } else {
         extTableStatsGridCurrPage = 0;
       }
+
+      updateCoreDetails(clusterInfo.coresInfo);
 
     },
     error: ajaxRequestErrorHandler
