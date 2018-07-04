@@ -467,7 +467,7 @@ function loadClusterInfo() {
   $.ajax({
     url:"/snappy-api/services/clusterinfo",
     dataType: 'json',
-    timeout: 5000,
+    // timeout: 5000,
     success: function (response, status, jqXHR) {
 
       // Hide error message, if displayed
