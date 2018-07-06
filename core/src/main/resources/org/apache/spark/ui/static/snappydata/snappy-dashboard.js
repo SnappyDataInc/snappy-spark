@@ -1,6 +1,38 @@
 
 var isMemberCellExpanded = {};
 
+function TotalCoresClickHandler() {
+  var dch = $("#DistribCoresHolder");
+  var target = $( "#CPUCoresDetails" );
+  if(dch.is(':hidden')) {
+    target.animate({
+               width: "400px"
+             }, {
+               queue: false,
+               duration: 500,
+               complete: function() {
+                 dch.show(200);
+               }
+             });
+  } else {
+    target.animate({
+               width: "125px"
+             }, {
+               queue: false,
+               duration: 500,
+               start: function() {
+                 dch.hide(200);
+               }
+             });
+  }
+}
+
+function updateCoreDetails(coresInfo) {
+  $("#totalCores").html(coresInfo.totalCores);
+  $("#locatorCores").html(coresInfo.locatorCores);
+  $("#leadsCores").html(coresInfo.leadCores);
+  $("#dataServerCores").html(coresInfo.dataServerCores);
+}
 
 function toggleCellDetails(detailsId) {
 
@@ -31,13 +63,6 @@ function generateProgressBarHtml(progressValue){
         + '</div>';
 
   return progressBarHtml;
-}
-
-function updateCoreDetails(coresInfo) {
-  $("#totalCores").html(coresInfo.totalCores);
-  $("#locatorCores").html(coresInfo.locatorCores);
-  $("#leadsCores").html(coresInfo.leadCores);
-  $("#dataServerCores").html(coresInfo.dataServerCores);
 }
 
 function getDetailsCellExpansionProps(key){
@@ -533,6 +558,8 @@ $(document).ready(function() {
   $.ajaxSetup({
       cache : false
     });
+
+  $( "#TotalCoresHolder" ).click(TotalCoresClickHandler);
 
   // Members Grid Data Table
   membersStatsGrid = $('#memberStatsGrid').DataTable( getMemberStatsGridConf() );
