@@ -6,7 +6,7 @@ function TotalCoresClickHandler() {
   var target = $( "#CPUCoresDetails" );
   if(dch.is(':hidden')) {
     target.animate({
-               width: "400px"
+               width: "410px"
              }, {
                queue: false,
                duration: 500,
