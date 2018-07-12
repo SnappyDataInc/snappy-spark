@@ -140,5 +140,7 @@ var ajaxRequestErrorHandler = function (jqXHR, status, error) {
     displayMessage += status + " : "+error;;
   }
 
+  displayMessage += "<br>Please check lead logs to know more.";
+
   $("#AutoUpdateErrorMsg").html(displayMessage).show();
 }
