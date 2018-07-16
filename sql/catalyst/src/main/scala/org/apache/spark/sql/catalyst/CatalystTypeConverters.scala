@@ -434,13 +434,13 @@ object CatalystTypeConverters {
     case d: BigDecimal =>
       var precision = d.precision
       if (d.precision < d.scale) {
-        precision = d.scale
+        precision = d.scale + 1
       }
       new DecimalConverter(DecimalType(precision, d.scale)).toCatalyst(d)
     case d: JavaBigDecimal =>
       var precision = d.precision
       if (d.precision < d.scale) {
-        precision = d.scale
+        precision = d.scale + 1
       }
       new DecimalConverter(DecimalType(precision, d.scale)).toCatalyst(d)
     case seq: Seq[Any] => new GenericArrayData(seq.map(convertToCatalyst).toArray)
