@@ -431,8 +431,18 @@ object CatalystTypeConverters {
     case s: String => StringConverter.toCatalyst(s)
     case d: Date => DateConverter.toCatalyst(d)
     case t: Timestamp => TimestampConverter.toCatalyst(t)
-    case d: BigDecimal => new DecimalConverter(DecimalType(d.precision, d.scale)).toCatalyst(d)
-    case d: JavaBigDecimal => new DecimalConverter(DecimalType(d.precision, d.scale)).toCatalyst(d)
+    case d: BigDecimal =>
+      var precision = d.precision
+      if (d.precision < d.scale) {
+        precision = d.scale
+      }
+      new DecimalConverter(DecimalType(precision, d.scale)).toCatalyst(d)
+    case d: JavaBigDecimal =>
+      var precision = d.precision
+      if (d.precision < d.scale) {
+        precision = d.scale
+      }
+      new DecimalConverter(DecimalType(precision, d.scale)).toCatalyst(d)
     case seq: Seq[Any] => new GenericArrayData(seq.map(convertToCatalyst).toArray)
     case r: Row => InternalRow(r.toSeq.map(convertToCatalyst): _*)
     case arr: Array[Any] => new GenericArrayData(arr.map(convertToCatalyst))
