@@ -109,6 +109,15 @@
     border-left-color: transparent;
 }
 
+.cellDetailsBox {
+  float: left;
+  padding: 0px 10px;
+  display: none;
+  border: 1px solid #dbd9cf;
+  margin: 5px auto 2px;
+  width: calc(100% - 20px);
+}
+
 .caret-upward {
     display: inline-block;
     width: 0;
