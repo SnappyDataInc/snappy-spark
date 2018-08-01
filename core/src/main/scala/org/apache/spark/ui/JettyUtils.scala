@@ -46,7 +46,7 @@ import org.apache.spark.util.Utils
 /**
  * Utilities for launching a web server using Jetty's HTTP Server class
  */
-private[spark] object JettyUtils extends Logging {
+object JettyUtils extends Logging {
 
   val SPARK_CONNECTOR_NAME = "Spark"
   val REDIRECT_CONNECTOR_NAME = "HttpsRedirect"
@@ -417,7 +417,7 @@ private[spark] object JettyUtils extends Logging {
       server.getHandler().asInstanceOf[ContextHandlerCollection])
   }
   /* Basic Authentication Handler */
-  private def basicAuthenticationHandler(): SecurityHandler = {
+  def basicAuthenticationHandler(): SecurityHandler = {
     val csh = new ConstraintSecurityHandler();
     csh.setAuthenticator(customAuthenticator.get);
     csh.setRealmName(snappyDataRealm);
