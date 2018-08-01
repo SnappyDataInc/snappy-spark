@@ -30,6 +30,7 @@ import org.apache.spark.status.api.v1.{ApiRootResource, ApplicationAttemptInfo, 
   UIRoot}
 import org.apache.spark.storage.StorageStatusListener
 import org.apache.spark.ui.JettyUtils._
+import org.apache.spark.ui.dashboard.DashboardTab
 import org.apache.spark.ui.env.{EnvironmentListener, EnvironmentTab}
 import org.apache.spark.ui.exec.{ExecutorsListener, ExecutorsTab}
 import org.apache.spark.ui.jobs.{JobProgressListener, JobsTab, StagesTab}
@@ -64,6 +65,8 @@ class SparkUI private (
 
   /** Initialize all components of the server. */
   def initialize() {
+    val dashboardTab = new DashboardTab(this)
+    attachTab(dashboardTab)
     val jobsTab = new JobsTab(this)
     attachTab(jobsTab)
     val stagesTab = new StagesTab(this)
@@ -72,7 +75,7 @@ class SparkUI private (
     attachTab(new EnvironmentTab(this))
     attachTab(new ExecutorsTab(this))
     attachHandler(createStaticHandler(SparkUI.STATIC_RESOURCE_DIR, "/static"))
-    attachHandler(createRedirectHandler("/", "/jobs/", basePath = basePath))
+    attachHandler(createRedirectHandler("/", "/dashboard/", basePath = basePath))
     attachHandler(ApiRootResource.getServletHandler(this))
     // These should be POST only, but, the YARN AM proxy won't proxy POSTs
     attachHandler(createRedirectHandler(
