@@ -616,14 +616,20 @@ private[spark] object UIUtils extends Logging {
         }
       </span>
       <div class="popuptext" id="sdVersionDetails">
-        Product Name : {versionDetails.getOrElse("productName", "")} <br/>
-        Product Version : {versionDetails.getOrElse("productVersion", "")} <br/>
-        Build : {
-          versionDetails.getOrElse("buildId", "") + " " +
-          versionDetails.getOrElse("buildDate", "")
-        } <br/>
-        Source Revision : {versionDetails.getOrElse("sourceRevision", "")} <br/>
-        Spark Version : {org.apache.spark.SPARK_VERSION}
+        <div>
+          <img src="/static/snappydata/cross.png" onclick="displayVersionDetails()"
+               style="float:right; cursor: pointer;"></img>
+        </div>
+        <div>
+          Product Name : {versionDetails.getOrElse("productName", "")} <br/>
+          Product Version : {versionDetails.getOrElse("productVersion", "")} <br/>
+          Build : {
+            versionDetails.getOrElse("buildId", "") + " " +
+            versionDetails.getOrElse("buildDate", "")
+          } <br/>
+          Source Revision : {versionDetails.getOrElse("sourceRevision", "")} <br/>
+          Spark Version : {org.apache.spark.SPARK_VERSION}
+        </div>
       </div>
     </div>
   }

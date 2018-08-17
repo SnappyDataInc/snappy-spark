@@ -1,5 +1,6 @@
 
 var isGoogleChartLoaded = false;
+var isAutoUpdateTurnedON = true;
 var isMemberCellExpanded = {};
 
 function updateCoreDetails(coresInfo) {
@@ -19,6 +20,16 @@ function toggleCellDetails(detailsId) {
     spanId.addClass("caret-downward");
     spanId.removeClass("caret-upward");
     isMemberCellExpanded[detailsId] = false;
+  }
+}
+
+var toggleAutoUpdateSwitch = function() {
+  if ($("#myonoffswitch").prop('checked')) {
+    // Turn ON auto update
+    isAutoUpdateTurnedON = true;
+  } else {
+    // Turn OFF auto update
+    isAutoUpdateTurnedON = false;
   }
 }
 
@@ -293,6 +304,15 @@ function getTableStatsGridConf() {
                 return msHtml;
               }
       },
+      { // Spillover to Disk Size
+        data: function(row, type) {
+                var tableSpillToDiskSize = convertSizeToHumanReadable(row.sizeSpillToDisk);
+                var dsHtml = '<div style="padding-right:10px; text-align:right;">'
+                             + tableSpillToDiskSize[0] + ' ' + tableSpillToDiskSize[1]
+                           + '</div>';
+                return dsHtml;
+              }
+      },
       { // Total Size
         data: function(row, type) {
                 var tableTotalSize = convertSizeToHumanReadable(row.totalSize);
@@ -324,7 +344,7 @@ function getExternalTableStatsGridConf() {
       { // Name
         data: function(row, type) {
                 var nameHtml = '<div style="width:100%; padding-left:10px;">'
-                               + row.tableName
+                               + row.tableFQName
                              + '</div>';
                 return nameHtml;
               }
@@ -531,6 +551,15 @@ function loadClusterInfo() {
         extTableStatsGridCurrPage = 0;
       }
 
+      // Display External tables only if available
+      if (extTableStatsGridData.length > 0) {
+        $("#extTablesStatsTitle").show();
+        $("#extTableStatsGridContainer").show();
+      } else {
+        $("#extTablesStatsTitle").hide();
+        $("#extTableStatsGridContainer").hide();
+      }
+
       updateCoreDetails(clusterInfo.coresInfo);
 
     },
@@ -558,6 +587,8 @@ $(document).ready(function() {
       cache : false
     });
 
+  $("#myonoffswitch").on( 'change', toggleAutoUpdateSwitch );
+
   // Members Grid Data Table
   membersStatsGrid = $('#memberStatsGrid').DataTable( getMemberStatsGridConf() );
 
@@ -578,11 +609,9 @@ $(document).ready(function() {
   });
 
   var clusterStatsUpdateInterval = setInterval(function() {
-    // todo: need to provision when to stop and start update feature
-    // clearInterval(clusterStatsUpdateInterval);
-
-    loadClusterInfo();
-
+    if(isAutoUpdateTurnedON) {
+      loadClusterInfo();
+    }
   }, 5000);
 
 });
