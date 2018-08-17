@@ -27,8 +27,11 @@ private[ui] class EnvironmentPage(parent: EnvironmentTab) extends WebUIPage("") 
   private val listener = parent.listener
 
   private def removePass(kv: (String, String)): (String, String) = {
-    if (kv._1.toLowerCase.contains("password") || kv._1.toLowerCase.contains("secret")) {
+    if (kv._1.toLowerCase.contains("password") || kv._1.toLowerCase.contains("secret")
+        || kv._1.toLowerCase.contains("auth-ldap-search-pw")) {
       (kv._1, "******")
+    } else if (kv._1.equalsIgnoreCase("javax.jdo.option.ConnectionURL")) {
+      (kv._1, kv._2.replaceAll("password=[^;]*", "password=*****"))
     } else kv
   }
 
@@ -38,7 +41,7 @@ private[ui] class EnvironmentPage(parent: EnvironmentTab) extends WebUIPage("") 
     val sparkPropertiesTable = UIUtils.listingTable(
       propertyHeader, propertyRow, listener.sparkProperties.map(removePass), fixedWidth = true)
     val systemPropertiesTable = UIUtils.listingTable(
-      propertyHeader, propertyRow, listener.systemProperties, fixedWidth = true)
+      propertyHeader, propertyRow, listener.systemProperties.map(removePass), fixedWidth = true)
     val classpathEntriesTable = UIUtils.listingTable(
       classPathHeaders, classPathRow, listener.classpathEntries, fixedWidth = true)
     val content =
