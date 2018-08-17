@@ -2699,10 +2699,13 @@ private[spark] object Utils extends Logging {
     // logs. In order to work around it, user would have to make the spark.redaction.regex property
     // more specific.
     kvs.map { case (key, value) =>
-      redactionPattern.findFirstIn(key)
-        .orElse(redactionPattern.findFirstIn(value))
-        .map { _ => (key, REDACTION_REPLACEMENT_TEXT) }
-        .getOrElse((key, value))
+      if (key.equalsIgnoreCase("javax.jdo.option.ConnectionURL")) {
+        val pattern = ("(" + redactionPattern.pattern.pattern() + ")\\s*=[^;]*").r
+        (key, pattern.replaceAllIn(value, "$1=" + REDACTION_REPLACEMENT_TEXT))
+      } else if (redactionPattern.pattern.matcher(key).find() ||
+          redactionPattern.pattern.matcher(value).find()) {
+        (key, REDACTION_REPLACEMENT_TEXT)
+      } else (key, value)
     }
   }
 
