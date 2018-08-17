@@ -531,6 +531,15 @@ function loadClusterInfo() {
         extTableStatsGridCurrPage = 0;
       }
 
+      // Display External tables only if available
+      if (extTableStatsGridData.length > 0) {
+        $("#extTablesStatsTitle").show();
+        $("#extTableStatsGridContainer").show();
+      } else {
+        $("#extTablesStatsTitle").hide();
+        $("#extTableStatsGridContainer").hide();
+      }
+
       updateCoreDetails(clusterInfo.coresInfo);
 
     },
