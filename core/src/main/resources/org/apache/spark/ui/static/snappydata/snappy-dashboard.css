@@ -192,7 +192,8 @@
 }
 
 .graph-container {
-  width: 400px;
+  min-width: 250px;
+  width: 20%;
   height: 200px;
   display: inline-block;
   margin: 10px;
