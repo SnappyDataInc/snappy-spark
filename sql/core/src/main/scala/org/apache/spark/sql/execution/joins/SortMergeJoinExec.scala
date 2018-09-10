@@ -613,7 +613,7 @@ private[joins] class SortMergeJoinScanner(
   private[this] val bufferedMatches: ArrayBuffer[InternalRow] = new ArrayBuffer[InternalRow]
 
   // Initialization (note: do _not_ want to advance streamed here).
-  advancedBufferedToRowWithNullFreeJoinKey()
+  private[this] lazy val initBuffered = advancedBufferedToRowWithNullFreeJoinKey()
 
   // --- Public methods ---------------------------------------------------------------------------
 
@@ -724,6 +724,7 @@ private[joins] class SortMergeJoinScanner(
     if (streamedIter.advanceNext()) {
       streamedRow = streamedIter.getRow
       streamedRowKey = streamedKeyGenerator(streamedRow)
+      initBuffered
       true
     } else {
       streamedRow = null
