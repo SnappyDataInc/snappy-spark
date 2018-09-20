@@ -64,6 +64,10 @@ private[hive] class SparkSQLSessionManager(hiveServer: HiveServer2, sqlContext: 
       sqlContext.newSession()
     }
     ctx.setConf(HiveUtils.FAKE_HIVE_VERSION.key, HiveUtils.builtinHiveVersion)
+    if ((username ne null) && !username.isEmpty) {
+      ctx.setConf("user", username)
+      if (passwd ne null) ctx.setConf("password", passwd)
+    }
     if (sessionConf != null && sessionConf.containsKey("use:database")) {
       ctx.sql(s"use ${sessionConf.get("use:database")}")
     }
