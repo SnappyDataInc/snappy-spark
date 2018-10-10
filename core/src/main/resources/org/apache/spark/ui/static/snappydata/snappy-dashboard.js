@@ -324,7 +324,7 @@ function getExternalTableStatsGridConf() {
       { // Name
         data: function(row, type) {
                 var nameHtml = '<div style="width:100%; padding-left:10px;">'
-                               + row.tableName
+                               + row.tableFQName
                              + '</div>';
                 return nameHtml;
               }
