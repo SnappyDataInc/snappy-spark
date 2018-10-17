@@ -293,6 +293,15 @@ function getTableStatsGridConf() {
                 return msHtml;
               }
       },
+      { // On Disk Size
+        data: function(row, type) {
+                var tableOnDiskSize = convertSizeToHumanReadable(row.sizeOnDisk);
+                var dsHtml = '<div style="padding-right:10px; text-align:right;">'
+                             + tableOnDiskSize[0] + ' ' + tableOnDiskSize[1]
+                           + '</div>';
+                return dsHtml;
+              }
+      },
       { // Total Size
         data: function(row, type) {
                 var tableTotalSize = convertSizeToHumanReadable(row.totalSize);
