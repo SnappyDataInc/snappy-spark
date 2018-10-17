@@ -138,7 +138,9 @@ public abstract class ThriftCLIService extends AbstractService implements TCLISe
       if (hiveHost != null && !hiveHost.isEmpty()) {
         serverIPAddress = InetAddress.getByName(hiveHost);
       } else {
-        serverIPAddress = InetAddress.getLocalHost();
+        // dummy socket address to get anyLocalAddress used by default
+        serverIPAddress = new java.net.InetSocketAddress(
+            ConfVars.HIVE_SERVER2_THRIFT_PORT.defaultIntVal).getAddress();
       }
     } catch (UnknownHostException e) {
       throw new ServiceException(e);
