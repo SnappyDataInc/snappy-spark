@@ -1,5 +1,6 @@
 
 var isGoogleChartLoaded = false;
+var isAutoUpdateTurnedON = true;
 var isMemberCellExpanded = {};
 
 function updateCoreDetails(coresInfo) {
@@ -19,6 +20,16 @@ function toggleCellDetails(detailsId) {
     spanId.addClass("caret-downward");
     spanId.removeClass("caret-upward");
     isMemberCellExpanded[detailsId] = false;
+  }
+}
+
+var toggleAutoUpdateSwitch = function() {
+  if ($("#myonoffswitch").prop('checked')) {
+    // Turn ON auto update
+    isAutoUpdateTurnedON = true;
+  } else {
+    // Turn OFF auto update
+    isAutoUpdateTurnedON = false;
   }
 }
 
@@ -567,6 +578,8 @@ $(document).ready(function() {
       cache : false
     });
 
+  $("#myonoffswitch").on( 'change', toggleAutoUpdateSwitch );
+
   // Members Grid Data Table
   membersStatsGrid = $('#memberStatsGrid').DataTable( getMemberStatsGridConf() );
 
@@ -587,11 +600,9 @@ $(document).ready(function() {
   });
 
   var clusterStatsUpdateInterval = setInterval(function() {
-    // todo: need to provision when to stop and start update feature
-    // clearInterval(clusterStatsUpdateInterval);
-
-    loadClusterInfo();
-
+    if(isAutoUpdateTurnedON) {
+      loadClusterInfo();
+    }
   }, 5000);
 
 });
