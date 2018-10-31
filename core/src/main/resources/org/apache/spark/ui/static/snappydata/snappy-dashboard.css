@@ -213,7 +213,7 @@
 }
 
 #onoffswitch-holder {
-  width: 85px;
+  width: 70px;
   position: relative;
   margin: 5px 50px 5px auto;
   padding: 0px 5px;
@@ -221,7 +221,7 @@
 
 .onoffswitch {
   position: relative;
-  width: 90px;
+  width: 70px;
   -webkit-user-select:none;
   -moz-user-select:none;
   -ms-user-select: none;
@@ -247,9 +247,9 @@
   display: block;
   float: left;
   width: 50%;
-  height: 30px;
+  height: 20px;
   padding: 0;
-  line-height: 30px;
+  line-height: 20px;
   font-size: 14px;
   color: white;
   font-family: Trebuchet, Arial, sans-serif;
@@ -271,13 +271,13 @@
 }
 .onoffswitch-switch {
   display: block;
-  width: 18px;
-  margin: 6px;
+  width: 15px;
+  margin: 3px;
   background: #FFFFFF;
   position: absolute;
   top: 0;
   bottom: 0;
-  right: 56px;
+  right: 45px;
   border: 2px solid #999999;
   border-radius: 20px;
   transition: all 0.3s ease-in 0s;
