@@ -1,4 +1,5 @@
 
+var isAutoUpdateTurnedON = true;
 
 var baseParams;
 
@@ -110,6 +111,16 @@ function initLogPage(params, logLen, start, end, totLogLen, defaultLen) {
   tailLog();
   if (startByte == 0) {
     disableMoreButton();
+  }
+}
+
+var toggleAutoUpdateSwitch = function() {
+  if ($("#myonoffswitch").prop('checked')) {
+    // Turn ON auto update
+    isAutoUpdateTurnedON = true;
+  } else {
+    // Turn OFF auto update
+    isAutoUpdateTurnedON = false;
   }
 }
 
@@ -310,11 +321,12 @@ $(document).ready(function() {
       cache : false
     });
 
-  var memberStatsUpdateInterval = setInterval(function() {
-      // todo: need to provision when to stop and start update feature
-      // clearInterval(memberStatsUpdateInterval);
+  $("#myonoffswitch").on( 'change', toggleAutoUpdateSwitch );
 
+  var memberStatsUpdateInterval = setInterval(function() {
+    if(isAutoUpdateTurnedON) {
       loadMemberInfo();
-    }, 5000);
+    }
+  }, 5000);
 
 });
