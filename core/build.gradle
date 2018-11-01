@@ -173,31 +173,29 @@ dependencies {
   }
 }
 
-// TODO: sparkr profile, copy-dependencies target?
-
-// fix scala+java test ordering
-sourceSets.test.scala.srcDir 'src/test/java'
-sourceSets.test.java.srcDirs = []
-
 // generate properties using spark-build-info and add to project resources
-String extraResourceDir = "${buildDir}/extra-resources"
+String extraResourceDir = "${projectDir}/src/main/extra-resources"
 
 task generateBuildInfo {
   outputs.file "${extraResourceDir}/spark-version-info.properties"
-  inputs.dir compileScala.destinationDir
+  inputs.dir projectDir
 
   doLast {
     file(extraResourceDir).mkdirs()
     exec {
       executable 'bash'
-      workingDir = buildDir
+      workingDir = projectDir
       args "${projectDir}/../build/spark-build-info", extraResourceDir, version
     }
   }
 }
-sourceSets {
-  main {
-    // register generated resources on the main SourceSet
-    output.dir(extraResourceDir, builtBy: 'generateBuildInfo')
-  }
-}
+
+// TODO: sparkr profile, copy-dependencies target?
+
+// fix scala+java test ordering
+sourceSets.test.scala.srcDir 'src/test/java'
+sourceSets.test.java.srcDirs = []
+// register generated resources on the main SourceSet
+sourceSets.main.resources.srcDir extraResourceDir
+
+compileScala.dependsOn generateBuildInfo

@@ -24,7 +24,7 @@ dependencies {
   compile project(subprojectBase + 'snappy-spark-hive_' + scalaBinaryVersion)
   compile project(subprojectBase + 'snappy-spark-graphx_' + scalaBinaryVersion)
   compile project(subprojectBase + 'snappy-spark-streaming-flume_' + scalaBinaryVersion)
-  compile project(subprojectBase + 'snappy-spark-streaming-kafka-0.8_' + scalaBinaryVersion)
+  compile project(subprojectBase + 'snappy-spark-streaming-kafka-0.10_' + scalaBinaryVersion)
 
   compile group: 'org.apache.commons', name: 'commons-math3', version: commonsMath3Version
   compile group: 'com.github.scopt', name: 'scopt_' + scalaBinaryVersion, version: '3.3.0'
