@@ -39,7 +39,6 @@ include ':snappy-spark-unsafe_' + scalaBinaryVersion
 include ':snappy-spark-assembly_' + scalaBinaryVersion
 include ':snappy-spark-streaming-flume_' + scalaBinaryVersion
 include ':snappy-spark-streaming-flume-sink_' + scalaBinaryVersion
-include ':snappy-spark-streaming-kafka-0.8_' + scalaBinaryVersion
 include ':snappy-spark-streaming-kafka-0.10_' + scalaBinaryVersion
 include ':snappy-spark-sql-kafka-0.10_' + scalaBinaryVersion
 include ':snappy-spark-examples_' + scalaBinaryVersion
@@ -68,7 +67,6 @@ project(':snappy-spark-unsafe_' + scalaBinaryVersion).projectDir = "$rootDir/com
 project(':snappy-spark-assembly_' + scalaBinaryVersion).projectDir = "$rootDir/assembly" as File
 project(':snappy-spark-streaming-flume_' + scalaBinaryVersion).projectDir = "$rootDir/external/flume" as File
 project(':snappy-spark-streaming-flume-sink_' + scalaBinaryVersion).projectDir = "$rootDir/external/flume-sink" as File
-project(':snappy-spark-streaming-kafka-0.8_' + scalaBinaryVersion).projectDir = "$rootDir/external/kafka-0-8" as File
 project(':snappy-spark-streaming-kafka-0.10_' + scalaBinaryVersion).projectDir = "$rootDir/external/kafka-0-10" as File
 project(':snappy-spark-sql-kafka-0.10_' + scalaBinaryVersion).projectDir = "$rootDir/external/kafka-0-10-sql" as File
 project(':snappy-spark-examples_' + scalaBinaryVersion).projectDir = "$rootDir/examples" as File
