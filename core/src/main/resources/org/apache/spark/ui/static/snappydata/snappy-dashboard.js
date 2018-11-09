@@ -293,11 +293,11 @@ function getTableStatsGridConf() {
                 return msHtml;
               }
       },
-      { // On Disk Size
+      { // Spillover to Disk Size
         data: function(row, type) {
-                var tableOnDiskSize = convertSizeToHumanReadable(row.sizeOnDisk);
+                var tableSpillToDiskSize = convertSizeToHumanReadable(row.sizeSpillToDisk);
                 var dsHtml = '<div style="padding-right:10px; text-align:right;">'
-                             + tableOnDiskSize[0] + ' ' + tableOnDiskSize[1]
+                             + tableSpillToDiskSize[0] + ' ' + tableSpillToDiskSize[1]
                            + '</div>';
                 return dsHtml;
               }
