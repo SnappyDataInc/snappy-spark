@@ -576,8 +576,15 @@ private[spark] object UIUtils extends Logging {
   }
 
   def getProductDocLinkNode(): Node = {
+    val productVersion = SparkUI.getProductVersion.getOrElse("productVersion", "")
+    var docsLinkStr = "https://snappydata-docs.readthedocs.io/"
+    if (!productVersion.isEmpty) {
+      docsLinkStr = docsLinkStr + "en/docv" + productVersion
+    }
+
+    // Eg. https://snappydata-docs.readthedocs.io/en/docv1.0.2.1/
     <p class="navbar-text pull-right " style="padding-right:20px;">
-      <a href="http://snappydatainc.github.io/snappydata/" target="_blank">Docs</a>
+      <a href={docsLinkStr} target="_blank">Docs</a>
     </p>
   }
 
