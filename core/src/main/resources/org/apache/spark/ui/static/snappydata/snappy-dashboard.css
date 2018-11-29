@@ -207,20 +207,28 @@
   font-size: 17px;
 }
 
-#onoffswitch-Container {
+#autorefreshswitch-container {
   position: absolute;
   width: 100%;
 }
 
-#onoffswitch-holder {
-  width: 70px;
+#autorefreshswitch-holder {
+  width: 170px;
   position: relative;
   margin: 5px 50px 5px auto;
   padding: 0px 5px;
 }
 
+#autorefreshswitch-label {
+  width: 100px;
+  float: left;
+  line-height: 25px;
+  font-weight: bold;
+}
+
 .onoffswitch {
   position: relative;
+  float: right;
   width: 70px;
   -webkit-user-select:none;
   -moz-user-select:none;
@@ -276,7 +284,7 @@
   background: #FFFFFF;
   position: absolute;
   top: 0;
-  bottom: 0;
+  bottom: 5px;
   right: 45px;
   border: 2px solid #999999;
   border-radius: 20px;
