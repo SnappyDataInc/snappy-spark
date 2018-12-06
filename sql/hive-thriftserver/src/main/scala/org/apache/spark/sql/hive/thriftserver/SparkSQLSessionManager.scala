@@ -101,10 +101,10 @@ private[hive] class SparkSQLSessionManager(hiveServer: HiveServer2, sqlContext: 
       ctx.setConf("user", username)
       if (passwd ne null) {
         ctx.setConf("password", passwd)
-        // trigger SnappyData authentication at this point
-        ctx.setConf("snappydata.auth.trigger", "true")
       }
     }
+    // trigger SnappyData authentication at this point
+    ctx.setConf("snappydata.auth.trigger", "true")
     if (sessionConf != null && sessionConf.containsKey("use:database")) {
       ctx.sql(s"use ${sessionConf.get("use:database")}")
     }
