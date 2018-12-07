@@ -298,28 +298,19 @@ function getTableStatsGridConf() {
       { // In Memory Size
         data: function(row, type) {
                 var tableInMemorySize = convertSizeToHumanReadable(row.sizeInMemory);
-                var msHtml = '<div style="padding-right:10px; text-align:right;">'
-                             + tableInMemorySize[0] + ' ' + tableInMemorySize[1]
-                           + '</div>';
-                return msHtml;
+                return tableInMemorySize[0] + ' ' + tableInMemorySize[1];
               }
       },
       { // Spillover to Disk Size
         data: function(row, type) {
                 var tableSpillToDiskSize = convertSizeToHumanReadable(row.sizeSpillToDisk);
-                var dsHtml = '<div style="padding-right:10px; text-align:right;">'
-                             + tableSpillToDiskSize[0] + ' ' + tableSpillToDiskSize[1]
-                           + '</div>';
-                return dsHtml;
+                return tableSpillToDiskSize[0] + ' ' + tableSpillToDiskSize[1];
               }
       },
       { // Total Size
         data: function(row, type) {
                 var tableTotalSize = convertSizeToHumanReadable(row.totalSize);
-                var tsHtml = '<div style="padding-right:10px; text-align:right;">'
-                             + tableTotalSize[0] + ' ' + tableTotalSize[1]
-                           + '</div>';
-                return tsHtml;
+                return tableTotalSize[0] + ' ' + tableTotalSize[1];
               }
       },
       { // Bucket Count
@@ -330,6 +321,11 @@ function getTableStatsGridConf() {
                 return bcHtml;
               }
       }
+    ],
+    columnDefs: [
+      { type: 'file-size', targets: 4 },
+      { type: 'file-size', targets: 5 },
+      { type: 'file-size', targets: 6 }
     ]
   }
 

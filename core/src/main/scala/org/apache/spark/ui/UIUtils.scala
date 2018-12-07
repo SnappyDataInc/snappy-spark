@@ -239,9 +239,9 @@ private[spark] object UIUtils extends Logging {
     <html>
       <head>
         {commonHeaderNodes}
-        {if (isSnappyPage) commonHeaderNodesSnappy else Seq.empty}
         {if (showVisualization) vizHeaderNodes else Seq.empty}
         {if (useDataTables) dataTablesHeaderNodes else Seq.empty}
+        {if (isSnappyPage) commonHeaderNodesSnappy else Seq.empty}
         <title>{appName} - {title}</title>
       </head>
       <body>

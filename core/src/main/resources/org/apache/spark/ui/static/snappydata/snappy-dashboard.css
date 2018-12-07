@@ -296,3 +296,11 @@
 .onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-switch {
   right: 0px;
 }
+
+/* Table Stats Grids */
+table#tableStatsGrid tbody tr td:nth-child(5),
+table#tableStatsGrid tbody tr td:nth-child(6),
+table#tableStatsGrid tbody tr td:nth-child(7) {
+  padding-right:10px;
+  text-align:right;
+}
