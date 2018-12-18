@@ -569,10 +569,13 @@ class CollectionAccumulator[T] extends AccumulatorV2Kryo[T, java.util.List[T]]
   }
 
   override def writeKryo(kryo: Kryo, output: Output): Unit = {
-    output.writeVarInt(_list.size(), true)
-    val iter = _list.iterator()
-    while (iter.hasNext) {
-      kryo.writeClassAndObject(output, iter.next())
+    // obtain in one shot for synchronized access
+    val items = _list.toArray
+    output.writeVarInt(items.length, true)
+    var i = 0
+    while (i < items.length) {
+      kryo.writeClassAndObject(output, items(i))
+      i += 1
     }
   }
 
