@@ -28,7 +28,7 @@ buildscript {
   }
   dependencies {
     classpath 'io.snappydata:gradle-scalatest:0.16'
-    classpath 'org.github.ngbinh.scalastyle:gradle-scalastyle-plugin_2.11:0.8.2'
+    classpath 'org.github.ngbinh.scalastyle:gradle-scalastyle-plugin_2.11:0.9.0'
   }
 }
 

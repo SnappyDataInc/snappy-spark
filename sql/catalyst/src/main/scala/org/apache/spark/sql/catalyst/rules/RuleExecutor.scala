@@ -100,7 +100,8 @@ abstract class RuleExecutor[TreeType <: TreeNode[_]] extends Logging {
         if (iteration > batch.strategy.maxIterations) {
           // Only log if this is a rule that is supposed to run more than once.
           if (iteration != 2) {
-            val message = s"Max iterations (${iteration - 1}) reached for batch ${batch.name}"
+            val message = s"Max iterations (${iteration - 1}) reached for batch ${batch.name} " +
+                s"for ${plan.treeString(verbose = true)}"
             if (Utils.isTesting) {
               throw new TreeNodeException(curPlan, message, null)
             } else {
