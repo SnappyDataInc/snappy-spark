@@ -507,6 +507,7 @@ case class RangeExec(range: org.apache.spark.sql.catalyst.plans.logical.Range)
 
   protected override def doExecute(): RDD[InternalRow] = {
     val numOutputRows = longMetric("numOutputRows")
+    val numSlices = this.numSlices
     sqlContext
       .sparkContext
       .parallelize(0 until numSlices, numSlices)

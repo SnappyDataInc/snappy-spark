@@ -24,7 +24,9 @@ import scala.util.control.NonFatal
 
 import com.esotericsoftware.kryo.{Kryo, KryoSerializable}
 import com.esotericsoftware.kryo.io.{Input, Output}
+import com.google.common.cache.CacheBuilder
 import java.sql.SQLException
+import java.util.concurrent.TimeUnit
 
 import org.apache.spark.{broadcast, Partition, SparkContext, TaskContext}
 import org.apache.spark.rdd.{RDD, ZippedPartitionsBaseRDD, ZippedPartitionsPartition}
@@ -438,7 +440,11 @@ object WholeStageCodegenExec {
     numOfNestedFields(dataType) > conf.wholeStageMaxNumFields
   }
 
-  val dumpGenCodeForException = System.getProperty("spark.dumpGenCode", "true").toBoolean
+  private[sql] lazy val dumpGenCodeForException: Boolean =
+    SQLConf.get.getConfString("spark.sql.codegen.dump", "true").toBoolean
+
+  private[sql] lazy val dumpedGenCodes = CacheBuilder.newBuilder().maximumSize(20)
+      .expireAfterWrite(60, TimeUnit.SECONDS).build[CodeAndComment, java.lang.Boolean]()
 }
 
 object WholeStageCodegenId {
@@ -771,7 +777,7 @@ case class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAnd
         }
       } catch {
         case e: Throwable =>
-          if (WholeStageCodegenExec.dumpGenCodeForException) {
+          if (WholeStageCodegenExec.dumpGenCodeForException && testNotLoggedAndSet(source)) {
             logFormattedError(e, s"\n${CodeFormatter.format(source)}")
           }
           throw e
@@ -781,12 +787,19 @@ case class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAnd
         iter.next()
       } catch {
         case e: Throwable =>
-          if (WholeStageCodegenExec.dumpGenCodeForException) {
+          if (WholeStageCodegenExec.dumpGenCodeForException && testNotLoggedAndSet(source)) {
             logFormattedError(e, s"\n${CodeFormatter.format(source)}")
           }
           throw e
       }
     }
+  }
+
+  private def testNotLoggedAndSet(source: CodeAndComment): Boolean = {
+    if (WholeStageCodegenExec.dumpedGenCodes.getIfPresent(source) eq null) {
+      WholeStageCodegenExec.dumpedGenCodes.put(source, java.lang.Boolean.TRUE)
+      true
+    } else false
   }
 
   def logFormattedError(e: Throwable, source: String): Unit = {
