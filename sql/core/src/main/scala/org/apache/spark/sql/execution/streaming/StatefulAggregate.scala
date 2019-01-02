@@ -73,9 +73,11 @@ case class StateStoreRestoreExec(
     child.execute().mapPartitionsWithStateStore(
       getStateId.checkpointLocation,
       operatorId = getStateId.operatorId,
+      storeName = "default",
       storeVersion = getStateId.batchId,
       keyExpressions.toStructType,
       child.output.toStructType,
+      indexOrdinal = None,
       sqlContext.sessionState,
       Some(sqlContext.streams.stateStoreCoordinator)) { case (store, iter) =>
         val getKey = GenerateUnsafeProjection.generate(keyExpressions, child.output)
@@ -141,9 +143,11 @@ case class StateStoreSaveExec(
     child.execute().mapPartitionsWithStateStore(
       getStateId.checkpointLocation,
       operatorId = getStateId.operatorId,
+      storeName = "default",
       storeVersion = getStateId.batchId,
       keyExpressions.toStructType,
       child.output.toStructType,
+      indexOrdinal = None,
       sqlContext.sessionState,
       Some(sqlContext.streams.stateStoreCoordinator)) { (store, iter) =>
         val getKey = GenerateUnsafeProjection.generate(keyExpressions, child.output)

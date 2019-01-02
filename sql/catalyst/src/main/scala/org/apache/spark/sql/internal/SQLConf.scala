@@ -495,6 +495,13 @@ object SQLConf {
     .booleanConf
     .createWithDefault(true)
 
+  val STATE_STORE_PROVIDER_CLASS = SQLConfigBuilder("spark.sql.streaming.stateStore.providerClass")
+    .internal()
+    .doc("The class used to manage state data in stateful streaming queries. This class must " +
+      "be a subclass of StateStoreProvider, and must have a zero-arg constructor.")
+    .stringConf
+    .createOptional
+
   val STATE_STORE_MIN_DELTAS_FOR_SNAPSHOT =
     SQLConfigBuilder("spark.sql.streaming.stateStore.minDeltasForSnapshot")
       .internal()
@@ -669,6 +676,8 @@ class SQLConf extends Serializable with Logging {
   def optimizerMaxIterations: Int = getConf(OPTIMIZER_MAX_ITERATIONS)
 
   def optimizerInSetConversionThreshold: Int = getConf(OPTIMIZER_INSET_CONVERSION_THRESHOLD)
+
+  def stateStoreProviderClass: Option[String] = getConf(STATE_STORE_PROVIDER_CLASS)
 
   def stateStoreMinDeltasForSnapshot: Int = getConf(STATE_STORE_MIN_DELTAS_FOR_SNAPSHOT)
 

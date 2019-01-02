@@ -29,15 +29,11 @@ import org.apache.spark.SparkEnv
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.util.ThreadUtils
-
-
-/** Unique identifier for a [[StateStore]] */
-case class StateStoreId(checkpointLocation: String, operatorId: Long, partitionId: Int)
-
+import org.apache.spark.util.{ThreadUtils, Utils}
 
 /**
- * Base trait for a versioned key-value store used for streaming aggregations
+  * Base trait for a versioned key-value store. Each instance of a `StateStore` represents a
+  * specific version of state data, and such instances are created through a [[StateStoreProvider]].
  */
 trait StateStore {
 
@@ -88,8 +84,50 @@ trait StateStore {
 }
 
 
-/** Trait representing a provider of a specific version of a [[StateStore]]. */
+ /**
+   * Trait representing a provider that provide [[StateStore]] instances representing
+   * versions of state data.
+   *
+   * The life cycle of a provider and its provide stores are as follows.
+   *
+   * - A StateStoreProvider is created in a executor for each unique [[StateStoreId]] when
+   *   the first batch of a streaming query is executed on the executor. All subsequent batches
+   *   reuse this provider instance until the query is stopped.
+   *
+   * - Every batch of streaming data request a specific version of the state data by invoking
+   *   `getStore(version)` which returns an instance of [[StateStore]] through which the required
+   *   version of the data can be accessed. It is the responsible of the provider to populate
+   *   this store with context information like the schema of keys and values, etc.
+   *
+   * - After the streaming query is stopped, the created provider instances are lazily disposed off.
+   */
 trait StateStoreProvider {
+
+  /**
+    * Initialize the provide with more contextual information from the SQL operator.
+    * This method will be called first after creating an instance of the StateStoreProvider by
+    * reflection.
+    * @param stateStoreId Id of the versioned StateStores that this provider will generate
+    * @param keySchema Schema of keys to be stored
+    * @param valueSchema Schema of value to be stored
+    * @param keyIndexOrdinal Optional column (represent as the ordinal of the field in keySchema) by
+    *                        which the StateStore implementation could index the data.
+    * @param storeConfs Configurations used by the StateStores
+    * @param hadoopConf Hadoop configuration that could be used by StateStore to save state data
+    */
+  def init(
+          stateStoreId: StateStoreId,
+          keySchema: StructType,
+          valueSchema: StructType,
+          keyIndexOrdinal: Option[Int], // for sorting the data by their keys
+          storeConfs: StateStoreConf,
+          hadoopConf: Configuration): Unit
+
+  /**
+    * Return the id of the StateStores this provider will generate.
+    * Should be the same as the one passed in init().
+    */
+  def id: StateStoreId
 
   /** Get the store with the existing version. */
   def getStore(version: Long): StateStore
@@ -98,6 +136,26 @@ trait StateStoreProvider {
   def doMaintenance(): Unit = { }
 }
 
+
+object StateStoreProvider {
+  /**
+    * Return a provider instance of the given provider class.
+    * The instance will be already initialized.
+    */
+  def instantiate(
+                   stateStoreId: StateStoreId,
+                   keySchema: StructType,
+                   valueSchema: StructType,
+                   indexOrdinal: Option[Int], // for sorting the data
+                   storeConf: StateStoreConf,
+                   hadoopConf: Configuration): StateStoreProvider = {
+    val providerClass = storeConf.providerClass.map(Utils.classForName)
+      .getOrElse(classOf[HDFSBackedStateStoreProvider])
+    val provider = providerClass.newInstance().asInstanceOf[StateStoreProvider]
+    provider.init(stateStoreId, keySchema, valueSchema, indexOrdinal, storeConf, hadoopConf)
+    provider
+  }
+}
 
 /** Trait representing updates made to a [[StateStore]]. */
 sealed trait StoreUpdate {
@@ -111,6 +169,11 @@ case class ValueUpdated(key: UnsafeRow, value: UnsafeRow) extends StoreUpdate
 
 case class ValueRemoved(key: UnsafeRow, value: UnsafeRow) extends StoreUpdate
 
+/** Unique identifier for a bunch of keyed state data. */
+case class StateStoreId(checkpointLocation: String,
+    operatorId: Long,
+    partitionId: Int,
+    name: String = "")
 
 /**
  * Companion object to [[StateStore]] that provides helper methods to create and retrieve stores
@@ -171,6 +234,7 @@ object StateStore extends Logging {
       storeId: StateStoreId,
       keySchema: StructType,
       valueSchema: StructType,
+      indexOrdinal: Option[Int],
       version: Long,
       storeConf: StateStoreConf,
       hadoopConf: Configuration): StateStore = {
@@ -179,7 +243,8 @@ object StateStore extends Logging {
       startMaintenanceIfNeeded()
       val provider = loadedProviders.getOrElseUpdate(
         storeId,
-        new HDFSBackedStateStoreProvider(storeId, keySchema, valueSchema, storeConf, hadoopConf))
+        StateStoreProvider.instantiate(
+         storeId, keySchema, valueSchema, indexOrdinal, storeConf, hadoopConf))
       reportActiveStoreInstance(storeId)
       provider
     }

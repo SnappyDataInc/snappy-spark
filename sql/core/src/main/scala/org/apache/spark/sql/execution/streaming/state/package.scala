@@ -33,17 +33,21 @@ package object state {
         sqlContext: SQLContext,
         checkpointLocation: String,
         operatorId: Long,
+        storeName: String,
         storeVersion: Long,
         keySchema: StructType,
-        valueSchema: StructType)(
+        valueSchema: StructType,
+        indexOrdinal: Option[Int])(
         storeUpdateFunction: (StateStore, Iterator[T]) => Iterator[U]): StateStoreRDD[T, U] = {
 
       mapPartitionsWithStateStore(
         checkpointLocation,
         operatorId,
+        storeName,
         storeVersion,
         keySchema,
         valueSchema,
+        indexOrdinal,
         sqlContext.sessionState,
         Some(sqlContext.streams.stateStoreCoordinator))(
         storeUpdateFunction)
@@ -53,9 +57,11 @@ package object state {
     private[streaming] def mapPartitionsWithStateStore[U: ClassTag](
         checkpointLocation: String,
         operatorId: Long,
+        storeName: String,
         storeVersion: Long,
         keySchema: StructType,
         valueSchema: StructType,
+        indexOrdinal: Option[Int],
         sessionState: SessionState,
         storeCoordinator: Option[StateStoreCoordinatorRef])(
         storeUpdateFunction: (StateStore, Iterator[T]) => Iterator[U]): StateStoreRDD[T, U] = {
@@ -65,9 +71,11 @@ package object state {
         cleanedF,
         checkpointLocation,
         operatorId,
+        storeName,
         storeVersion,
         keySchema,
         valueSchema,
+        indexOrdinal,
         sessionState,
         storeCoordinator)
     }

@@ -38,7 +38,7 @@ import org.apache.spark.sql.types.StructType
  * IllegalArgumentException when the Kafka Dataset is created, so that it can catch
  * missing options even before the query is started.
  */
-private[kafka010] class KafkaSourceProvider extends DataSourceRegister
+private /* [kafka010] */ class KafkaSourceProvider extends DataSourceRegister
     with StreamSourceProvider
     with StreamSinkProvider
     with RelationProvider
@@ -213,7 +213,7 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
         ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG -> classOf[ByteArraySerializer].getName)
   }
 
-  private def kafkaParamsForDriver(specifiedKafkaParams: Map[String, String]) =
+  /* private */ def kafkaParamsForDriver(specifiedKafkaParams: Map[String, String]) =
     ConfigUpdater("source", specifiedKafkaParams)
       .set(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, deserClassName)
       .set(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, deserClassName)
@@ -233,7 +233,7 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
       .setIfUnset(ConsumerConfig.RECEIVE_BUFFER_CONFIG, 65536: java.lang.Integer)
       .build()
 
-  private def kafkaParamsForExecutors(
+  /* private */  def kafkaParamsForExecutors(
       specifiedKafkaParams: Map[String, String], uniqueGroupId: String) =
     ConfigUpdater("executor", specifiedKafkaParams)
       .set(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, deserClassName)
@@ -253,7 +253,7 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
       .setIfUnset(ConsumerConfig.RECEIVE_BUFFER_CONFIG, 65536: java.lang.Integer)
       .build()
 
-  private def strategy(caseInsensitiveParams: Map[String, String]) =
+  /* private */  def strategy(caseInsensitiveParams: Map[String, String]) =
       caseInsensitiveParams.find(x => STRATEGY_OPTION_KEYS.contains(x._1)).get match {
     case ("assign", value) =>
       AssignStrategy(JsonUtils.partitions(value))
@@ -267,7 +267,7 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
       throw new IllegalArgumentException("Unknown option")
   }
 
-  private def failOnDataLoss(caseInsensitiveParams: Map[String, String]) =
+  /* private */  def failOnDataLoss(caseInsensitiveParams: Map[String, String]) =
     caseInsensitiveParams.getOrElse(FAIL_ON_DATA_LOSS_OPTION_KEY, "true").toBoolean
 
   private def validateGeneralOptions(parameters: Map[String, String]): Unit = {
@@ -437,14 +437,18 @@ private[kafka010] class KafkaSourceProvider extends DataSourceRegister
   }
 }
 
-private[kafka010] object KafkaSourceProvider {
-  private val STRATEGY_OPTION_KEYS = Set("subscribe", "subscribepattern", "assign")
-  private[kafka010] val STARTING_OFFSETS_OPTION_KEY = "startingoffsets"
-  private[kafka010] val ENDING_OFFSETS_OPTION_KEY = "endingoffsets"
-  private val FAIL_ON_DATA_LOSS_OPTION_KEY = "failondataloss"
+private /* [kafka010] */ object KafkaSourceProvider {
+//  private val STRATEGY_OPTION_KEYS = Set("subscribe", "subscribepattern", "assign")
+//  private[kafka010] val STARTING_OFFSETS_OPTION_KEY = "startingoffsets"
+//  private[kafka010] val ENDING_OFFSETS_OPTION_KEY = "endingoffsets"
+//  private val FAIL_ON_DATA_LOSS_OPTION_KEY = "failondataloss"
+  val STRATEGY_OPTION_KEYS = Set("subscribe", "subscribepattern", "assign")
+  val STARTING_OFFSETS_OPTION_KEY = "startingoffsets"
+  val ENDING_OFFSETS_OPTION_KEY = "endingoffsets"
+  val FAIL_ON_DATA_LOSS_OPTION_KEY = "failondataloss"
   val TOPIC_OPTION_KEY = "topic"
 
-  private val deserClassName = classOf[ByteArrayDeserializer].getName
+  /* private */ val deserClassName = classOf[ByteArrayDeserializer].getName
 
   def getKafkaOffsetRangeLimit(
       params: Map[String, String],

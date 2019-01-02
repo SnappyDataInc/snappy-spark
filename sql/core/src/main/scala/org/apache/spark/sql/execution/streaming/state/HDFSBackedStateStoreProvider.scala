@@ -65,13 +65,7 @@ import org.apache.spark.util.Utils
  * to ensure re-executed RDD operations re-apply updates on the correct past version of the
  * store.
  */
-private[state] class HDFSBackedStateStoreProvider(
-    val id: StateStoreId,
-    keySchema: StructType,
-    valueSchema: StructType,
-    storeConf: StateStoreConf,
-    hadoopConf: Configuration
-  ) extends StateStoreProvider with Logging {
+private[state] class HDFSBackedStateStoreProvider extends StateStoreProvider with Logging {
 
   type MapType = java.util.HashMap[UnsafeRow, UnsafeRow]
 
@@ -224,6 +218,22 @@ private[state] class HDFSBackedStateStoreProvider(
     store
   }
 
+  override def init(stateStoreId: StateStoreId,
+        keySchema: StructType,
+        valueSchema: StructType,
+        indexOrdinal: Option[Int], // for sorting the data
+        storeConf: StateStoreConf,
+        hadoopConf: Configuration): Unit = {
+        this.stateStoreId = stateStoreId
+        this.keySchema = keySchema
+        this.valueSchema = valueSchema
+        this.storeConf = storeConf
+        this.hadoopConf = hadoopConf
+        fs.mkdirs(baseDir)
+  }
+
+  override def id: StateStoreId = stateStoreId
+
   /** Do maintenance backing data files, including creating snapshots and cleaning up old files */
   override def doMaintenance(): Unit = {
     try {
@@ -239,16 +249,19 @@ private[state] class HDFSBackedStateStoreProvider(
     s"HDFSStateStoreProvider[id = (op=${id.operatorId}, part=${id.partitionId}), dir = $baseDir]"
   }
 
-  /* Internal classes and methods */
+  /* Internal fields and methods */
 
-  private val loadedMaps = new mutable.HashMap[Long, MapType]
-  private val baseDir =
+  @volatile private var stateStoreId: StateStoreId = _
+  @volatile private var keySchema: StructType = _
+  @volatile private var valueSchema: StructType = _
+  @volatile private var storeConf: StateStoreConf = _
+  @volatile private var hadoopConf: Configuration = _
+
+  private lazy val loadedMaps = new mutable.HashMap[Long, MapType]
+  private lazy val baseDir =
     new Path(id.checkpointLocation, s"${id.operatorId}/${id.partitionId.toString}")
-  private val fs = baseDir.getFileSystem(hadoopConf)
-  private val sparkConf = Option(SparkEnv.get).map(_.conf).getOrElse(new SparkConf)
-
-  initialize()
-
+  private lazy val fs = baseDir.getFileSystem(hadoopConf)
+  private lazy val sparkConf = Option(SparkEnv.get).map(_.conf).getOrElse(new SparkConf)
   private case class StoreFile(version: Long, path: Path, isSnapshot: Boolean)
 
   /** Commit a set of updates to the store with the given new version */
