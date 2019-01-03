@@ -27,8 +27,10 @@ buildscript {
     mavenCentral()
   }
   dependencies {
-    classpath 'io.snappydata:gradle-scalatest:0.16'
-    classpath 'org.github.ngbinh.scalastyle:gradle-scalastyle-plugin_2.11:0.8.2'
+    classpath 'io.snappydata:gradle-scalatest:0.23'
+    classpath 'org.github.ngbinh.scalastyle:gradle-scalastyle-plugin_2.11:0.9.0'
+    classpath 'com.github.jengelman.gradle.plugins:shadow:4.0.3'
+    classpath 'com.commercehub.gradle.plugin:gradle-avro-plugin:0.8.0'
   }
 }
 
@@ -44,6 +46,8 @@ allprojects {
     maven { url 'http://repository.apache.org/snapshots' }
   }
 
+  apply plugin: 'java'
+  apply plugin: 'com.github.johnrengelman.shadow'
   apply plugin: 'idea'
 
   group = 'io.snappydata'
@@ -54,47 +58,92 @@ allprojects {
     vendorName = 'SnappyData, Inc.'
     scalaBinaryVersion = '2.11'
     scalaVersion = scalaBinaryVersion + '.8'
-    hadoopVersion = '2.7.3'
-    protobufVersion = '2.5.0'
-    jerseyVersion = '2.26'
+    hadoopVersion = '2.7.7'
+    protobufVersion = '3.6.1'
+    jerseyVersion = '2.27'
     sunJerseyVersion = '1.19.4'
-    jettyVersion = '9.2.22.v20170606'
+    jettyVersion = '9.2.26.v20180806'
+    jettyOldVersion = '6.1.26'
     log4jVersion = '1.2.17'
     slf4jVersion = '1.7.25'
     junitVersion = '4.12'
+    mockitoVersion = '1.10.19'
     javaxServletVersion = '3.1.0'
     guavaVersion = '14.0.1'
     hiveVersion = '1.2.1.spark2'
-    chillVersion = '0.8.4'
-    kryoVersion = '4.0.1'
+    chillVersion = '0.8.5'
+    kryoVersion = '4.0.2'
     nettyVersion = '3.10.6.Final'
-    nettyAllVersion = '4.0.51.Final'
-    derbyVersion = '10.12.1.1'
-    httpClientVersion = '4.5.3'
-    httpCoreVersion = '4.4.7'
+    nettyAllVersion = '4.0.56.Final'
+    derbyVersion = '10.14.2.0'
+    httpClientVersion = '4.5.6'
+    httpCoreVersion = '4.4.10'
+    levelDbJniVersion = '1.8'
     jackson1Version = '1.9.13'
     jacksonVersion = '2.6.7'
-    jacksonBindVersion = '2.6.7.1'
-    snappyJavaVersion = '1.1.4'
-    lz4Version = '1.4.0'
+    jacksonBindVersion = '2.6.7.2'
+    snappyJavaVersion = '1.1.7.2'
+    lz4Version = '1.5.0'
     lzfVersion = '1.0.4'
-    parquetVersion = '1.8.2'
+    parquetVersion = '1.8.3'
     // hiveParquetVersion = '1.6.0'
-    metricsVersion = '3.2.5'
-    janinoVersion = '3.0.8'
+    metricsVersion = '3.2.6'
+    janinoVersion = '3.0.11'
     thriftVersion = '0.9.3'
     antlrVersion = '4.5.3'
     jpamVersion = '1.1'
     seleniumVersion = '2.52.0'
     curatorVersion = '2.7.1'
-    commonsCodecVersion = '1.10'
-    commonsLang3Version = '3.6'
+    commonsCodecVersion = '1.11'
+    commonsCryptoVersion = '1.0.0'
+    commonsLang3Version = '3.8.1'
     commonsMath3Version = '3.6.1'
+    commonsNetVersion = '3.6'
     avroVersion = '1.7.7'
+    avroNewVersion = '1.8.2'
     jsr305Version = '3.0.2'
     jlineVersion = '2.14.6'
     xbeanAsm5Version = '4.5'
+    breezeVersion = '0.13.1'
+    pmmlVersion = '1.2.17'
+    classutilVersion = '1.4.0'
+    scoptVersion = '3.7.1'
+    mesosVersion = '1.0.4'
+    netlibVersion = '1.1.2'
+    arpackVersion = '0.1'
+    kafka010Version = '0.10.0.1'
+    joptVersion = '5.0.4'
+    flumeVersion = '1.8.0'
+    db2JdbcVersion = '10.5.0.5'
+    dockerClientVersion = '8.14.5'
+    mysqlVersion = '8.0.13'
+    postgresqlVersion = '42.2.5'
+    ojdbc6Version = '11.2.0.1.0'
+    zookeeperVersion = '3.4.13'
+    jets3tVersion = '0.9.4'
+    roaringBitmapVersion = '0.6.66'
+    json4sVersion = '3.2.11'
+    streamVersion = '2.9.6'
+    ivyVersion = '2.4.0'
+    oroVersion = '2.0.8'
+    pyroliteVersion = '4.22'
+    py4jVersion = '0.10.8.1'
+    xmlApisVersion = '1.4.01'
+    datanucleusCoreVersion = '3.2.15'
+    datanucleusJdoVersion = '3.2.8'
+    datanucleusRdbmsVersion = '3.2.13'
+    calciteVersion = '1.4.0-incubating'
+    jodaTimeVersion = '2.10.1'
+    joddVersion = '5.0.6'
+    univocityVersion = '2.7.6'
+    h2Version = '1.3.176'
+    jettyJspVersion = '2.2.0.v201112011158'
+    jettyJstlVersion = '1.2.0.v201105211821'
+
     scalatestVersion = '2.2.6'
+    scalaCheckVersion = '1.12.6'
+    junitInterfaceVersion = '0.11'
+    hamcrestVersion = '1.3'
     pegdownVersion = '1.6.0'
 
     shadePackageName = 'org.spark_project'
@@ -187,7 +236,7 @@ subprojects {
 
     task packageTests(type: Jar, dependsOn: testClasses) {
       description 'Assembles a jar archive of test classes.'
-      from sourceSets.test.output.classesDir
+      from sourceSets.test.output.classesDirs
       classifier = 'tests'
     }
     artifacts {
@@ -221,20 +270,22 @@ subprojects {
 
     testCompile "junit:junit:${junitVersion}"
     testCompile "org.scalatest:scalatest_${scalaBinaryVersion}:${scalatestVersion}"
-    testCompile 'org.mockito:mockito-core:1.10.19'
-    testCompile 'org.scalacheck:scalacheck_' + scalaBinaryVersion + ':1.12.5'
-    testCompile 'com.novocode:junit-interface:0.11'
+    testCompile "org.mockito:mockito-core:${mockitoVersion}"
+    testCompile "org.scalacheck:scalacheck_${scalaBinaryVersion}:${scalaCheckVersion}"
+    testCompile "com.novocode:junit-interface:${junitInterfaceVersion}"
 
     testRuntime "org.pegdown:pegdown:${pegdownVersion}"
   }
 
   if (rootProject.name == 'snappy-spark') {
     task scalaTest(type: Test) {
-      actions = [ new com.github.maiflai.ScalaTestAction() ]
+      def factory = new com.github.maiflai.BackwardsCompatibleJavaExecActionFactory(gradle.gradleVersion)
+      actions = [ new com.github.maiflai.ScalaTestAction(factory) ]
 
       testLogging.exceptionFormat = TestExceptionFormat.FULL
       testLogging.events = TestLogEvent.values() as Set
 
+      extensions.add(com.github.maiflai.ScalaTestAction.TAGS, new org.gradle.api.tasks.util.PatternSet())
       List<String> suites = []
       extensions.add(com.github.maiflai.ScalaTestAction.SUITES, suites)
       extensions.add('suite', { String name -> suites.add(name) } )
@@ -242,15 +293,15 @@ subprojects {
 
       def result = new StringBuilder()
       extensions.add(com.github.maiflai.ScalaTestAction.TESTRESULT, result)
-      extensions.add('testResult', { String name -> result.setLength(0); result.append(name) } )
+      extensions.add('testResult', { String name -> result.setLength(0); result.append(name) })
 
       def output = new StringBuilder()
       extensions.add(com.github.maiflai.ScalaTestAction.TESTOUTPUT, output)
-      extensions.add('testOutput', { String name -> output.setLength(0); output.append(name) } )
+      extensions.add('testOutput', { String name -> output.setLength(0); output.append(name) })
 
       def errorOutput = new StringBuilder()
       extensions.add(com.github.maiflai.ScalaTestAction.TESTERROR, errorOutput)
-      extensions.add('testError', { String name -> errorOutput.setLength(0); errorOutput.append(name) } )
+      extensions.add('testError', { String name -> errorOutput.setLength(0); errorOutput.append(name) })
 
       // running a single scala suite
       if (rootProject.hasProperty('singleSuite')) {
@@ -266,7 +317,7 @@ subprojects {
 
     workingDir = "${testResultsBase}/scalatest"
 
-    testResult '/dev/tty'
+    // testResult '/dev/tty'
     testOutput "${workingDir}/output.txt"
     testError "${workingDir}/error.txt"
     binResultsDir = file("${workingDir}/binary/${project.name}")
@@ -285,10 +336,21 @@ subprojects {
     reports.html.destination = file("${workingDir}/html/${project.name}")
     reports.junitXml.destination = file(workingDir)
   }
-  // need to do below after graph is ready else it will give an error about
-  // runtimeClaspath being set after being finalized
-  gradle.taskGraph.whenReady({ graph ->
-    tasks.withType(Test).each { test ->
+  test.dependsOn subprojectBase + 'cleanSparkJUnit'
+  scalaTest.dependsOn subprojectBase + 'cleanSparkScalaTest'
+  check.dependsOn scalaTest
+  if (rootProject.name == 'snappy-spark') {
+    check.dependsOn "${subprojectBase}snappy-spark-assembly_${scalaBinaryVersion}:sparkProduct"
+  }
+}
+
+// need to do below after graph is ready else it will give an error about
+// runtimeClaspath being set after being finalized
+gradle.taskGraph.whenReady { graph ->
+  def allTasks = subprojects.collect { it.tasks }.flatten()
+  allTasks.each { task ->
+    if (task instanceof Test) {
+      def test = (Test)task
       test.configure {
         onlyIf { ! Boolean.getBoolean('skip.tests') }
 
@@ -303,7 +365,7 @@ subprojects {
         } else {
           jvmArgs '-ea'
         }
-        environment 'SPARK_DIST_CLASSPATH': "${sourceSets.test.runtimeClasspath.asPath}",
+        environment 'SPARK_DIST_CLASSPATH': test.classpath.asPath,
           'SPARK_PREPEND_CLASSES': '1',
           'SPARK_SCALA_VERSION': scalaBinaryVersion,
           'SPARK_TESTING': '1',
@@ -350,12 +412,6 @@ subprojects {
         }
       }
     }
-  })
-  test.dependsOn subprojectBase + 'cleanSparkJUnit'
-  scalaTest.dependsOn subprojectBase + 'cleanSparkScalaTest'
-  check.dependsOn scalaTest
-  if (rootProject.name == 'snappy-spark') {
-    check.dependsOn "${subprojectBase}snappy-spark-assembly_${scalaBinaryVersion}:product"
   }
 }
 

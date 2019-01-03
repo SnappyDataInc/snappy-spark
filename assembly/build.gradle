@@ -39,14 +39,14 @@ dependencies {
 }
 
 def cleanProduct() {
-  delete "${sparkProjectRootDir}/python/lib/pyspark.zip"
+  delete "${snappyProductDir}/python/lib/pyspark.zip"
   delete snappyProductDir
 }
 clean.doLast {
   cleanProduct()
 }
 
-task product(type: Zip) {
+task sparkProduct(type: Zip) {
   def examplesProject = project(subprojectBase + 'snappy-spark-examples_' + scalaBinaryVersion)
   String yarnShuffleProject = subprojectBase + 'snappy-spark-network-yarn_' + scalaBinaryVersion
   dependsOn jar, examplesProject.jar, "${yarnShuffleProject}:shadowJar"
@@ -59,6 +59,7 @@ task product(type: Zip) {
 
   doFirst {
     cleanProduct()
+    file("${snappyProductDir}/python/lib").mkdirs()
   }
   doLast {
     // copy all runtime dependencies (skip for top-level snappydata builds)

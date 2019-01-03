@@ -20,7 +20,7 @@ description = 'Spark Project Mesos'
 dependencies {
   compile project(subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion)
 
-  compile(group: 'org.apache.mesos', name: 'mesos', version: '1.0.0', classifier: 'shaded-protobuf') {
+  compile(group: 'org.apache.mesos', name: 'mesos', version: mesosVersion, classifier: 'shaded-protobuf') {
     exclude(group: 'com.google.protobuf', module: 'protobuf-java')
   }
   compile group: 'com.google.guava', name: 'guava', version: guavaVersion

@@ -23,9 +23,9 @@ dependencies {
 
   // compile group: 'com.twitter', name: 'parquet-hadoop-bundle', version: hiveParquetVersion
   compile group: 'org.apache.derby', name: 'derby', version: derbyVersion
-  compile group: 'org.datanucleus', name: 'datanucleus-core', version: '3.2.15'
-  compile group: 'org.datanucleus', name: 'datanucleus-api-jdo', version: '3.2.8'
-  compile group: 'org.datanucleus', name: 'datanucleus-rdbms', version: '3.2.13'
+  compile group: 'org.datanucleus', name: 'datanucleus-core', version: datanucleusCoreVersion
+  compile group: 'org.datanucleus', name: 'datanucleus-api-jdo', version: datanucleusJdoVersion
+  compile group: 'org.datanucleus', name: 'datanucleus-rdbms', version: datanucleusRdbmsVersion
   compile(group: 'org.spark-project.hive', name: 'hive-exec', version: hiveVersion) {
     exclude(group: 'org.datanucleus', module: 'datanucleus-core')
     exclude(group: 'org.spark-project.hive', module: 'hive-metastore')
@@ -84,13 +84,7 @@ dependencies {
     exclude(group: 'org.apache.velocity', module: 'velocity')
     exclude(group: 'org.apache.avro', module: 'avro-ipc')
   }
-  compile group: 'commons-httpclient', name: 'commons-httpclient', version: '3.1'
-  compile(group: 'org.apache.calcite', name: 'calcite-avatica', version: '1.2.0-incubating') {
-    exclude(group: 'com.fasterxml.jackson.core', module: 'jackson-annotations')
-    exclude(group: 'com.fasterxml.jackson.core', module: 'jackson-core')
-    exclude(group: 'com.fasterxml.jackson.core', module: 'jackson-databind')
-  }
-  compile(group: 'org.apache.calcite', name: 'calcite-core', version: '1.2.0-incubating') {
+  compile(group: 'org.apache.calcite', name: 'calcite-core', version: calciteVersion) {
     exclude(group: 'com.fasterxml.jackson.core', module: 'jackson-annotations')
     exclude(group: 'com.fasterxml.jackson.core', module: 'jackson-core')
     exclude(group: 'com.fasterxml.jackson.core', module: 'jackson-databind')
@@ -101,11 +95,16 @@ dependencies {
     exclude(group: 'org.hsqldb', module: 'hsqldb')
     exclude(group: 'org.pentaho', module: 'pentaho-aggdesigner-algorithm')
   }
+  compile(group: 'org.apache.calcite', name: 'calcite-avatica', version: calciteVersion) {
+    exclude(group: 'com.fasterxml.jackson.core', module: 'jackson-annotations')
+    exclude(group: 'com.fasterxml.jackson.core', module: 'jackson-core')
+    exclude(group: 'com.fasterxml.jackson.core', module: 'jackson-databind')
+  }
   compile group: 'org.apache.httpcomponents', name: 'httpclient', version: httpClientVersion
   compile group: 'org.codehaus.jackson', name: 'jackson-mapper-asl', version: jackson1Version
   compile group: 'commons-codec', name: 'commons-codec', version: commonsCodecVersion
-  compile group: 'joda-time', name: 'joda-time', version: '2.9.9'
-  compile group: 'org.jodd', name: 'jodd-core', version: '3.9.1'
+  compile group: 'joda-time', name: 'joda-time', version: jodaTimeVersion
+  compile group: 'org.jodd', name: 'jodd-core', version: joddVersion
   compile group: 'com.google.code.findbugs', name: 'jsr305', version: jsr305Version
   compile(group: 'org.apache.thrift', name: 'libthrift', version: thriftVersion) {
     exclude(group: 'org.slf4j', module: 'slf4j-api')

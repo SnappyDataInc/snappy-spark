@@ -27,10 +27,10 @@ dependencies {
   compile project(subprojectBase + 'snappy-spark-streaming-kafka-0.10_' + scalaBinaryVersion)
 
   compile group: 'org.apache.commons', name: 'commons-math3', version: commonsMath3Version
-  compile group: 'com.github.scopt', name: 'scopt_' + scalaBinaryVersion, version: '3.3.0'
+  compile group: 'com.github.scopt', name: 'scopt_' + scalaBinaryVersion, version: scoptVersion
   // compile group: 'com.twitter', name: 'parquet-hadoop-bundle', version: hiveParquetVersion
 
-  runtimeJar group: 'com.github.scopt', name: 'scopt_' + scalaBinaryVersion, version: '3.3.0'
+  runtimeJar group: 'com.github.scopt', name: 'scopt_' + scalaBinaryVersion, version: scoptVersion
 }
 
 jar.doLast {
