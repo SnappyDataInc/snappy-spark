@@ -950,7 +950,7 @@ object CodeGenerator extends Logging {
       classOf[MapData].getName,
       classOf[UnsafeMapData].getName,
       classOf[Expression].getName
-    ): _*)
+    ))
     evaluator.setExtendedClass(classOf[GeneratedClass])
 
     lazy val formatted = CodeFormatter.format(code)
