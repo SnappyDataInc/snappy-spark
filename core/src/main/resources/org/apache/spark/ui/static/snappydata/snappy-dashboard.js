@@ -371,6 +371,57 @@ function getExternalTableStatsGridConf() {
   return extTableStatsGridConf;
 }
 
+function getGlobalTempViewStatsGridConf() {
+  // Global Temporary Views/Tables Grid Data Table Configurations
+  var gblTempViewStatsGridConf = {
+    data: gblTempViewStatsGridData,
+    "columns": [
+      { // Name
+        data: function(row, type) {
+                var nameHtml = '<div style="width:100%; padding-left:10px;">'
+                               + row.tableName
+                             + '</div>';
+                return nameHtml;
+              }
+      },
+      { // Type
+        data: function(row, type) {
+                var typeHtml = '<div style="width:100%; text-align:center;">'
+                                   + row.tableType
+                                 + '</span>';
+                return typeHtml;
+              }
+      },
+      { // Table Columns
+        data: function(row, type) {
+                var tableFQNameWithHyphen = row.tableFQName.replace(/\./g, '-');
+                var cellProps = getDetailsCellExpansionProps(tableFQNameWithHyphen + '-tablefields');
+
+                var columnsCellHtml =
+                        '<div style="width: 90%; float: left; padding-right:10px;'
+                         + 'text-align:right;">' + row.columnsInfo.numColumns
+                      + '</div>'
+                      + '<div style="width: 5px; float: right; padding-right: 10px; '
+                         + 'cursor: pointer;" '
+                         + 'onclick="toggleCellDetails(\'' + tableFQNameWithHyphen + '-tablefields' + '\');">'
+                         + '<span class="' + cellProps.caretClass + '" '
+                         + 'id="' + tableFQNameWithHyphen + '-tablefields-btn"></span>'
+                      + '</div>'
+                      + '<div class="cellDetailsBox" id="'+ tableFQNameWithHyphen + '-tablefields" '
+                         + 'style="width: 90%; ' + cellProps.displayStyle + '">'
+                         + '<span><strong>Fields:</strong>'
+                         + '<br>' + row.columnsInfo.fieldsString.replace(/\n/g, '<br>')
+                         + '</span>'
+                      + '</div>';
+                return columnsCellHtml;
+              }
+      }
+    ]
+  }
+
+  return gblTempViewStatsGridConf;
+}
+
 function updateUsageCharts(statsData){
 
   // Load charts library if not already loaded
@@ -560,6 +611,23 @@ function loadClusterInfo() {
         $("#extTableStatsGridContainer").hide();
       }
 
+      gblTempViewStatsGridData = response[0].globalTempViewsInfo;
+      gblTempViewStatsGrid.clear().rows.add(gblTempViewStatsGridData).draw();
+      if (gblTempViewStatsGrid.page.info().pages > gblTempViewStatsGridCurrPage) {
+        gblTempViewStatsGrid.page(gblTempViewStatsGridCurrPage).draw(false);
+      } else {
+        gblTempViewStatsGridCurrPage = 0;
+      }
+
+      // Display Global Temporary Views only if available
+      if (gblTempViewStatsGridData.length > 0) {
+        $("#gblViewsStatsTitle").show();
+        $("#gblTempViewStatsGridContainer").show();
+      } else {
+        $("#gblViewsStatsTitle").hide();
+        $("#gblTempViewStatsGridContainer").hide();
+      }
+
       updateCoreDetails(clusterInfo.coresInfo);
 
     },
@@ -578,6 +646,10 @@ var tableStatsGridCurrPage = 0;
 var extTableStatsGridData = [];
 var extTableStatsGrid;
 var extTableStatsGridCurrPage = 0;
+
+var gblTempViewStatsGridData = [];
+var gblTempViewStatsGrid;
+var gblTempViewStatsGridCurrPage = 0;
 
 $(document).ready(function() {
 
@@ -606,6 +678,17 @@ $(document).ready(function() {
   extTableStatsGrid = $('#extTableStatsGrid').DataTable( getExternalTableStatsGridConf() );
   extTableStatsGrid.on( 'page.dt', function () {
     extTableStatsGridCurrPage = extTableStatsGrid.page.info().page;
+  });
+
+  // Global Temporary Views Grid Data Table
+  gblTempViewStatsGrid = $('#gblTempViewStatsGrid').DataTable( getGlobalTempViewStatsGridConf() );
+  // todo: need to remove setting width outside of datatable
+  $("table#gblTempViewStatsGrid").css({"width": "100%"});
+  $("table#gblTempViewStatsGrid thead tr th:nth-child(1)").css({"width": "50%"});
+  $("table#gblTempViewStatsGrid thead tr th:nth-child(2)").css({"width": "10%"});
+  $("table#gblTempViewStatsGrid thead tr th:nth-child(3)").css({"width": "40%"});
+  gblTempViewStatsGrid.on( 'page.dt', function () {
+    gblTempViewStatsGridCurrPage = gblTempViewStatsGrid.page.info().page;
   });
 
   var clusterStatsUpdateInterval = setInterval(function() {
