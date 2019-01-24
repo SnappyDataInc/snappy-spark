@@ -324,6 +324,7 @@ function getTableStatsGridConf() {
               }
       }
     ],
+    "order": [[0, 'asc']],
     columnDefs: [
       { type: 'file-size', targets: 4 },
       { type: 'file-size', targets: 5 },
@@ -364,7 +365,8 @@ function getExternalTableStatsGridConf() {
                 return sourceHtml;
               }
       }
-    ]
+    ],
+    "order": [[0, 'asc']]
   }
 
   return extTableStatsGridConf;
