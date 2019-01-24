@@ -182,6 +182,7 @@ function getMemberStatsGridConf() {
   // Members Grid Data Table Configurations
   var memberStatsGridConf = {
     data: memberStatsGridData,
+    "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
     "columns": [
       { // Status
         data: function(row, type) {
@@ -262,6 +263,7 @@ function getTableStatsGridConf() {
   // Tables Grid Data Table Configurations
   var tableStatsGridConf = {
     data: tableStatsGridData,
+    "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
     "columns": [
       { // Name
         data: function(row, type) {
@@ -340,6 +342,7 @@ function getExternalTableStatsGridConf() {
   // External Tables Grid Data Table Configurations
   var extTableStatsGridConf = {
     data: extTableStatsGridData,
+    "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
     "columns": [
       { // Name
         data: function(row, type) {
