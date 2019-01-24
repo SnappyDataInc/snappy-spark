@@ -182,6 +182,8 @@ function getMemberStatsGridConf() {
   // Members Grid Data Table Configurations
   var memberStatsGridConf = {
     data: memberStatsGridData,
+    "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+    "iDisplayLength": 50,
     "columns": [
       { // Status
         data: function(row, type) {
@@ -252,7 +254,8 @@ function getMemberStatsGridConf() {
               },
         "orderable": false
       }
-    ]
+    ],
+    "order": [[2, 'desc']]
   }
 
   return memberStatsGridConf;
@@ -262,6 +265,8 @@ function getTableStatsGridConf() {
   // Tables Grid Data Table Configurations
   var tableStatsGridConf = {
     data: tableStatsGridData,
+    "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+    "iDisplayLength": 50,
     "columns": [
       { // Name
         data: function(row, type) {
@@ -298,28 +303,19 @@ function getTableStatsGridConf() {
       { // In Memory Size
         data: function(row, type) {
                 var tableInMemorySize = convertSizeToHumanReadable(row.sizeInMemory);
-                var msHtml = '<div style="padding-right:10px; text-align:right;">'
-                             + tableInMemorySize[0] + ' ' + tableInMemorySize[1]
-                           + '</div>';
-                return msHtml;
+                return tableInMemorySize[0] + ' ' + tableInMemorySize[1];
               }
       },
       { // Spillover to Disk Size
         data: function(row, type) {
                 var tableSpillToDiskSize = convertSizeToHumanReadable(row.sizeSpillToDisk);
-                var dsHtml = '<div style="padding-right:10px; text-align:right;">'
-                             + tableSpillToDiskSize[0] + ' ' + tableSpillToDiskSize[1]
-                           + '</div>';
-                return dsHtml;
+                return tableSpillToDiskSize[0] + ' ' + tableSpillToDiskSize[1];
               }
       },
       { // Total Size
         data: function(row, type) {
                 var tableTotalSize = convertSizeToHumanReadable(row.totalSize);
-                var tsHtml = '<div style="padding-right:10px; text-align:right;">'
-                             + tableTotalSize[0] + ' ' + tableTotalSize[1]
-                           + '</div>';
-                return tsHtml;
+                return tableTotalSize[0] + ' ' + tableTotalSize[1];
               }
       },
       { // Bucket Count
@@ -330,6 +326,12 @@ function getTableStatsGridConf() {
                 return bcHtml;
               }
       }
+    ],
+    "order": [[0, 'asc']],
+    columnDefs: [
+      { type: 'file-size', targets: 4 },
+      { type: 'file-size', targets: 5 },
+      { type: 'file-size', targets: 6 }
     ]
   }
 
@@ -340,6 +342,8 @@ function getExternalTableStatsGridConf() {
   // External Tables Grid Data Table Configurations
   var extTableStatsGridConf = {
     data: extTableStatsGridData,
+    "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+    "iDisplayLength": 50,
     "columns": [
       { // Name
         data: function(row, type) {
@@ -365,7 +369,8 @@ function getExternalTableStatsGridConf() {
                 return sourceHtml;
               }
       }
-    ]
+    ],
+    "order": [[0, 'asc']]
   }
 
   return extTableStatsGridConf;
