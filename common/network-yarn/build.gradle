@@ -15,10 +15,6 @@
  * LICENSE file.
  */
 
-plugins {
-  id 'com.github.johnrengelman.shadow' version '2.0.4'
-}
-
 description = 'Spark Project YARN Shuffle Service'
 
 dependencies {
@@ -43,6 +39,7 @@ dependencies {
     exclude(group: 'com.sun.jersey.contribs')
     exclude(group: 'io.netty', module: 'netty')
     exclude(group: 'io.netty', module: 'netty-all')
+    exclude(group: 'org.apache.directory.server', module: 'apacheds-kerberos-codec')
   }
 
   testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')

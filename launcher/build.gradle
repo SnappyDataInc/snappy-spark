@@ -36,6 +36,7 @@ dependencies {
     exclude(group: 'com.sun.jersey.contribs')
     exclude(group: 'io.netty', module: 'netty')
     exclude(group: 'io.netty', module: 'netty-all')
+    exclude(group: 'org.apache.directory.server', module: 'apacheds-kerberos-codec')
   }
   testCompile group: 'org.slf4j', name: 'jul-to-slf4j', version: slf4jVersion
 

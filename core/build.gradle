@@ -51,7 +51,7 @@ dependencies {
   // explicitly include netty from akka-remote to not let zookeeper override it
   compile group: 'io.netty', name: 'netty', version: nettyVersion
   // explicitly exclude old netty from zookeeper
-  compile(group: 'org.apache.zookeeper', name: 'zookeeper', version: '3.4.10') {
+  compile(group: 'org.apache.zookeeper', name: 'zookeeper', version: zookeeperVersion) {
     exclude(group: 'org.jboss.netty', module: 'netty')
     exclude(group: 'jline', module: 'jline')
     exclude(group: 'org.slf4j', module: 'slf4j-api')
@@ -75,8 +75,9 @@ dependencies {
     exclude(group: 'com.sun.jersey.jersey-test-framework')
     exclude(group: 'com.sun.jersey.contribs')
     exclude(group: 'com.google.protobuf', module: 'protobuf-java')
+    exclude(group: 'org.apache.directory.server', module: 'apacheds-kerberos-codec')
   }
-  compile(group: 'net.java.dev.jets3t', name: 'jets3t', version: '0.9.4') {
+  compile(group: 'net.java.dev.jets3t', name: 'jets3t', version: jets3tVersion) {
     exclude(group: 'commons-codec', module: 'commons-codec')
     exclude(group: 'commons-logging', module: 'commons-logging')
   }
@@ -88,7 +89,7 @@ dependencies {
   }
 
   compile 'org.scala-lang:scalap:' + scalaVersion
-  compile group: 'org.roaringbitmap', name: 'RoaringBitmap' , version: '0.5.11'
+  compile group: 'org.roaringbitmap', name: 'RoaringBitmap' , version: roaringBitmapVersion
 
   compile group: 'org.eclipse.jetty', name: 'jetty-server', version: jettyVersion
   compile group: 'org.eclipse.jetty', name: 'jetty-plus', version: jettyVersion
@@ -104,7 +105,7 @@ dependencies {
   compile group: 'org.apache.commons', name: 'commons-lang3', version: commonsLang3Version
   compile group: 'org.apache.commons', name: 'commons-math3', version: commonsMath3Version
   compile group: 'com.google.code.findbugs', name: 'jsr305', version: jsr305Version
-  compile(group: 'org.apache.commons', name: 'commons-crypto', version: '1.0.0') {
+  compile(group: 'org.apache.commons', name: 'commons-crypto', version: commonsCryptoVersion) {
     exclude(group: 'net.java.dev.jna', module: 'jna')
   }
   compile group: 'io.netty', name: 'netty', version: nettyVersion
@@ -114,8 +115,8 @@ dependencies {
   compile group: 'org.xerial.snappy', name: 'snappy-java', version: snappyJavaVersion
   compile group: 'org.lz4', name: 'lz4-java', version: lz4Version
   compile group: 'com.ning', name: 'compress-lzf', version: lzfVersion
-  compile group: 'commons-net', name: 'commons-net', version: '3.6'
-  compile group: 'org.json4s', name: 'json4s-jackson_' + scalaBinaryVersion, version: '3.2.11'
+  compile group: 'commons-net', name: 'commons-net', version: commonsNetVersion
+  compile group: 'org.json4s', name: 'json4s-jackson_' + scalaBinaryVersion, version: json4sVersion
   compile group: 'org.glassfish.jersey.core', name: 'jersey-client', version: jerseyVersion
   compile group: 'org.glassfish.jersey.core', name: 'jersey-common', version: jerseyVersion
   compile group: 'org.glassfish.jersey.core', name: 'jersey-server', version: jerseyVersion
@@ -123,7 +124,7 @@ dependencies {
   compile group: 'org.glassfish.jersey.containers', name: 'jersey-container-servlet-core', version: jerseyVersion
   compile group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: jerseyVersion
   compile group: 'io.netty', name: 'netty-all', version: nettyAllVersion
-  compile(group: 'com.clearspring.analytics', name: 'stream', version: '2.8.0') {
+  compile(group: 'com.clearspring.analytics', name: 'stream', version: streamVersion) {
     exclude(group: 'it.unimi.dsi', module: 'fastutil')
   }
   compile(group: 'io.dropwizard.metrics', name: 'metrics-core', version: metricsVersion) {
@@ -146,12 +147,12 @@ dependencies {
   compile(group: 'com.fasterxml.jackson.module', name: 'jackson-module-scala_' + scalaBinaryVersion, version: jacksonVersion) {
     exclude(group: 'com.google.guava', module: 'guava')
   }
-  compile group: 'org.apache.ivy', name: 'ivy', version: '2.4.0'
-  compile group: 'oro', name: 'oro', version: '2.0.8'
-  compile(group: 'net.razorvine', name: 'pyrolite', version: '4.20') {
+  compile group: 'org.apache.ivy', name: 'ivy', version: ivyVersion
+  compile group: 'oro', name: 'oro', version: oroVersion
+  compile(group: 'net.razorvine', name: 'pyrolite', version: pyroliteVersion) {
     exclude(group: 'net.razorvine', module: 'serpent')
   }
-  compile group: 'net.sf.py4j', name: 'py4j', version: '0.10.4'
+  compile group: 'net.sf.py4j', name: 'py4j', version: py4jVersion
 
   testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile group: 'org.apache.avro', name: 'avro-ipc', version: avroVersion, classifier: 'tests'
@@ -162,9 +163,9 @@ dependencies {
   testCompile(group: 'org.seleniumhq.selenium', name: 'selenium-htmlunit-driver', version: seleniumVersion) {
     exclude(group: 'com.google.guava', module: 'guava')
   }
-  testCompile group: 'xml-apis', name: 'xml-apis', version: '1.4.01'
-  testCompile group: 'org.hamcrest', name: 'hamcrest-core', version: '1.3'
-  testCompile group: 'org.hamcrest', name: 'hamcrest-library', version: '1.3'
+  testCompile group: 'xml-apis', name: 'xml-apis', version: xmlApisVersion
+  testCompile group: 'org.hamcrest', name: 'hamcrest-core', version: hamcrestVersion
+  testCompile group: 'org.hamcrest', name: 'hamcrest-library', version: hamcrestVersion
   testCompile(group: 'org.apache.curator', name: 'curator-test', version: curatorVersion) {
     exclude(group: 'org.apache.zookeeper', module: 'zookeeper')
     exclude(group: 'org.jboss.netty', module: 'netty')

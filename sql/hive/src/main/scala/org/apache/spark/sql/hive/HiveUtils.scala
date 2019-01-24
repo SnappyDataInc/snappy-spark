@@ -81,6 +81,14 @@ private[spark] object HiveUtils extends Logging {
     .stringConf
     .createWithDefault("builtin")
 
+  val HIVE_METASTORE_ISOLATION = SQLConfigBuilder("spark.sql.hive.metastore.isolation")
+      .doc("When set to true, Spark SQL will load the hive meta-store client in an isolated " +
+          "ClassLoader to enable using different hive jar versions in the same application. " +
+          "If false and when the jars property is builtin then it will use the Spark " +
+          "ClassLoader used for rest of the Spark classes. Default is true.")
+      .booleanConf
+      .createWithDefault(true)
+
   val CONVERT_METASTORE_PARQUET = SQLConfigBuilder("spark.sql.hive.convertMetastoreParquet")
     .doc("When set to false, Spark SQL will use the Hive SerDe for parquet tables instead of " +
       "the built in support.")
@@ -283,6 +291,7 @@ private[spark] object HiveUtils extends Logging {
             s"or change ${HIVE_METASTORE_VERSION.key} to $hiveExecutionVersion.")
       }
 
+      val isolationOn = sqlConf.getConf(HIVE_METASTORE_ISOLATION)
       // We recursively find all jars in the class loader chain,
       // starting from the given classLoader.
       def allJars(classLoader: ClassLoader): Array[URL] = classLoader match {
@@ -308,7 +317,7 @@ private[spark] object HiveUtils extends Logging {
         hadoopConf = hadoopConf,
         execJars = jars.toSeq,
         config = configurations,
-        isolationOn = true,
+        isolationOn,
         barrierPrefixes = hiveMetastoreBarrierPrefixes,
         sharedPrefixes = hiveMetastoreSharedPrefixes)
     } else if (hiveMetastoreJars == "maven") {

@@ -24,8 +24,8 @@ dependencies {
 
   compile group: 'org.apache.xbean', name: 'xbean-asm5-shaded', version: xbeanAsm5Version
   compile group: 'com.google.guava', name: 'guava', version: guavaVersion
-  compile group: 'com.github.fommil.netlib', name: 'core', version: '1.1.2'
-  compile group: 'net.sourceforge.f2j', name: 'arpack_combined_all', version: '0.1'
+  compile group: 'com.github.fommil.netlib', name: 'core', version: netlibVersion
+  compile group: 'net.sourceforge.f2j', name: 'arpack_combined_all', version: arpackVersion
 
   testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')
   testCompile project(path: subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion, configuration: 'testOutput')

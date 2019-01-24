@@ -15,21 +15,19 @@
  * LICENSE file.
  */
 
-plugins {
-  id 'com.commercehub.gradle.plugin.avro' version '0.8.0'
-}
-
 description = 'Spark Project External Flume Sink'
 
+apply plugin: 'com.commercehub.gradle.plugin.avro'
+
 dependencies {
-  compile(group: 'org.apache.flume', name: 'flume-ng-sdk', version: '1.6.0') {
+  compile(group: 'org.apache.flume', name: 'flume-ng-sdk', version: flumeVersion) {
     exclude(group: 'io.netty', module: 'netty')
     exclude(group: 'org.apache.flume', module: 'flume-ng-auth')
     exclude(group: 'com.google.guava', module: 'guava')
     exclude(group: 'org.apache.thrift', module: 'libthrift')
     exclude(group: 'javax.servlet', module: 'servlet-api')
   }
-  compile(group: 'org.apache.flume', name: 'flume-ng-core', version: '1.6.0') {
+  compile(group: 'org.apache.flume', name: 'flume-ng-core', version: flumeVersion) {
     exclude(group: 'io.netty', module: 'netty')
     exclude(group: 'com.google.guava', module: 'guava')
     exclude(group: 'org.apache.thrift', module: 'libthrift')
