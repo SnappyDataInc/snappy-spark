@@ -2,6 +2,7 @@
 var isGoogleChartLoaded = false;
 var isAutoUpdateTurnedON = true;
 var isMemberCellExpanded = {};
+var isMemberRowExpanded = {};
 
 function updateCoreDetails(coresInfo) {
   $("#totalCores").html(coresInfo.totalCores);
@@ -12,7 +13,7 @@ function toggleCellDetails(detailsId) {
   $("#"+detailsId).toggle();
 
   var spanId = $("#"+detailsId+"-btn");
-  if(spanId.hasClass("caret-downward")) {
+  if (spanId.hasClass("caret-downward")) {
     spanId.addClass("caret-upward");
     spanId.removeClass("caret-downward");
     isMemberCellExpanded[detailsId] = true;
@@ -20,6 +21,44 @@ function toggleCellDetails(detailsId) {
     spanId.addClass("caret-downward");
     spanId.removeClass("caret-upward");
     isMemberCellExpanded[detailsId] = false;
+  }
+}
+
+function toggleRowAddOnDetails(detailsId) {
+
+  var expAllBtn = $("#"+detailsId+"-expandall-btn");
+  var descBtnId = $("#"+detailsId+"-btn");
+  var heapBtnId = $("#"+detailsId+"-heap-btn");
+  var offHeapBtnId = $("#"+detailsId+"-offheap-btn");
+
+  if (expAllBtn.hasClass('row-caret-downward')) {
+    expAllBtn.removeClass('row-caret-downward');
+    expAllBtn.addClass('row-caret-upward');
+    isMemberRowExpanded[detailsId] = true;
+    // expand only if already collapsed
+    if (descBtnId.hasClass("caret-downward")) {
+      toggleCellDetails(detailsId);
+    }
+    if (heapBtnId.hasClass("caret-downward")) {
+      toggleCellDetails(detailsId + '-heap');
+    }
+    if (offHeapBtnId.hasClass("caret-downward")) {
+      toggleCellDetails(detailsId + '-offheap');
+    }
+  } else {
+    expAllBtn.removeClass('row-caret-upward');
+    expAllBtn.addClass('row-caret-downward');
+    isMemberRowExpanded[detailsId] = false;
+    // collapse only if already expanded
+    if (descBtnId.hasClass("caret-upward")) {
+      toggleCellDetails(detailsId);
+    }
+    if (heapBtnId.hasClass("caret-upward")) {
+      toggleCellDetails(detailsId + '-heap');
+    }
+    if (offHeapBtnId.hasClass("caret-upward")) {
+      toggleCellDetails(detailsId + '-offheap');
+    }
   }
 }
 
@@ -184,6 +223,23 @@ function getMemberStatsGridConf() {
     data: memberStatsGridData,
     "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
     "columns": [
+      { // Expand/Collapse Button
+        "orderable": false,
+        "data": null,
+        "defaultContent": '',
+        data: function(row, type) {
+              var expandAllClass = 'row-caret-downward';
+              if (isMemberRowExpanded[row.userDir]) {
+                expandAllClass = 'row-caret-upward';
+              }
+              return '<div style="padding: 0 10px; cursor: pointer;" ' +
+                     'onclick="toggleRowAddOnDetails(\'' + row.userDir + '\');">' +
+                     '<span id="' + row.userDir + '-expandall-btn" ' +
+                     'class="' + expandAllClass + '"></span></div>';
+        },
+        width:"15px",
+        "orderable": false
+      },
       { // Status
         data: function(row, type) {
                 var statusImgUri = "";
@@ -253,7 +309,8 @@ function getMemberStatsGridConf() {
               },
         "orderable": false
       }
-    ]
+    ],
+    "order": [[1, 'asc']]
   }
 
   return memberStatsGridConf;
