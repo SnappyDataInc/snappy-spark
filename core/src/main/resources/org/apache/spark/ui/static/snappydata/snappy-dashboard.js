@@ -224,20 +224,16 @@ function getMemberStatsGridConf() {
     "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
     "columns": [
       { // Expand/Collapse Button
-        "orderable": false,
-        "data": null,
-        "defaultContent": '',
         data: function(row, type) {
               var expandAllClass = 'row-caret-downward';
               if (isMemberRowExpanded[row.userDir]) {
                 expandAllClass = 'row-caret-upward';
               }
-              return '<div style="padding: 0 10px; cursor: pointer;" ' +
+              return '<div style="padding: 0 5px; text-align: center; cursor: pointer;" ' +
                      'onclick="toggleRowAddOnDetails(\'' + row.userDir + '\');">' +
                      '<span id="' + row.userDir + '-expandall-btn" ' +
                      'class="' + expandAllClass + '"></span></div>';
         },
-        width:"15px",
         "orderable": false
       },
       { // Status
