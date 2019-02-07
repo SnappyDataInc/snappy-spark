@@ -45,6 +45,13 @@ function toggleRowAddOnDetails(detailsId) {
     if (offHeapBtnId.hasClass("caret-downward")) {
       toggleCellDetails(detailsId + '-offheap');
     }
+    // show sparklines
+    $("#cpuUsageSLDiv-" + detailsId).show();
+    $("#memoryUsageSLDiv-" + detailsId).show();
+
+    // make sparklines visible
+    $.sparkline_display_visible();
+
   } else {
     expAllBtn.removeClass('row-caret-upward');
     expAllBtn.addClass('row-caret-downward');
@@ -59,6 +66,9 @@ function toggleRowAddOnDetails(detailsId) {
     if (offHeapBtnId.hasClass("caret-upward")) {
       toggleCellDetails(detailsId + '-offheap');
     }
+    // hide sparklines
+    $("#cpuUsageSLDiv-" + detailsId).hide();
+    $("#memoryUsageSLDiv-" + detailsId).hide();
   }
 }
 
@@ -279,7 +289,15 @@ function getMemberStatsGridConf() {
       },
       { // CPU Usage
         data: function(row, type) {
-                return generateProgressBarHtml(row.cpuActive);
+                var displayStatus = "display:none;";
+                if ($('#'+ row.userDir + '-expandall-btn').hasClass('row-caret-upward') ) {
+                  displayStatus =  "display:block;";
+                }
+                var progBarHtml = generateProgressBarHtml(row.cpuActive);
+                var sparklineHtml = '<div id="cpuUsageSLDiv-' + row.userDir + '" '
+                                  + 'class="cellDetailsBox" style="' + displayStatus + '">'
+                                  + '<span id="cpuUsageSparklines-' + row.userDir + '"></span></div>';
+                return progBarHtml + sparklineHtml;
               }
       },
       { // Memory Usage
@@ -290,7 +308,15 @@ function getMemberStatsGridConf() {
                 if(isNaN(memoryUsage)){
                   memoryUsage = 0;
                 }
-                return generateProgressBarHtml(memoryUsage);
+                var displayStatus = "display:none;";
+                if ($('#'+ row.userDir + '-expandall-btn').hasClass('row-caret-upward') ) {
+                  displayStatus =  "display:block;";
+                }
+                var progBarHtml = generateProgressBarHtml(memoryUsage);
+                var sparklineHtml = '<div id="memoryUsageSLDiv-' + row.userDir + '" '
+                                  + 'class="cellDetailsBox" style="' + displayStatus + '">'
+                                  + '<span id="memoryUsageSparklines-' + row.userDir + '"></span></div>';
+                return  progBarHtml + sparklineHtml;
               }
       },
       { // Heap Usage
@@ -423,6 +449,32 @@ function getExternalTableStatsGridConf() {
   }
 
   return extTableStatsGridConf;
+}
+
+var globalSparklineOptions = {
+      type: 'line',
+      width: '200',
+      height: '110',
+      lineColor: '#0000ff',
+      minSpotColor: '#00bf5f',
+      maxSpotColor: '#ff0000',
+      highlightSpotColor: '#7f007f',
+      highlightLineColor: '#666666',
+      spotRadius: 2.5
+}
+
+function updateSparklines(memberStatsGridData) {
+
+  for (var i=0; i < memberStatsGridData.length; i++) {
+    var cpuSL = $('#cpuUsageSparklines-' + memberStatsGridData[i].userDir);
+    if (cpuSL.length != 0) {
+      cpuSL.sparkline(memberStatsGridData[i].cpuUsageTrend, globalSparklineOptions);
+    }
+    var memSL = $('#memoryUsageSparklines-' + memberStatsGridData[i].userDir);
+    if (memSL.length != 0) {
+      memSL.sparkline(memberStatsGridData[i].aggrMemoryUsageTrend, globalSparklineOptions);
+    }
+  }
 }
 
 function updateUsageCharts(statsData){
@@ -588,6 +640,8 @@ function loadClusterInfo() {
       } else {
         membersStatsGridCurrPage = 0;
       }
+
+      updateSparklines(memberStatsGridData);
 
       tableStatsGridData = response[0].tablesInfo;
       tableStatsGrid.clear().rows.add(tableStatsGridData).draw();
