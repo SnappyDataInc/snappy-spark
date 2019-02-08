@@ -35,16 +35,10 @@ function toggleRowAddOnDetails(detailsId) {
     expAllBtn.removeClass('row-caret-downward');
     expAllBtn.addClass('row-caret-upward');
     isMemberRowExpanded[detailsId] = true;
-    // expand only if already collapsed
-    if (descBtnId.hasClass("caret-downward")) {
-      toggleCellDetails(detailsId);
-    }
-    if (heapBtnId.hasClass("caret-downward")) {
-      toggleCellDetails(detailsId + '-heap');
-    }
-    if (offHeapBtnId.hasClass("caret-downward")) {
-      toggleCellDetails(detailsId + '-offheap');
-    }
+
+    $("#" + detailsId).show();
+    $("#" + detailsId + '-heap').show();
+    $("#" + detailsId + '-offheap').show();
     // show sparklines
     $("#cpuUsageSLDiv-" + detailsId).show();
     $("#memoryUsageSLDiv-" + detailsId).show();
@@ -56,16 +50,10 @@ function toggleRowAddOnDetails(detailsId) {
     expAllBtn.removeClass('row-caret-upward');
     expAllBtn.addClass('row-caret-downward');
     isMemberRowExpanded[detailsId] = false;
-    // collapse only if already expanded
-    if (descBtnId.hasClass("caret-upward")) {
-      toggleCellDetails(detailsId);
-    }
-    if (heapBtnId.hasClass("caret-upward")) {
-      toggleCellDetails(detailsId + '-heap');
-    }
-    if (offHeapBtnId.hasClass("caret-upward")) {
-      toggleCellDetails(detailsId + '-offheap');
-    }
+
+    $("#" + detailsId).hide();
+    $("#" + detailsId + '-heap').hide();
+    $("#" + detailsId + '-offheap').hide();
     // hide sparklines
     $("#cpuUsageSLDiv-" + detailsId).hide();
     $("#memoryUsageSLDiv-" + detailsId).hide();
@@ -110,20 +98,19 @@ function getDetailsCellExpansionProps(key){
 }
 
 function generateDescriptionCellHtml(row) {
-  var cellProps = getDetailsCellExpansionProps(row.userDir);
+  var cellDisplayState = 'display:none;';
+  if (isMemberRowExpanded[row.userDir]) {
+    cellDisplayState = 'display:block;';
+  }
 
   var descText = row.host + " | " + row.userDir + " | " + row.processId;
   var descHtml =
-          '<div style="float: left; width: 80%; font-weight: bold;">'
+          '<div style="float: left; width: 100%; font-weight: bold;">'
           + '<a href="/dashboard/memberDetails/?memId=' + row.id + '">'
           + descText + '</a>'
         + '</div>'
-        + '<div style="width: 10px; float: right; padding-right: 10px;'
-          +' cursor: pointer;" onclick="toggleCellDetails(\'' + row.userDir + '\');">'
-          + '<span class="' + cellProps.caretClass + '" id="' + row.userDir + '-btn' + '"></span>'
-        + '</div>'
         + '<div class="cellDetailsBox" id="' + row.userDir + '" '
-          + 'style="'+ cellProps.displayStyle + '">'
+          + 'style="'+ cellDisplayState + '">'
           + '<span>'
             + '<strong>Host:</strong>' + row.host
             + '<br/><strong>Directory:</strong>' + row.userDirFullPath
@@ -135,7 +122,10 @@ function generateDescriptionCellHtml(row) {
 
 // Content to be displayed in heap memory cell in Members Stats Grid
 function generateHeapCellHtml(row){
-  var cellProps = getDetailsCellExpansionProps(row.userDir + '-heap');
+  var cellDisplayState = 'display:none;';
+  if (isMemberRowExpanded[row.userDir]) {
+    cellDisplayState = 'display:block;';
+  }
 
   var heapHtml = "NA";
   var heapStorageHtml = "NA";
@@ -161,17 +151,11 @@ function generateHeapCellHtml(row){
                     + " / " + jvmHeapSize[0] + " " + jvmHeapSize[1];
 
   var heapCellHtml =
-          '<div style="width: 80%; float: left; padding-right:10px;'
+          '<div style="width: 95%; float: left; padding-right:10px;'
            + 'text-align:right;">' + heapHtml
         + '</div>'
-        + '<div style="width: 5px; float: right; padding-right: 10px; '
-           + 'cursor: pointer;" '
-           + 'onclick="toggleCellDetails(\'' + row.userDir + '-heap' + '\');">'
-           + '<span class="' + cellProps.caretClass + '" '
-           + 'id="' + row.userDir + '-heap-btn"></span>'
-        + '</div>'
         + '<div class="cellDetailsBox" id="'+ row.userDir + '-heap" '
-           + 'style="width: 90%; ' + cellProps.displayStyle + '">'
+           + 'style="width: 90%; ' + cellDisplayState + '">'
            + '<span><strong>JVM Heap:</strong>'
            + '<br>' + jvmHeapHtml
            + '<br><strong>Storage Memory:</strong>'
@@ -185,7 +169,10 @@ function generateHeapCellHtml(row){
 
 // Content to be displayed in off-heap memory cell in Members Stats Grid
 function generateOffHeapCellHtml(row){
-  var cellProps = getDetailsCellExpansionProps(row.userDir + '-offheap');
+  var cellDisplayState = 'display:none;';
+  if (isMemberRowExpanded[row.userDir]) {
+    cellDisplayState = 'display:block;';
+  }
 
   var offHeapHtml = "NA";
   var offHeapStorageHtml = "NA";
@@ -207,17 +194,11 @@ function generateOffHeapCellHtml(row){
   }
 
   var offHeapCellHtml =
-          '<div style="width: 80%; float: left; padding-right:10px;'
+          '<div style="width: 95%; float: left; padding-right:10px;'
            + 'text-align:right;">' + offHeapHtml
         + '</div>'
-        + '<div style="width: 5px; float: right; padding-right: 10px; '
-           + 'cursor: pointer;" '
-           + 'onclick="toggleCellDetails(\'' + row.userDir + '-offheap' + '\');">'
-           + '<span class="' + cellProps.caretClass + '" '
-           + 'id="' + row.userDir + '-offheap-btn"></span>'
-        + '</div>'
         + '<div class="cellDetailsBox" id="'+ row.userDir + '-offheap" '
-           + 'style="width: 90%; ' + cellProps.displayStyle + '">'
+           + 'style="width: 90%; ' + cellDisplayState + '">'
            + '<span><strong>Storage Memory:</strong>'
            + '<br>' + offHeapStorageHtml
            + '<br><strong>Execution Memory:</strong>'
