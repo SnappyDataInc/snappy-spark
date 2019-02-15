@@ -46,6 +46,15 @@ clean.doLast {
   cleanProduct()
 }
 
+task generateRLibs {
+  delete file("${sparkProjectRootDir}/R/lib")
+  if (!rootProject.hasProperty('R.skip')) {
+    exec {
+      commandLine "${sparkProjectRootDir}/R/install-dev.sh"
+    }
+  }
+}
+
 task sparkProduct(type: Zip) {
   def examplesProject = project(subprojectBase + 'snappy-spark-examples_' + scalaBinaryVersion)
   String yarnShuffleProject = subprojectBase + 'snappy-spark-network-yarn_' + scalaBinaryVersion
@@ -88,10 +97,11 @@ task sparkProduct(type: Zip) {
       }
       into snappyProductDir
     }
-    def sparkR = 'sparkProjectRootDir/R/lib/SparkR'
-    if (file(sparkR).exists()) {
+
+    def sparkRLib = "${sparkProjectRootDir}/R/lib"
+    if (file(sparkRLib).exists()) {
       copy {
-        from sparkR
+        from sparkRLib
         into "${snappyProductDir}/R/lib"
       }
     }
