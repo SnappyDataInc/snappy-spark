@@ -58,7 +58,7 @@ task generateRLibs {
 task sparkProduct(type: Zip) {
   def examplesProject = project(subprojectBase + 'snappy-spark-examples_' + scalaBinaryVersion)
   String yarnShuffleProject = subprojectBase + 'snappy-spark-network-yarn_' + scalaBinaryVersion
-  dependsOn jar, examplesProject.jar, "${yarnShuffleProject}:shadowJar"
+  dependsOn jar, examplesProject.jar, "${yarnShuffleProject}:shadowJar", generateRLibs
   // create python zip
   destinationDir = file("${snappyProductDir}/python/lib")
   archiveName = 'pyspark.zip'
