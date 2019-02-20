@@ -183,6 +183,7 @@ function getMemberStatsGridConf() {
   var memberStatsGridConf = {
     data: memberStatsGridData,
     "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+    "iDisplayLength": 50,
     "columns": [
       { // Status
         data: function(row, type) {
@@ -253,7 +254,8 @@ function getMemberStatsGridConf() {
               },
         "orderable": false
       }
-    ]
+    ],
+    "order": [[2, 'desc']]
   }
 
   return memberStatsGridConf;
@@ -264,6 +266,7 @@ function getTableStatsGridConf() {
   var tableStatsGridConf = {
     data: tableStatsGridData,
     "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+    "iDisplayLength": 50,
     "columns": [
       { // Name
         data: function(row, type) {
@@ -340,6 +343,7 @@ function getExternalTableStatsGridConf() {
   var extTableStatsGridConf = {
     data: extTableStatsGridData,
     "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
+    "iDisplayLength": 50,
     "columns": [
       { // Name
         data: function(row, type) {
