@@ -26,14 +26,11 @@ function toggleCellDetails(detailsId) {
 
 function toggleRowAddOnDetails(detailsId) {
 
-  var expAllBtn = $("#"+detailsId+"-expandall-btn");
-  var descBtnId = $("#"+detailsId+"-btn");
-  var heapBtnId = $("#"+detailsId+"-heap-btn");
-  var offHeapBtnId = $("#"+detailsId+"-offheap-btn");
+  var expRowBtn = $("#"+detailsId+"-expandrow-btn");
 
-  if (expAllBtn.hasClass('row-caret-downward')) {
-    expAllBtn.removeClass('row-caret-downward');
-    expAllBtn.addClass('row-caret-upward');
+  if (expRowBtn.hasClass('row-caret-downward')) {
+    expRowBtn.removeClass('row-caret-downward');
+    expRowBtn.addClass('row-caret-upward');
     isMemberRowExpanded[detailsId] = true;
 
     $("#" + detailsId).show();
@@ -47,8 +44,8 @@ function toggleRowAddOnDetails(detailsId) {
     $.sparkline_display_visible();
 
   } else {
-    expAllBtn.removeClass('row-caret-upward');
-    expAllBtn.addClass('row-caret-downward');
+    expRowBtn.removeClass('row-caret-upward');
+    expRowBtn.addClass('row-caret-downward');
     isMemberRowExpanded[detailsId] = false;
 
     $("#" + detailsId).hide();
@@ -217,14 +214,14 @@ function getMemberStatsGridConf() {
     "columns": [
       { // Expand/Collapse Button
         data: function(row, type) {
-              var expandAllClass = 'row-caret-downward';
+              var expandRowClass = 'row-caret-downward';
               if (isMemberRowExpanded[row.userDir]) {
-                expandAllClass = 'row-caret-upward';
+                expandRowClass = 'row-caret-upward';
               }
               return '<div style="padding: 0 5px; text-align: center; cursor: pointer;" ' +
                      'onclick="toggleRowAddOnDetails(\'' + row.userDir + '\');">' +
-                     '<span id="' + row.userDir + '-expandall-btn" ' +
-                     'class="' + expandAllClass + '"></span></div>';
+                     '<span id="' + row.userDir + '-expandrow-btn" ' +
+                     'class="' + expandRowClass + '"></span></div>';
         },
         "orderable": false
       },
@@ -272,7 +269,7 @@ function getMemberStatsGridConf() {
       { // CPU Usage
         data: function(row, type) {
                 var displayStatus = "display:none;";
-                if ($('#'+ row.userDir + '-expandall-btn').hasClass('row-caret-upward') ) {
+                if ($('#'+ row.userDir + '-expandrow-btn').hasClass('row-caret-upward') ) {
                   displayStatus =  "display:block;";
                 }
                 var progBarHtml = generateProgressBarHtml(row.cpuActive);
@@ -291,7 +288,7 @@ function getMemberStatsGridConf() {
                   memoryUsage = 0;
                 }
                 var displayStatus = "display:none;";
-                if ($('#'+ row.userDir + '-expandall-btn').hasClass('row-caret-upward') ) {
+                if ($('#'+ row.userDir + '-expandrow-btn').hasClass('row-caret-upward') ) {
                   displayStatus =  "display:block;";
                 }
                 var progBarHtml = generateProgressBarHtml(memoryUsage);
