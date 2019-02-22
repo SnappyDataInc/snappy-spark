@@ -57,6 +57,34 @@ function toggleRowAddOnDetails(detailsId) {
   }
 }
 
+function toggleAllRowsAddOnDetails() {
+  var expandAllRowsBtn = $('#expandallrows-btn');
+  var expandAction = true;
+  if (expandAllRowsBtn.hasClass('row-caret-downward')) {
+    expandAction = true;
+    expandAllRowsBtn.removeClass('row-caret-downward');
+    expandAllRowsBtn.addClass('row-caret-upward');
+  } else {
+    expandAction = false;
+    expandAllRowsBtn.removeClass('row-caret-upward');
+    expandAllRowsBtn.addClass('row-caret-downward');
+  }
+
+  for (memIndex in memberStatsGridData) {
+    if (expandAction) { // expand row
+      if ($('#' + memberStatsGridData[memIndex].userDir
+           + '-expandrow-btn').hasClass('row-caret-downward')) {
+        toggleRowAddOnDetails(memberStatsGridData[memIndex].userDir);
+      }
+    } else { // collapse row
+      if ($('#' + memberStatsGridData[memIndex].userDir
+           + '-expandrow-btn').hasClass('row-caret-upward')) {
+        toggleRowAddOnDetails(memberStatsGridData[memIndex].userDir);
+      }
+    }
+  }
+}
+
 var toggleAutoUpdateSwitch = function() {
   if ($("#myonoffswitch").prop('checked')) {
     // Turn ON auto update
