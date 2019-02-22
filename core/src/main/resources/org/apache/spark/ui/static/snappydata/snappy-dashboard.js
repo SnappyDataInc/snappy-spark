@@ -303,6 +303,8 @@ function getMemberStatsGridConf() {
                 var progBarHtml = generateProgressBarHtml(row.cpuActive);
                 var sparklineHtml = '<div id="cpuUsageSLDiv-' + row.userDir + '" '
                                   + 'class="cellDetailsBox" style="' + displayStatus + '">'
+                                  + '<div style="text-align: right; font-size: 12px; color: #0A8CAE;">'
+                                  + 'Values in %, Last 15 mins</div>'
                                   + '<span id="cpuUsageSparklines-' + row.userDir + '"></span></div>';
                 return progBarHtml + sparklineHtml;
               }
@@ -322,6 +324,8 @@ function getMemberStatsGridConf() {
                 var progBarHtml = generateProgressBarHtml(memoryUsage);
                 var sparklineHtml = '<div id="memoryUsageSLDiv-' + row.userDir + '" '
                                   + 'class="cellDetailsBox" style="' + displayStatus + '">'
+                                  + '<div style="text-align: right; font-size: 12px; color: #0A8CAE;">'
+                                  + 'Values in GB, Last 15 mins</div>'
                                   + '<span id="memoryUsageSparklines-' + row.userDir + '"></span></div>';
                 return  progBarHtml + sparklineHtml;
               }
@@ -463,13 +467,20 @@ function getExternalTableStatsGridConf() {
 var globalSparklineOptions = {
       type: 'line',
       width: '200',
-      height: '110',
+      height: '100',
       lineColor: '#0000ff',
       minSpotColor: '#00bf5f',
       maxSpotColor: '#ff0000',
       highlightSpotColor: '#7f007f',
       highlightLineColor: '#666666',
-      spotRadius: 2.5
+      spotRadius: 2.5,
+      numberFormatter: function(value) {
+        if ((value % 1) == 0) {
+          return value;
+        } else {
+          return value.toFixed(3);
+        }
+      }
 }
 
 function updateSparklines(memberStatsGridData) {
