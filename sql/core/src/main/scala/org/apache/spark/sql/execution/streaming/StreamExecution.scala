@@ -189,16 +189,10 @@ class StreamExecution(
         // thread to this micro batch thread
         sparkSession.sparkContext.setCallSite(callSite)
 
-        // setting pool to streaming pool (if defined) so that streaming queries will be executed
-        // in "streaming" pool
-        // if `snappydata.scheduler.pool` is configured with something other than `default` then
-        // use that pool instead of `streaming` pool
+        // setting custom pool defined by `snappydata.scheduler.pool` for streaming thread
         val pool = sparkSession.conf.get("snappydata.scheduler.pool")
-        if(pool == "default" && sparkSession.sparkContext.getPoolForName("streaming").isDefined){
-          sparkSession.sparkContext.setLocalProperty("spark.scheduler.pool", "streaming")
-        } else {
-          sparkSession.sparkContext.setLocalProperty("spark.scheduler.pool", pool)
-        }
+        sparkSession.sparkContext.setLocalProperty("spark.scheduler.pool", pool)
+
         runBatches()
       }
     }
