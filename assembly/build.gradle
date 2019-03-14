@@ -48,7 +48,7 @@ clean.doLast {
 
 task generateRLibs {
   delete file("${sparkProjectRootDir}/R/lib")
-  if (!rootProject.hasProperty('R.skip')) {
+  if (rootProject.hasProperty('R.enable')) {
     exec {
       commandLine "${sparkProjectRootDir}/R/install-dev.sh"
     }
