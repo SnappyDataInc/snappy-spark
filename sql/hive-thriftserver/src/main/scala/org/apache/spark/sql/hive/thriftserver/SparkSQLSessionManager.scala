@@ -96,6 +96,7 @@ private[hive] class SparkSQLSessionManager(hiveServer: HiveServer2, sqlContext: 
     } else {
       sqlContext.newSession()
     }
+    ctx.setConf("snappydata.sql.planCaching", "true")
     ctx.setConf("spark.sql.hive.version", HiveUtils.hiveExecutionVersion)
     if ((username ne null) && !username.isEmpty) {
       ctx.setConf("user", username)

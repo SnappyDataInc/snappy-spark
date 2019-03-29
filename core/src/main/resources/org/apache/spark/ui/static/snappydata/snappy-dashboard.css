@@ -207,6 +207,22 @@
   font-size: 17px;
 }
 
+.row-caret-upward {
+  display: inline-block;
+  border: 5px solid #228b57;
+  border-top-color: transparent;
+  border-left-color: transparent;
+  border-right-color: transparent;
+}
+
+.row-caret-downward {
+  display: inline-block;
+  border: 5px solid #228b57;
+  border-bottom-color: transparent;
+  border-left-color: transparent;
+  border-right-color: transparent;
+}
+
 #autorefreshswitch-container {
   position: absolute;
   width: 100%;
@@ -295,4 +311,12 @@
 }
 .onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-switch {
   right: 0px;
+}
+
+/* Table Stats Grids */
+table#tableStatsGrid tbody tr td:nth-child(5),
+table#tableStatsGrid tbody tr td:nth-child(6),
+table#tableStatsGrid tbody tr td:nth-child(7) {
+  padding-right:10px;
+  text-align:right;
 }

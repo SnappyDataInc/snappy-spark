@@ -179,7 +179,7 @@ private[spark] object UIUtils extends Logging {
             type="text/css"/>
       <script src={prependBaseUri("/static/snappydata/d3.js")}></script>
       <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-      <script src={prependBaseUri("/static/snappydata/liquidFillGauge.js")}></script>
+      <script src={prependBaseUri("/static/snappydata/jquery.sparkline.min.js")}></script>
       <script src={prependBaseUri("/static/snappydata/snappy-commons.js")}></script>
   }
 
@@ -239,9 +239,9 @@ private[spark] object UIUtils extends Logging {
     <html>
       <head>
         {commonHeaderNodes}
-        {if (isSnappyPage) commonHeaderNodesSnappy else Seq.empty}
         {if (showVisualization) vizHeaderNodes else Seq.empty}
         {if (useDataTables) dataTablesHeaderNodes else Seq.empty}
+        {if (isSnappyPage) commonHeaderNodesSnappy else Seq.empty}
         <title>{appName} - {title}</title>
       </head>
       <body>

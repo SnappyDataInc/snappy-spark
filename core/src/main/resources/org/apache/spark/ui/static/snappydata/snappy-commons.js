@@ -144,3 +144,44 @@ var ajaxRequestErrorHandler = function (jqXHR, status, error) {
 
   $("#AutoUpdateErrorMsg").html(displayMessage).show();
 }
+
+/**
+ * DataTable plugin for sorting file/data size in form of <digits><unit>.
+ * It is common practice to append size units as a post fix (such as B, KB,
+ * MB or GB) to a numeric string in order to easily denote the order of
+ * magnitude of the file/data size. This plugin sorts such values correctly
+ * keeping by considering of their magnitudes (eg 12MB, 6KB, etc).
+ *
+ *  Usage: Provide configuration in columnDefs, a 'file-size' as type and
+           targeted column index as target.
+ *
+ *    $('#example').DataTable( {
+ *       columnDefs: [
+ *         { type: 'file-size', targets: 0 }
+ *       ]
+ *    } );
+ */
+jQuery.fn.dataTable.ext.type.order['file-size-pre'] = function ( data ) {
+    var matches = data.match( /^(\d+(?:\.\d+)?)\s*([a-z]+)/i );
+    var multipliers = {
+        b:  1,
+        bytes: 1,
+        kb: 1000,
+        kib: 1024,
+        mb: 1000000,
+        mib: 1048576,
+        gb: 1000000000,
+        gib: 1073741824,
+        tb: 1000000000000,
+        tib: 1099511627776,
+        pb: 1000000000000000,
+        pib: 1125899906842624
+    };
+
+    if (matches) {
+        var multiplier = multipliers[matches[2].toLowerCase()];
+        return parseFloat( matches[1] ) * multiplier;
+    } else {
+        return -1;
+    };
+};
