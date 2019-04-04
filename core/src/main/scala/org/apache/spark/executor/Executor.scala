@@ -629,13 +629,28 @@ private[spark] class Executor(
             val (accums, accUpdates) = collectAccumulatorsAndResetStatusOnFailure(taskStartTime,
               taskStartCpu)
 
+            // wrap the OOM error in LowMemoryException if
+            // it is a non fatal OOM error thrown from Spark layer
+            val ex: Throwable = t match {
+              case oom: OutOfMemoryError if !isFatalError(t) =>
+                try {
+                  val clazz = Utils.classForName("com.gemstone.gemfire.cache.LowMemoryException")
+                  val e = clazz.getConstructor(classOf[java.lang.Throwable]).newInstance(t)
+                  e.asInstanceOf[Throwable]
+                } catch {
+                  // return OOM error as it is if LowMemoryException class is not found
+                  case _: ClassNotFoundException => t
+                }
+              case _ => t
+            }
+
             val serializedTaskEndReason = {
               try {
-                ser.serialize(new ExceptionFailure(t, accUpdates).withAccums(accums))
+                ser.serialize(new ExceptionFailure(ex, accUpdates).withAccums(accums))
               } catch {
                 case _: NotSerializableException =>
                   // t is not serializable so just send the stacktrace
-                  ser.serialize(new ExceptionFailure(t, accUpdates, false).withAccums(accums))
+                  ser.serialize(new ExceptionFailure(ex, accUpdates, false).withAccums(accums))
               }
             }
             setTaskFinishedAndClearInterruptStatus()
