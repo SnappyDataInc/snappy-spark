@@ -478,7 +478,9 @@ object SQLConf {
   val FILES_MAX_PARTITION_BYTES = SQLConfigBuilder("spark.sql.files.maxPartitionBytes")
     .doc("The maximum number of bytes to pack into a single partition when reading files.")
     .longConf
-    .createWithDefault(32 * 1024 * 1024) // parquet.block.size
+    // [SnappyData change] set default to 32mb
+    // .createWithDefault(128 * 1024 * 1024) // parquet.block.size
+    .createWithDefault(32 * 1024 * 1024)
 
   val FILES_OPEN_COST_IN_BYTES = SQLConfigBuilder("spark.sql.files.openCostInBytes")
     .internal()
