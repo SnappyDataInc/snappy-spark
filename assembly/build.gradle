@@ -46,20 +46,11 @@ clean.doLast {
   cleanProduct()
 }
 
-task generateRLibs {
-  delete file("${sparkProjectRootDir}/R/lib")
-  if (rootProject.hasProperty('R.enable') &&
-      rootProject.property("R.enable").toString().equalsIgnoreCase("true")) {
-    exec {
-      commandLine "${sparkProjectRootDir}/R/install-dev.sh"
-    }
-  }
-}
 
 task sparkProduct(type: Zip) {
   def examplesProject = project(subprojectBase + 'snappy-spark-examples_' + scalaBinaryVersion)
   String yarnShuffleProject = subprojectBase + 'snappy-spark-network-yarn_' + scalaBinaryVersion
-  dependsOn jar, examplesProject.jar, "${yarnShuffleProject}:shadowJar", generateRLibs
+  dependsOn jar, examplesProject.jar, "${yarnShuffleProject}:shadowJar"
   // create python zip
   destinationDir = file("${snappyProductDir}/python/lib")
   archiveName = 'pyspark.zip'
@@ -97,14 +88,6 @@ task sparkProduct(type: Zip) {
         include 'examples/src/**'
       }
       into snappyProductDir
-    }
-
-    def sparkRLib = "${sparkProjectRootDir}/R/lib"
-    if (file(sparkRLib).exists()) {
-      copy {
-        from sparkRLib
-        into "${snappyProductDir}/R/lib"
-      }
     }
 
     // copy yarn shuffle shadow jar
