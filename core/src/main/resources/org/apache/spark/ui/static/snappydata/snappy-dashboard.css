@@ -163,7 +163,8 @@
 
 #CPUCoresContainer {
   position: absolute;
-  width: 100%;
+  width: 20%;
+  right: -20px;
 }
 
 #CPUCoresDetails {

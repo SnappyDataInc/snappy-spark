@@ -249,16 +249,15 @@ private[spark] object UIUtils extends Logging {
           <div class="navbar-inner">
             <div class="product-brand">
               <a href={prependBaseUri("/")} class="brand">
-                <img src={prependBaseUri("/static/snappydata/pulse-snappydata-152X50.png")} />
+                <img src={prependBaseUri("/static/snappydata/tibco-computdb-392X50.png")} />
               </a>
             </div>
             <div class="brand" style="line-height: 2.5;">
-              <a href={prependBaseUri("/")} class="brand" style="float: left;">
-                <img src={prependBaseUri("/static/snappydata/snappydata-175X28.png")} />
-              </a>
+              <img src={prependBaseUri("/static/snappydata/helpicon-18X18.png")}
+                   style="cursor: pointer;"
+                   onclick="displayVersionDetails()" />
               {getProductVersionNode}
             </div>
-            {getProductDocLinkNode()}
             <ul class="nav">{header}</ul>
           </div>
         </div>
@@ -545,31 +544,32 @@ private[spark] object UIUtils extends Logging {
 
   def getProductVersionNode(): Node = {
     val versionDetails = SparkUI.getProductVersion
-    val versionTooltipText =
-      "SnappyData Ver. " + versionDetails.getOrElse("productVersion", "") +
-          " ( Underlying Spark Ver. " + org.apache.spark.SPARK_VERSION + " )"
-
     <div class="popup">
-      <span class="version" style="font-size: 14px; color: #202020;"
-            data-toggle="tooltip" data-placement="bottom" data-original-title={versionTooltipText}
-            onclick="displayVersionDetails()" >{
-          versionDetails.getOrElse("productVersion", "")
-        }
-      </span>
       <div class="popuptext" id="sdVersionDetails">
         <div>
           <img src="/static/snappydata/cross.png" onclick="displayVersionDetails()"
                style="float:right; cursor: pointer;"></img>
         </div>
         <div>
-          Product Name : {versionDetails.getOrElse("productName", "")} <br/>
-          Product Version : {versionDetails.getOrElse("productVersion", "")} <br/>
-          Build : {
-            versionDetails.getOrElse("buildId", "") + " " +
-            versionDetails.getOrElse("buildDate", "")
-          } <br/>
-          Source Revision : {versionDetails.getOrElse("sourceRevision", "")} <br/>
-          Spark Version : {org.apache.spark.SPARK_VERSION}
+          <p>
+            <strong>TIBCO<sup>&reg;</sup> ComputeDB<sup>&trade;</sup> -
+            {versionDetails.getOrElse("editionType", "")} Edition</strong> <br />
+            <br />&copy; 2017-2019 TIBCO<sup>&reg;</sup> Software Inc. All rights reserved.
+            <br />This program is protected by copyright law.
+          </p>
+          <p>
+            Build Version : {versionDetails.getOrElse("productVersion", "")} <br/>
+            Build Date : { val buildDateStr = versionDetails.getOrElse("buildDate", "");
+                           buildDateStr.substring(0, buildDateStr.indexOf(" ")) } <br/>
+            Spark Version : {org.apache.spark.SPARK_VERSION}
+          </p>
+          <p>
+            For assistance, get started at : <br />
+            <a href="https://www.snappydata.io/community" target="_blank">
+               https://www.snappydata.io/community</a> <br />
+            <a href="https://www.tibco.com/" target="_blank">https://www.tibco.com/</a> <br />
+            <a href="http://snappydatainc.github.io/snappydata/" target="_blank">Documentations</a>
+          </p>
         </div>
       </div>
     </div>
