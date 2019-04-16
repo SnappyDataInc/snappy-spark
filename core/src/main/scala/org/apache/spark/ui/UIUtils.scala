@@ -568,7 +568,9 @@ private[spark] object UIUtils extends Logging {
             <a href="https://www.snappydata.io/community" target="_blank">
                https://www.snappydata.io/community</a> <br />
             <a href="https://www.tibco.com/" target="_blank">https://www.tibco.com/</a> <br />
-            <a href="http://snappydatainc.github.io/snappydata/" target="_blank">Documentations</a>
+            <a href="http://snappydatainc.github.io/snappydata/" target="_blank">
+              Product Documentation
+            </a>
           </p>
         </div>
       </div>
