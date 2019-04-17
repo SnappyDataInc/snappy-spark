@@ -560,7 +560,10 @@ private[spark] object UIUtils extends Logging {
           <p>
             Build Version: {versionDetails.getOrElse("productVersion", "")} <br/>
             Build Date: { val buildDateStr = versionDetails.getOrElse("buildDate", "");
-                           buildDateStr.substring(0, buildDateStr.indexOf(" ")) } <br/>
+                           if (!buildDateStr.isEmpty) {
+                             buildDateStr.substring(0, buildDateStr.indexOf(" "))
+                           } else ""
+                        } <br/>
             Spark Version: {org.apache.spark.SPARK_VERSION}
           </p>
           <p>
