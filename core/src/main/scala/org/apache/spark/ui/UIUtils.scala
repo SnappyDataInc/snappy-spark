@@ -558,13 +558,13 @@ private[spark] object UIUtils extends Logging {
             <br />This program is protected by copyright law.
           </p>
           <p>
-            Build Version : {versionDetails.getOrElse("productVersion", "")} <br/>
-            Build Date : { val buildDateStr = versionDetails.getOrElse("buildDate", "");
+            Build Version: {versionDetails.getOrElse("productVersion", "")} <br/>
+            Build Date: { val buildDateStr = versionDetails.getOrElse("buildDate", "");
                            buildDateStr.substring(0, buildDateStr.indexOf(" ")) } <br/>
-            Spark Version : {org.apache.spark.SPARK_VERSION}
+            Spark Version: {org.apache.spark.SPARK_VERSION}
           </p>
           <p>
-            For assistance, get started at : <br />
+            For assistance, get started at: <br />
             <a href="https://www.snappydata.io/community" target="_blank">
                https://www.snappydata.io/community</a> <br />
             <a href="https://www.tibco.com/" target="_blank">https://www.tibco.com/</a> <br />
