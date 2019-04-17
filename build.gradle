@@ -134,7 +134,7 @@ allprojects {
     datanucleusRdbmsVersion = '3.2.13'
     calciteVersion = '1.4.0-incubating'
     jodaTimeVersion = '2.10.1'
-    joddVersion = '5.0.6'
+    joddVersion = '3.5.2'
     univocityVersion = '2.7.6'
     h2Version = '1.3.176'
     jettyJspVersion = '2.2.0.v201112011158'
