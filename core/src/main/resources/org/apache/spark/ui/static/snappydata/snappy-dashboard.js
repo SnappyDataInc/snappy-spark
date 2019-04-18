@@ -383,7 +383,7 @@ function getTableStatsGridConf() {
       { // Row Count
         data: function(row, type) {
                 var rcHtml = '<div style="padding-right:10px; text-align:right;">'
-                             + row.rowCount
+                             + row.rowCount.toLocaleString(navigator.language)
                            + '</div>';
                 return rcHtml;
               }
