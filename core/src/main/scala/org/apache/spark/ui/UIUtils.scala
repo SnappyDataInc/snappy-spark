@@ -21,6 +21,7 @@ import java.net.URLDecoder
 import java.text.SimpleDateFormat
 import java.util.{Date, Locale, TimeZone}
 
+import scala.collection.mutable.HashMap
 import scala.util.control.NonFatal
 import scala.xml._
 import scala.xml.transform.{RewriteRule, RuleTransformer}
@@ -33,6 +34,7 @@ private[spark] object UIUtils extends Logging {
   val TABLE_CLASS_NOT_STRIPED = "table table-bordered table-condensed"
   val TABLE_CLASS_STRIPED = TABLE_CLASS_NOT_STRIPED + " table-striped"
   val TABLE_CLASS_STRIPED_SORTABLE = TABLE_CLASS_STRIPED + " sortable"
+  var snappyVersionDetails: HashMap[String, String] = HashMap.empty[String, String]
 
   // SimpleDateFormat is not thread-safe. Don't expose it to avoid improper use.
   private val dateFormat = new ThreadLocal[SimpleDateFormat]() {
@@ -247,17 +249,47 @@ private[spark] object UIUtils extends Logging {
       <body>
         <div class="navbar navbar-static-top">
           <div class="navbar-inner">
-            <div class="product-brand">
-              <a href={prependBaseUri("/")} class="brand">
-                <img src={prependBaseUri("/static/snappydata/tibco-computdb-392X50.png")} />
-              </a>
-            </div>
-            <div class="brand" style="line-height: 2.5;">
-              <img src={prependBaseUri("/static/snappydata/helpicon-18X18.png")}
-                   style="cursor: pointer;"
-                   onclick="displayVersionDetails()" />
-              {getProductVersionNode}
-            </div>
+            {
+              val isEnterprise = {
+                val isEnt = snappyVersionDetails.getOrElse("editionType", "")
+                if (!isEnt.isEmpty && isEnt.equalsIgnoreCase("Enterprise")) {
+                  true
+                } else {
+                  false
+                }
+              }
+              if (isEnterprise) {
+                <div class="product-brand">
+                  <a href={prependBaseUri("/")} class="brand">
+                    <img src={prependBaseUri("/static/snappydata/tibco-computdb-392X50.png")} />
+                  </a>
+                </div>
+                <div class="brand" style="line-height: 2.5;">
+                  <img src={prependBaseUri("/static/snappydata/helpicon-18X18.png")}
+                       style="cursor: pointer;"
+                       onclick="displayVersionDetails()" />
+                  {getProductVersionNode}
+                </div>
+              } else {
+                <div class="product-brand">
+                  <a href={prependBaseUri("/")} class="brand">
+                    <img src={prependBaseUri("/static/snappydata/pulse-snappydata-152X50.png")} />
+                  </a>
+                </div>
+                <div class="brand" style="line-height: 2.5;">
+                  <a class="brand" href="https://www.snappydata.io/" target="_blank">
+                    <img src={prependBaseUri("/static/snappydata/snappydata-175X28.png")}
+                         style="cursor: pointer;" />
+                  </a>
+                </div>
+                <div class="brand" style="line-height: 2.5;">
+                  <img src={prependBaseUri("/static/snappydata/helpicon-18X18.png")}
+                       style="cursor: pointer;"
+                       onclick="displayVersionDetails()" />
+                  {getProductVersionNode}
+                </div>
+              }
+            }
             <ul class="nav">{header}</ul>
           </div>
         </div>
@@ -543,29 +575,56 @@ private[spark] object UIUtils extends Logging {
   }
 
   def getProductVersionNode(): Node = {
-    val versionDetails = SparkUI.getProductVersion
-    <div class="popup">
+    snappyVersionDetails = SparkUI.getProductVersion
+      <div class="popup" style="z-index: 3;">
       <div class="popuptext" id="sdVersionDetails">
         <div>
           <img src="/static/snappydata/cross.png" onclick="displayVersionDetails()"
                style="float:right; cursor: pointer;"></img>
         </div>
         <div>
-          <p>
-            <strong>TIBCO<sup>&reg;</sup> ComputeDB<sup>&trade;</sup> -
-            {versionDetails.getOrElse("editionType", "")} Edition</strong> <br />
-            <br />&copy; 2017-2019 TIBCO<sup>&reg;</sup> Software Inc. All rights reserved.
-            <br />This program is protected by copyright law.
-          </p>
-          <p>
-            Build Version: {versionDetails.getOrElse("productVersion", "")} <br/>
-            Build Date: { val buildDateStr = versionDetails.getOrElse("buildDate", "");
-                           if (!buildDateStr.isEmpty) {
-                             buildDateStr.substring(0, buildDateStr.indexOf(" "))
-                           } else ""
-                        } <br/>
-            Spark Version: {org.apache.spark.SPARK_VERSION}
-          </p>
+          {
+            val isEnterprise = {
+              val isEnt = snappyVersionDetails.getOrElse("editionType", "")
+              if (!isEnt.isEmpty && isEnt.equalsIgnoreCase("Enterprise")) {
+                true
+              } else {
+                false
+              }
+            }
+            if(isEnterprise) {
+              <p>
+                <strong>TIBCO<sup>&reg;</sup> ComputeDB<sup>&trade;</sup> -
+                  {snappyVersionDetails.getOrElse("editionType", "")} Edition</strong> <br />
+                <br />&copy; 2017-2019 TIBCO<sup>&reg;</sup> Software Inc. All rights reserved.
+                <br />This program is protected by copyright law.
+              </p>
+              <p>
+                Build Version: {snappyVersionDetails.getOrElse("productVersion", "")} <br/>
+                Build Date: { val buildDateStr = snappyVersionDetails.getOrElse("buildDate", "");
+              if (!buildDateStr.isEmpty) {
+                buildDateStr.substring(0, buildDateStr.indexOf(" "))
+              } else ""
+                } <br/>
+                Spark Version: {org.apache.spark.SPARK_VERSION}
+              </p>
+            } else {
+              <p>
+                <strong>SNAPPYDATA</strong> <br />
+                <br />&copy; 2017-2019 TIBCO<sup>&reg;</sup> Software Inc. All rights reserved.
+                <br />This program is protected by copyright law.
+              </p>
+              <p>
+                Build Version: {snappyVersionDetails.getOrElse("productVersion", "")} <br/>
+                Build : {
+                  snappyVersionDetails.getOrElse("buildId", "") + " " +
+                  snappyVersionDetails.getOrElse("buildDate", "")
+                } <br/>
+                Source Revision : {snappyVersionDetails.getOrElse("sourceRevision", "")} <br/>
+                Spark Version: {org.apache.spark.SPARK_VERSION}
+              </p>
+            }
+          }
           <p>
             For assistance, get started at: <br />
             <a href="https://www.snappydata.io/community" target="_blank">
