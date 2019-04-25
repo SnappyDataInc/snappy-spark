@@ -108,27 +108,38 @@ class CatalogSuite
     }
   }
 
+  def lower(s: String): String = s match {
+    case null => null
+    case _ => s.toLowerCase
+  }
+
+  def filterDefDBs(dbs: Seq[String]): Seq[String] = dbs.filter {
+    case "app" | "sys" => false
+    case _ => true
+  }
+
   test("current database") {
-    assert(spark.catalog.currentDatabase == "default")
-    assert(sessionCatalog.getCurrentDatabase == "default")
+    assert(lower(spark.catalog.currentDatabase) == "default")
+    assert(lower(sessionCatalog.getCurrentDatabase) == "default")
     createDatabase("my_db")
     spark.catalog.setCurrentDatabase("my_db")
-    assert(spark.catalog.currentDatabase == "my_db")
-    assert(sessionCatalog.getCurrentDatabase == "my_db")
+    assert(lower(spark.catalog.currentDatabase) == "my_db")
+    assert(lower(sessionCatalog.getCurrentDatabase) == "my_db")
     val e = intercept[AnalysisException] {
       spark.catalog.setCurrentDatabase("unknown_db")
     }
-    assert(e.getMessage.contains("unknown_db"))
+    assert(lower(e.getMessage).contains("unknown_db"))
   }
 
   test("list databases") {
-    assert(spark.catalog.listDatabases().collect().map(_.name).toSet == Set("default"))
+    assert(filterDefDBs(spark.catalog.listDatabases().collect().map(d => lower(d.name))).toSet ==
+        Set("default"))
     createDatabase("my_db1")
     createDatabase("my_db2")
-    assert(spark.catalog.listDatabases().collect().map(_.name).toSet ==
+    assert(filterDefDBs(spark.catalog.listDatabases().collect().map(d => lower(d.name))).toSet ==
       Set("default", "my_db1", "my_db2"))
     dropDatabase("my_db1")
-    assert(spark.catalog.listDatabases().collect().map(_.name).toSet ==
+    assert(filterDefDBs(spark.catalog.listDatabases().collect().map(d => lower(d.name))).toSet ==
       Set("default", "my_db2"))
   }
 
@@ -172,7 +183,7 @@ class CatalogSuite
     val e = intercept[AnalysisException] {
       spark.catalog.listTables("unknown_db")
     }
-    assert(e.getMessage.contains("unknown_db"))
+    assert(lower(e.getMessage).contains("unknown_db"))
   }
 
   test("list functions") {
@@ -212,9 +223,11 @@ class CatalogSuite
 
     // Make sure database is set properly.
     assert(
-      spark.catalog.listFunctions("my_db1").collect().map(_.database).toSet == Set("my_db1", null))
+      spark.catalog.listFunctions("my_db1").collect().map(f => lower(f.database)).toSet ==
+          Set("my_db1", null))
     assert(
-      spark.catalog.listFunctions("my_db2").collect().map(_.database).toSet == Set("my_db2", null))
+      spark.catalog.listFunctions("my_db2").collect().map(f => lower(f.database)).toSet ==
+          Set("my_db2", null))
 
     // Remove the function and make sure they no longer appear.
     dropFunction("my_func1", Some("my_db1"))
@@ -228,7 +241,7 @@ class CatalogSuite
     val e = intercept[AnalysisException] {
       spark.catalog.listFunctions("unknown_db")
     }
-    assert(e.getMessage.contains("unknown_db"))
+    assert(lower(e.getMessage).contains("unknown_db"))
   }
 
   test("list columns") {
@@ -343,7 +356,7 @@ class CatalogSuite
   test("get database") {
     intercept[AnalysisException](spark.catalog.getDatabase("db10"))
     withTempDatabase { db =>
-      assert(spark.catalog.getDatabase(db).name === db)
+      assert(lower(spark.catalog.getDatabase(db).name) === db)
     }
   }
 
@@ -394,7 +407,7 @@ class CatalogSuite
         // Find a qualified function
         val fn2 = spark.catalog.getFunction(db, "fn2")
         assert(fn2.name === "fn2")
-        assert(fn2.database === db)
+        assert(lower(fn2.database) === db)
         assert(!fn2.isTemporary)
 
         // Find an unqualified function using the current database
@@ -402,7 +415,7 @@ class CatalogSuite
         spark.catalog.setCurrentDatabase(db)
         val unqualified = spark.catalog.getFunction("fn2")
         assert(unqualified.name === "fn2")
-        assert(unqualified.database === db)
+        assert(lower(unqualified.database) === db)
         assert(!unqualified.isTemporary)
       }
     }
