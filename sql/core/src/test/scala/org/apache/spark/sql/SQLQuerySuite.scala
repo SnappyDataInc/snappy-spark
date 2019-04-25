@@ -1612,12 +1612,12 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
     var e = intercept[AnalysisException] {
       sql("select * from in_valid_table")
     }
-    assert(e.message.contains("Table or view not found"))
+    assert(e.message.matches("Table or view.* not found.*"))
 
     e = intercept[AnalysisException] {
       sql("select * from no_db.no_table").show()
     }
-    assert(e.message.contains("Table or view not found"))
+    assert(e.message.matches("Table or view.* not found.*"))
 
     e = intercept[AnalysisException] {
       sql("select * from json.invalid_file")
@@ -1874,12 +1874,12 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
       var e = intercept[AnalysisException] {
         sql("SELECT a.* FROM temp_table_no_cols a")
       }.getMessage
-      assert(e.contains("cannot resolve 'a.*' given input columns ''"))
+      assert(e.toLowerCase.contains("cannot resolve 'a.*' given input columns ''"))
 
       e = intercept[AnalysisException] {
         dfNoCols.select($"b.*")
       }.getMessage
-      assert(e.contains("cannot resolve 'b.*' given input columns ''"))
+      assert(e.toLowerCase.contains("cannot resolve 'b.*' given input columns ''"))
     }
   }
 

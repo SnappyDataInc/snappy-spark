@@ -166,14 +166,20 @@ class PlannerSuite extends SharedSQLContext {
 
   test("efficient terminal limit -> sort should use TakeOrderedAndProject") {
     val query = testData.select('key, 'value).sort('key).limit(2)
-    val planned = query.queryExecution.executedPlan
+    val planned = query.queryExecution.executedPlan match {
+      case p: execution.TakeOrderedAndProjectExec => p
+      case p => p.children.head
+    }
     assert(planned.isInstanceOf[execution.TakeOrderedAndProjectExec])
     assert(planned.output === testData.select('key, 'value).logicalPlan.output)
   }
 
   test("terminal limit -> project -> sort should use TakeOrderedAndProject") {
     val query = testData.select('key, 'value).sort('key).select('value, 'key).limit(2)
-    val planned = query.queryExecution.executedPlan
+    val planned = query.queryExecution.executedPlan match {
+      case p: execution.TakeOrderedAndProjectExec => p
+      case p => p.children.head
+    }
     assert(planned.isInstanceOf[execution.TakeOrderedAndProjectExec])
     assert(planned.output === testData.select('value, 'key).logicalPlan.output)
   }
@@ -193,8 +199,11 @@ class PlannerSuite extends SharedSQLContext {
 
   test("CollectLimit can appear in the middle of a plan when caching is used") {
     val query = testData.select('key, 'value).limit(2).cache()
-    val planned = query.queryExecution.optimizedPlan.asInstanceOf[InMemoryRelation]
-    assert(planned.child.isInstanceOf[CollectLimitExec])
+    val planned = query.queryExecution.optimizedPlan.asInstanceOf[InMemoryRelation].child match {
+      case p: CollectLimitExec => p
+      case p => p.children.head
+    }
+    assert(planned.isInstanceOf[CollectLimitExec])
   }
 
   test("PartitioningCollection") {

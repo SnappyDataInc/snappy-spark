@@ -131,7 +131,7 @@ class PrunedScanSuite extends DataSourceTest with SharedSQLContext {
           case Seq(p) => p
           case _ => fail(s"More than one PhysicalRDD found\n$queryExecution")
         }
-        val rawColumns = rawPlan.output.map(_.name)
+        val rawColumns = rawPlan.output.map(_.name.toLowerCase)
         val rawOutput = rawPlan.execute().first()
 
         if (rawColumns != expectedColumns) {

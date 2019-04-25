@@ -121,7 +121,7 @@ class GlobalTempViewSuite extends QueryTest with SharedSQLContext {
       sql("CREATE TEMP VIEW v2 AS SELECT 1, 2")
 
       checkAnswer(sql(s"SHOW TABLES IN $globalTempDB"),
-        Row(globalTempDB, "v1", true) ::
+        Row(globalTempDB.toLowerCase, "v1", true) ::
         Row("", "v2", true) :: Nil)
 
       assert(spark.catalog.listTables(globalTempDB).collect().toSeq.map(_.name) == Seq("v1", "v2"))
