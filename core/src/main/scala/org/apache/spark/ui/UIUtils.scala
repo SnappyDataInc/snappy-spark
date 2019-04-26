@@ -260,8 +260,8 @@ private[spark] object UIUtils extends Logging {
               }
               if (isEnterprise) {
                 <div class="product-brand">
-                  <a href={prependBaseUri("/")} class="brand">
-                    <img src={prependBaseUri("/static/snappydata/tibco-computdb-392X50.png")} />
+                  <a href={prependBaseUri("/")} class="brand" style="padding-top: 8px;">
+                    <img src={prependBaseUri("/static/snappydata/tibco-computdb-274X35.png")} />
                   </a>
                 </div>
                 <div class="brand" style="line-height: 2.5;">
@@ -594,8 +594,7 @@ private[spark] object UIUtils extends Logging {
             }
             if(isEnterprise) {
               <p>
-                <strong>TIBCO<sup>&reg;</sup> ComputeDB<sup>&trade;</sup> -
-                  {snappyVersionDetails.getOrElse("editionType", "")} Edition</strong> <br />
+                <strong>TIBCO<sup>&reg;</sup> ComputeDB<sup>&trade;</sup></strong> <br />
                 <br />&copy; 2017-2019 TIBCO<sup>&reg;</sup> Software Inc. All rights reserved.
                 <br />This program is protected by copyright law.
               </p>
