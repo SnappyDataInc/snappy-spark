@@ -594,22 +594,33 @@ private[spark] object UIUtils extends Logging {
             }
             if(isEnterprise) {
               <p>
-                <strong>TIBCO<sup>&reg;</sup> ComputeDB<sup>&trade;</sup></strong> <br />
+                <strong>TIBCO<sup>&reg;</sup> ComputeDB<sup>&trade;</sup> - Enterprise Edition</strong> <br />
                 <br />&copy; 2017-2019 TIBCO<sup>&reg;</sup> Software Inc. All rights reserved.
                 <br />This program is protected by copyright law.
               </p>
               <p>
                 Build Version: {snappyVersionDetails.getOrElse("productVersion", "")} <br/>
-                Build Date: { val buildDateStr = snappyVersionDetails.getOrElse("buildDate", "");
-              if (!buildDateStr.isEmpty) {
-                buildDateStr.substring(0, buildDateStr.indexOf(" "))
-              } else ""
+                Build Date: {
+                  val buildDateStr = snappyVersionDetails.getOrElse("buildDate", "");
+                  if (!buildDateStr.isEmpty) {
+                    buildDateStr.substring(0, buildDateStr.indexOf(" "))
+                  } else ""
                 } <br/>
                 Spark Version: {org.apache.spark.SPARK_VERSION}
               </p>
+              <p>
+                For assistance, get started at: <br />
+                <a href="https://www.snappydata.io/community" target="_blank">
+                  https://www.snappydata.io/community</a> <br />
+                <a href="https://www.tibco.com/" target="_blank">https://www.tibco.com/</a> <br />
+                <a href="https://docs.tibco.com/products/tibco-computedb-enterprise-edition"
+                   target="_blank">
+                  Product Documentation
+                </a>
+              </p>
             } else {
               <p>
-                <strong>SNAPPYDATA</strong> <br />
+                <strong>Project SnappyData<sup>&trade;</sup> - Community Edition </strong> <br />
                 <br />&copy; 2017-2019 TIBCO<sup>&reg;</sup> Software Inc. All rights reserved.
                 <br />This program is protected by copyright law.
               </p>
@@ -622,17 +633,17 @@ private[spark] object UIUtils extends Logging {
                 Source Revision : {snappyVersionDetails.getOrElse("sourceRevision", "")} <br/>
                 Spark Version: {org.apache.spark.SPARK_VERSION}
               </p>
+              <p>
+                For assistance, get started at: <br />
+                <a href="https://www.snappydata.io/community" target="_blank">
+                  https://www.snappydata.io/community</a> <br />
+                <a href="https://www.tibco.com/" target="_blank">https://www.tibco.com/</a> <br />
+                <a href="http://snappydatainc.github.io/snappydata/" target="_blank">
+                  Product Documentation
+                </a>
+              </p>
             }
           }
-          <p>
-            For assistance, get started at: <br />
-            <a href="https://www.snappydata.io/community" target="_blank">
-               https://www.snappydata.io/community</a> <br />
-            <a href="https://www.tibco.com/" target="_blank">https://www.tibco.com/</a> <br />
-            <a href="http://snappydatainc.github.io/snappydata/" target="_blank">
-              Product Documentation
-            </a>
-          </p>
         </div>
       </div>
     </div>
