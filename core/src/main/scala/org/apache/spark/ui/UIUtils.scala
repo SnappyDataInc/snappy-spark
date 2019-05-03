@@ -34,7 +34,6 @@ private[spark] object UIUtils extends Logging {
   val TABLE_CLASS_NOT_STRIPED = "table table-bordered table-condensed"
   val TABLE_CLASS_STRIPED = TABLE_CLASS_NOT_STRIPED + " table-striped"
   val TABLE_CLASS_STRIPED_SORTABLE = TABLE_CLASS_STRIPED + " sortable"
-  var snappyVersionDetails: HashMap[String, String] = HashMap.empty[String, String]
 
   // SimpleDateFormat is not thread-safe. Don't expose it to avoid improper use.
   private val dateFormat = new ThreadLocal[SimpleDateFormat]() {
@@ -250,6 +249,7 @@ private[spark] object UIUtils extends Logging {
         <div class="navbar navbar-static-top">
           <div class="navbar-inner">
             {
+              val snappyVersionDetails = SparkUI.getProductVersion
               val isEnterprise = {
                 val isEnt = snappyVersionDetails.getOrElse("editionType", "")
                 if (!isEnt.isEmpty && isEnt.equalsIgnoreCase("Enterprise")) {
@@ -575,7 +575,7 @@ private[spark] object UIUtils extends Logging {
   }
 
   def getProductVersionNode(): Node = {
-    snappyVersionDetails = SparkUI.getProductVersion
+      val snappyVersionDetails = SparkUI.getProductVersion
       <div class="popup" style="z-index: 3;">
       <div class="popuptext" id="sdVersionDetails">
         <div>
@@ -610,8 +610,6 @@ private[spark] object UIUtils extends Logging {
               </p>
               <p>
                 For assistance, get started at: <br />
-                <a href="https://www.snappydata.io/community" target="_blank">
-                  https://www.snappydata.io/community</a> <br />
                 <a href="https://www.tibco.com/" target="_blank">https://www.tibco.com/</a> <br />
                 <a href="https://docs.tibco.com/products/tibco-computedb-enterprise-edition"
                    target="_blank">
