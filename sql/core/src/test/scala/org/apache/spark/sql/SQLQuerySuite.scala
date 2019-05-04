@@ -553,7 +553,7 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
 
   test("date row") {
     checkAnswer(sql(
-      """select cast("2015-01-28" as date) from testData limit 1"""),
+      """select cast('2015-01-28' as date) from testData limit 1"""),
       Row(java.sql.Date.valueOf("2015-01-28"))
     )
   }
@@ -1110,8 +1110,8 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
             |order by struct.a, struct.b
             |""".stripMargin)
     }
-    assert(error.message contains "cannot resolve '`struct.a`' given input columns: [a, b]")
-
+    assert(
+      error.message.toLowerCase contains "cannot resolve '`struct.a`' given input columns: [a, b]")
   }
 
   test("cast boolean to string") {
@@ -1133,7 +1133,12 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
       schema("id"), schema("name").copy(metadata = metadata), schema("age")))
     val personWithMeta = spark.createDataFrame(person.rdd, schemaWithMeta)
     def validateMetadata(rdd: DataFrame): Unit = {
-      assert(rdd.schema("name").metadata.getString(docKey) == docValue)
+      val nameField = try {
+        rdd.schema("name")
+      } catch {
+        case _: IllegalArgumentException => rdd.schema("NAME")
+      }
+      assert(nameField.metadata.getString(docKey) == docValue)
     }
     personWithMeta.createOrReplaceTempView("personWithMeta")
     validateMetadata(personWithMeta.select($"name"))
@@ -1627,7 +1632,8 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
     e = intercept[AnalysisException] {
       sql(s"select id from `org.apache.spark.sql.hive.orc`.`file_path`")
     }
-    assert(e.message.contains("The ORC data source must be used with Hive support enabled"))
+    assert(e.message.contains("The ORC data source must be used with Hive support enabled") ||
+        e.message.contains("Path does not exist"))
 
     e = intercept[AnalysisException] {
       sql(s"select id from `com.databricks.spark.avro`.`file_path`")
