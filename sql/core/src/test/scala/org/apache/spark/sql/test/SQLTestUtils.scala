@@ -26,6 +26,7 @@ import scala.util.Try
 import scala.util.control.NonFatal
 
 import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.Eventually
 
@@ -33,7 +34,7 @@ import org.apache.spark.SparkFunSuite
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.analysis.NoSuchTableException
 import org.apache.spark.sql.catalyst.catalog.SessionCatalog.DEFAULT_DATABASE
-import org.apache.spark.sql.catalyst.FunctionIdentifier
+import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.util._
 import org.apache.spark.sql.execution.FilterExec
@@ -187,8 +188,16 @@ private[sql] trait SQLTestUtils
    */
   protected def withTable(tableNames: String*)(f: => Unit): Unit = {
     try f finally {
+      val hadoopConf = hadoopConfig
       tableNames.foreach { name =>
         spark.sql(s"DROP TABLE IF EXISTS $name")
+        // TODO: snappydata: remove once convention is changed to lower-case
+        val dotIndex = name.indexOf('.')
+        val tableIdent = if (dotIndex != -1) {
+          TableIdentifier(name.substring(dotIndex + 1), Some(name.substring(0, dotIndex)))
+        } else TableIdentifier(name, database = None)
+        val path = new Path(spark.sessionState.catalog.defaultTablePath(tableIdent))
+        path.getFileSystem(hadoopConf).delete(path, true)
       }
     }
   }

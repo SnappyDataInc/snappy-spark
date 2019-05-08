@@ -163,6 +163,11 @@ class GeneratorFunctionSuite extends QueryTest with SharedSQLContext {
         Row(10, 100) :: Row(20, 200) :: Row(30, 300) :: Nil)
   }
 
+  private lazy val isSnappy: Boolean = spark.getClass.getName.contains("Snappy")
+
+  private def formatName(name: String): String =
+    if (isSnappy) name.toUpperCase else name
+
   test("inline on column") {
     val df = Seq((1, 2)).toDF("a", "b")
 
@@ -181,7 +186,7 @@ class GeneratorFunctionSuite extends QueryTest with SharedSQLContext {
     assert(m.contains("data type mismatch"))
 
     checkAnswer(
-      df.selectExpr("inline(array(struct(a), named_struct('a', b)))"),
+      df.selectExpr(s"inline(array(struct(a), named_struct('${formatName("a")}', b)))"),
       Row(1) :: Row(2) :: Nil)
 
     // Spark think [struct<a:int>, struct<col1:int>] is heterogeneous due to name difference.
@@ -191,7 +196,7 @@ class GeneratorFunctionSuite extends QueryTest with SharedSQLContext {
     assert(m2.contains("data type mismatch"))
 
     checkAnswer(
-      df.selectExpr("inline(array(struct(a), named_struct('a', 2)))"),
+      df.selectExpr(s"inline(array(struct(a), named_struct('${formatName("a")}', 2)))"),
       Row(1) :: Row(2) :: Nil)
 
     checkAnswer(
@@ -199,7 +204,8 @@ class GeneratorFunctionSuite extends QueryTest with SharedSQLContext {
       Row(1) :: Nil)
 
     checkAnswer(
-      df.selectExpr("array(struct(a), named_struct('a', b))").selectExpr("inline(*)"),
+      df.selectExpr(s"array(struct(a), named_struct('${formatName("a")}', b))")
+          .selectExpr("inline(*)"),
       Row(1) :: Row(2) :: Nil)
   }
 }
