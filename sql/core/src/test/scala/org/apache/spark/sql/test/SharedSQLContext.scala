@@ -57,8 +57,7 @@ trait SharedSQLContext extends SQLTestUtils with BeforeAndAfterEach with Eventua
 
   protected def createSparkSession: SparkSession = {
     new TestSparkSession(
-      sparkConf.set("spark.hadoop.fs.file.impl", classOf[DebugFilesystem].getName)
-          .set("spark.sql.catalogImplementation", "hive"))
+      sparkConf.set("spark.hadoop.fs.file.impl", classOf[DebugFilesystem].getName))
   }
 
   /**

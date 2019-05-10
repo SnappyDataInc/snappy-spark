@@ -155,7 +155,6 @@ dependencies {
   compile group: 'net.sf.py4j', name: 'py4j', version: py4jVersion
 
   testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')
-  testCompile project(path: subprojectBase + 'snappy-spark-hive_' + scalaBinaryVersion)
   testCompile group: 'org.apache.avro', name: 'avro-ipc', version: avroVersion, classifier: 'tests'
   testCompile "org.apache.derby:derby:${derbyVersion}"
   testCompile(group: 'org.seleniumhq.selenium', name: 'selenium-java', version: seleniumVersion) {
