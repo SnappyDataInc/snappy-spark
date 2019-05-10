@@ -267,7 +267,7 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
 
     protected def checkTaskSizeLimit(task: TaskDescription, taskSize: Int): Boolean = {
       if (taskSize > maxRpcMessageSize) {
-        scheduler.taskIdToTaskSetManager.get(task.taskId).foreach { taskSetMgr =>
+        scheduler.getTaskSetManager(task.taskId).foreach { taskSetMgr =>
           try {
             var msg = "Serialized task %s:%d was %d bytes, which exceeds max allowed: " +
                 "spark.rpc.message.maxSize (%d bytes). Consider increasing " +

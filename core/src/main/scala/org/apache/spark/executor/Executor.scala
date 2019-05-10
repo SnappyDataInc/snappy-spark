@@ -453,7 +453,14 @@ private[spark] class Executor(
           // Attempt to exit cleanly by informing the driver of our failure.
           // If anything goes wrong (or this was a fatal exception), we will delegate to
           // the default uncaught exception handler, which will terminate the Executor.
-          logError(s"Exception in $taskName (TID $taskId)", t)
+          val errorMessage = s"Exception in $taskName (TID $taskId) (SW: t=${t.getClass})"
+          if (Utils.dumpStackTrace(t)) {
+            logError(errorMessage, t)
+          } else if (isTraceEnabled) {
+            logWarning(errorMessage, t)
+          } else {
+            logWarning(errorMessage + ": " + t.toString)
+          }
 
           // Collect latest accumulator values to report back to the driver
           val accums: Seq[AccumulatorV2[_, _]] =

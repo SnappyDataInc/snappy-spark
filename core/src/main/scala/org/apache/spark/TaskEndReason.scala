@@ -140,7 +140,8 @@ case class ExceptionFailure(
       e: Throwable,
       accumUpdates: Seq[AccumulableInfo],
       preserveCause: Boolean) {
-    this(e.getClass.getName, e.getMessage, e.getStackTrace, Utils.exceptionString(e),
+    this(e.getClass.getName, e.getMessage, e.getStackTrace,
+      if (Utils.dumpStackTrace(e)) Utils.exceptionString(e) else null,
       if (preserveCause) Some(new ThrowableSerializationWrapper(e)) else None, accumUpdates)
   }
 

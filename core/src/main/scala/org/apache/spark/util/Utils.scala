@@ -2159,6 +2159,28 @@ private[spark] object Utils extends Logging {
     }
   }
 
+  @tailrec
+  private def getSQLException(t: Throwable): Option[java.sql.SQLException] = t match {
+    case null => None
+    case se: java.sql.SQLException => Some(se)
+    case _ => getSQLException(t.getCause)
+  }
+
+  /**
+   * Return true if stack trace for the exception should be dumped and false otherwise.
+   */
+  def dumpStackTrace(e: Throwable): Boolean = {
+    // skip stack traces for SQLExceptions for syntax error, constraint violation etc
+    getSQLException(e) match {
+      case Some(se) =>
+        val state = se.getSQLState
+        !state.startsWith("23") && // constraint violations etc
+            !state.startsWith("42") && // syntax, auth errors
+            !state.startsWith("X0Z02") // conflict exception
+      case None => false
+    }
+  }
+
   private implicit class Lock(lock: LockInfo) {
     def lockString: String = {
       lock match {

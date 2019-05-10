@@ -56,7 +56,12 @@ private[memory] class ExecutionMemoryPool(
   private val memoryForTask = new mutable.HashMap[Long, Long]()
 
   override def memoryUsed: Long = lock.synchronized {
-    return memoryForTask.values.sum
+    var sum = 0L
+    val iter = memoryForTask.valuesIterator
+    while (iter.hasNext) {
+      sum += iter.next()
+    }
+    return sum
   }
 
   /**

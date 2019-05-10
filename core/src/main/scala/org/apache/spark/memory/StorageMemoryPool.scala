@@ -44,7 +44,7 @@ private[memory] class StorageMemoryPool(
   private[this] var _memoryUsed: Long = 0L
 
   override def memoryUsed: Long = lock.synchronized {
-    _memoryUsed
+    return _memoryUsed
   }
 
   private var _memoryStore: MemoryStore = _

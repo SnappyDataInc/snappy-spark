@@ -94,7 +94,7 @@ private[spark] class TaskSchedulerImpl(
   val nextTaskId = new AtomicLong(0)
 
   // IDs of the tasks running on each executor
-  private val executorIdToRunningTaskIds = new HashMap[String, HashSet[Long]]
+  protected val executorIdToRunningTaskIds = new HashMap[String, HashSet[Long]]
 
   def runningTasksByExecutors: Map[String, Int] = synchronized {
     executorIdToRunningTaskIds.toMap.mapValues(_.size)
@@ -169,10 +169,8 @@ private[spark] class TaskSchedulerImpl(
     waitBackendReady()
   }
 
-  override def submitTasks(taskSet: TaskSet) {
-    val tasks = taskSet.tasks
-    logInfo("Adding task set " + taskSet.id + " with " + tasks.length + " tasks")
-    this.synchronized {
+  protected def getTaskSetManagerForSubmit(taskSet: TaskSet): TaskSetManager = {
+    {
       val manager = createTaskSetManager(taskSet, maxTaskFailures)
       val stage = taskSet.stageId
       val stageTaskSets =
@@ -185,6 +183,15 @@ private[spark] class TaskSchedulerImpl(
         throw new IllegalStateException(s"more than one active taskSet for stage $stage:" +
           s" ${stageTaskSets.toSeq.map{_._2.taskSet.id}.mkString(",")}")
       }
+      manager
+    }
+  }
+
+  override def submitTasks(taskSet: TaskSet) {
+    val tasks = taskSet.tasks
+    logInfo("Adding task set " + taskSet.id + " with " + tasks.length + " tasks")
+    this.synchronized {
+      val manager = getTaskSetManagerForSubmit(taskSet)
       schedulableBuilder.addTaskSetManager(manager, manager.taskSet.properties)
 
       if (!isLocal && !hasReceivedTask) {
@@ -249,7 +256,7 @@ private[spark] class TaskSchedulerImpl(
       s" ${manager.parent.name}")
   }
 
-  private def resourceOfferSingleTaskSet(
+  protected def resourceOfferSingleTaskSet(
       taskSet: TaskSetManager,
       maxLocality: TaskLocality,
       shuffledOffers: Seq[WorkerOffer],
@@ -346,18 +353,30 @@ private[spark] class TaskSchedulerImpl(
     return tasks
   }
 
+  protected[scheduler] def getTaskSetManager(tid: Long): Option[TaskSetManager] =
+    taskIdToTaskSetManager.get(tid)
+
+  protected def getExecutorAndManager(tid: Long): Option[(() => String, TaskSetManager)] = {
+    taskIdToTaskSetManager.get(tid) match {
+      case Some(taskSet) =>
+        val getExecId = () => taskIdToExecutorId.getOrElse(tid, throw new IllegalStateException(
+          "taskIdToTaskSetManager.contains(tid) <=> taskIdToExecutorId.contains(tid)"))
+        Some(getExecId -> taskSet)
+      case None => None
+    }
+  }
+
   def statusUpdate(tid: Long, state: TaskState, serializedData: ByteBuffer) {
     var failedExecutor: Option[String] = None
     var reason: Option[ExecutorLossReason] = None
     synchronized {
       try {
-        taskIdToTaskSetManager.get(tid) match {
-          case Some(taskSet) =>
+        getExecutorAndManager(tid) match {
+          case Some((getExecId, taskSet)) =>
             if (state == TaskState.LOST) {
               // TaskState.LOST is only used by the deprecated Mesos fine-grained scheduling mode,
               // where each executor corresponds to a single task, so mark the executor as failed.
-              val execId = taskIdToExecutorId.getOrElse(tid, throw new IllegalStateException(
-                "taskIdToTaskSetManager.contains(tid) <=> taskIdToExecutorId.contains(tid)"))
+              val execId = getExecId()
               if (executorIdToRunningTaskIds.contains(execId)) {
                 reason = Some(
                   SlaveLost(s"Task $tid was lost, so marking the executor as lost as well."))
@@ -406,7 +425,7 @@ private[spark] class TaskSchedulerImpl(
     val accumUpdatesWithTaskIds: Array[(Long, Int, Int, Seq[AccumulableInfo])] = synchronized {
       accumUpdates.flatMap { case (id, updates) =>
         val accInfos = updates.map(acc => acc.toInfo(Some(acc.value), None))
-        taskIdToTaskSetManager.get(id).map { taskSetMgr =>
+        getTaskSetManager(id).map { taskSetMgr =>
           (id, taskSetMgr.stageId, taskSetMgr.taskSet.stageAttemptId, accInfos)
         }
       }
@@ -534,7 +553,7 @@ private[spark] class TaskSchedulerImpl(
   /**
    * Cleans up the TaskScheduler's state for tracking the given task.
    */
-  private def cleanupTaskState(tid: Long): Unit = {
+  protected def cleanupTaskState(tid: Long): Unit = {
     taskIdToTaskSetManager.remove(tid)
     taskIdToExecutorId.remove(tid).foreach { executorId =>
       executorIdToRunningTaskIds.get(executorId).foreach { _.remove(tid) }
