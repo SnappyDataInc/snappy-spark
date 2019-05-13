@@ -941,7 +941,7 @@ class KafkaSourceStressForDontFailOnDataLossSuite extends StreamTest with Shared
 
   private def newTopic(): String = s"failOnDataLoss-${topicId.getAndIncrement()}"
 
-  override def createSparkSession(): SparkSession = {
+  override def createSparkSession: SparkSession = {
     // Set maxRetries to 3 to handle NPE from `poll` when deleting a topic
     new TestSparkSession(new SparkContext("local[2,3]", "test-sql-context", sparkConf))
   }

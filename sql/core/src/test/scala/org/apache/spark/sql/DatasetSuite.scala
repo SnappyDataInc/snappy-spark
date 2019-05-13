@@ -363,7 +363,8 @@ class DatasetSuite extends QueryTest with SharedSQLContext {
     val ds = Seq("abc", "xyz", "hello").toDS()
     val count = ds.groupByKey(s => Tuple1(s.length)).count()
 
-    checkDataset(
+    implicit val ord: Ordering[(Tuple1[Int], Long)] = Ordering.by((p: (Tuple1[Int], Long)) => p._2)
+    checkDatasetUnorderly(
       count,
       (Tuple1(3), 2L), (Tuple1(5), 1L)
     )

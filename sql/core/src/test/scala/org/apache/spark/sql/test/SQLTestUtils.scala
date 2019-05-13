@@ -38,6 +38,7 @@ import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.catalyst.util._
 import org.apache.spark.sql.execution.FilterExec
+import org.apache.spark.sql.types._
 import org.apache.spark.util.{UninterruptibleThread, Utils}
 
 /**
@@ -317,6 +318,15 @@ private[sql] trait SQLTestUtils
     } else {
       test(name) { runOnThread() }
     }
+  }
+
+  def normalize(t: DataType): DataType = t match {
+    case s: StructType =>
+      StructType(s.map(f => StructField(f.name.toLowerCase, normalize(f.dataType), f.nullable)))
+    case a: ArrayType => a.copy(normalize(a.elementType))
+    case m: MapType => m.copy(normalize(m.keyType), normalize(m.valueType))
+    case _: DecimalType => DecimalType.SYSTEM_DEFAULT
+    case _ => t
   }
 }
 

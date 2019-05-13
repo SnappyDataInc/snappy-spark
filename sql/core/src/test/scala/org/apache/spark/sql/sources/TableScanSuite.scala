@@ -244,7 +244,7 @@ class TableScanSuite extends DataSourceTest with SharedSQLContext {
       Nil
     )
 
-    assert(expectedSchema == spark.table("tableWithSchema").schema)
+    assert(normalize(expectedSchema) == normalize(spark.table("tableWithSchema").schema))
 
     checkAnswer(
       sql(
