@@ -17,9 +17,9 @@
 
 package org.apache.spark.sql.sources
 
-import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession, SQLContext}
+import org.apache.spark.sql.{DataFrame, Row, SQLContext, SaveMode, SparkSession}
 import org.apache.spark.sql.catalyst.TableIdentifier
-import org.apache.spark.sql.execution.datasources.LogicalRelation
+import org.apache.spark.sql.execution.datasources.{HadoopFsRelation, LogicalRelation}
 import org.apache.spark.sql.test.SharedSQLContext
 import org.apache.spark.sql.types.{IntegerType, Metadata, MetadataBuilder, StructType}
 
@@ -122,11 +122,22 @@ class PathOptionSuite extends DataSourceTest with SharedSQLContext {
       sql("ALTER TABLE src RENAME TO src2")
       assert(getPathOption("src2") == Some(defaultTablePath("src2")))
     }
+
+    withTable("src", "src2") {
+      sql(s"CREATE TABLE src(i int) USING parquet")
+      sql("insert into src select id from range(100)")
+      checkDataset(sql("select count(*) from src"), Row(100L))
+      sql("ALTER TABLE src RENAME TO src2")
+      assert(getPathOption("src2").get == defaultTablePath("src2"))
+      checkDataset(sql("select count(*) from src2"), Row(100L))
+    }
   }
 
   private def getPathOption(tableName: String): Option[String] = {
     spark.table(tableName).queryExecution.analyzed.collect {
       case LogicalRelation(r: TestOptionsRelation, _, _) => r.pathOption
+      case LogicalRelation(r: HadoopFsRelation, _, _) =>
+        r.location.rootPaths.headOption.map(_.toString)
     }.head
   }
 
