@@ -1110,8 +1110,8 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
             |order by struct.a, struct.b
             |""".stripMargin)
     }
-    assert(
-      error.message.toLowerCase contains "cannot resolve '`struct.a`' given input columns: [a, b]")
+    assert(error.message contains "cannot resolve '`struct.a`' given input columns: [a, b]")
+
   }
 
   test("cast boolean to string") {
@@ -1133,12 +1133,7 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
       schema("id"), schema("name").copy(metadata = metadata), schema("age")))
     val personWithMeta = spark.createDataFrame(person.rdd, schemaWithMeta)
     def validateMetadata(rdd: DataFrame): Unit = {
-      val nameField = try {
-        rdd.schema("name")
-      } catch {
-        case _: IllegalArgumentException => rdd.schema("NAME")
-      }
-      assert(nameField.metadata.getString(docKey) == docValue)
+      assert(rdd.schema("name").metadata.getString(docKey) == docValue)
     }
     personWithMeta.createOrReplaceTempView("personWithMeta")
     validateMetadata(personWithMeta.select($"name"))
@@ -1880,12 +1875,12 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
       var e = intercept[AnalysisException] {
         sql("SELECT a.* FROM temp_table_no_cols a")
       }.getMessage
-      assert(e.toLowerCase.contains("cannot resolve 'a.*' given input columns ''"))
+      assert(e.contains("cannot resolve 'a.*' given input columns ''"))
 
       e = intercept[AnalysisException] {
         dfNoCols.select($"b.*")
       }.getMessage
-      assert(e.toLowerCase.contains("cannot resolve 'b.*' given input columns ''"))
+      assert(e.contains("cannot resolve 'b.*' given input columns ''"))
     }
   }
 

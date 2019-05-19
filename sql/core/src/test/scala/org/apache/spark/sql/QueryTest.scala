@@ -49,9 +49,9 @@ abstract class QueryTest extends PlanTest {
    * Runs the plan and makes sure the answer contains all of the keywords.
    */
   def checkKeywordsExist(df: DataFrame, keywords: String*): Unit = {
-    val outputs = df.collect().map(_.mkString).mkString.toLowerCase
+    val outputs = df.collect().map(_.mkString).mkString
     for (key <- keywords) {
-      assert(outputs.contains(key.toLowerCase), s"Failed for $df ($key doesn't exist in result)")
+      assert(outputs.contains(key), s"Failed for $df ($key doesn't exist in result)")
     }
   }
 

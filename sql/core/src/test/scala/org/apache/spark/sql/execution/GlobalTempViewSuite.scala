@@ -108,8 +108,7 @@ class GlobalTempViewSuite extends QueryTest with SharedSQLContext {
       sql("CREATE GLOBAL TEMP VIEW src AS SELECT 1 AS a, '2' AS b")
       sql(s"CREATE TABLE cloned LIKE ${globalTempDB}.src")
       val tableMeta = spark.sessionState.catalog.getTableMetadata(TableIdentifier("cloned"))
-      assert(normalize(tableMeta.schema) ==
-          new StructType().add("a", "int", false).add("b", "string", false))
+      assert(tableMeta.schema == new StructType().add("a", "int", false).add("b", "string", false))
     } finally {
       spark.catalog.dropGlobalTempView("src")
       sql("DROP TABLE default.cloned")
@@ -122,7 +121,7 @@ class GlobalTempViewSuite extends QueryTest with SharedSQLContext {
       sql("CREATE TEMP VIEW v2 AS SELECT 1, 2")
 
       checkAnswer(sql(s"SHOW TABLES IN $globalTempDB"),
-        Row(globalTempDB.toLowerCase, "v1", true) ::
+        Row(globalTempDB, "v1", true) ::
         Row("", "v2", true) :: Nil)
 
       assert(spark.catalog.listTables(globalTempDB).collect().toSeq.map(_.name) == Seq("v1", "v2"))

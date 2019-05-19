@@ -237,10 +237,9 @@ abstract class StatisticsCollectionTestBase extends QueryTest with SQLTestUtils 
       assert(table.stats.isDefined)
       assert(table.stats.get.colStats.size == colStats.size)
 
-      val tableStats = table.stats.get.colStats.map(p => p._1.toLowerCase -> p._2)
       colStats.foreach { case (k, v) =>
         withClue(s"column $k") {
-          assert(tableStats(k) == v)
+          assert(table.stats.get.colStats(k) == v)
         }
       }
     }

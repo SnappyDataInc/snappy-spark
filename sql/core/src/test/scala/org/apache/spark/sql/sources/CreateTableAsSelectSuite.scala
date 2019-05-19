@@ -203,7 +203,7 @@ class CreateTableAsSelectSuite
          """.stripMargin
       )
       val table = catalog.getTableMetadata(TableIdentifier("t"))
-      assert(table.partitionColumnNames.map(_.toLowerCase) == Seq("a"))
+      assert(table.partitionColumnNames == Seq("a"))
     }
   }
 
@@ -219,9 +219,7 @@ class CreateTableAsSelectSuite
          """.stripMargin
       )
       val table = catalog.getTableMetadata(TableIdentifier("t"))
-      assert(table.bucketSpec.map(b => BucketSpec(b.numBuckets,
-        b.bucketColumnNames.map(_.toLowerCase), b.sortColumnNames.map(_.toLowerCase))) ==
-          Option(BucketSpec(5, Seq("a"), Seq("b"))))
+      assert(table.bucketSpec == Option(BucketSpec(5, Seq("a"), Seq("b"))))
     }
   }
 

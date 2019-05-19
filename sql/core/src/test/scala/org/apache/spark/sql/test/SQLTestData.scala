@@ -19,17 +19,14 @@ package org.apache.spark.sql.test
 
 import java.nio.charset.StandardCharsets
 
-import org.apache.hadoop.conf.Configuration
-
 import org.apache.spark.rdd.RDD
-import org.apache.spark.sql.{DataFrame, SQLContext, SQLImplicits, SparkSession}
+import org.apache.spark.sql.{DataFrame, SparkSession, SQLContext, SQLImplicits}
 
 /**
  * A collection of sample data used in SQL tests.
  */
 private[sql] trait SQLTestData { self =>
   protected def spark: SparkSession
-  protected def hadoopConfig: Configuration = spark.sessionState.newHadoopConf()
 
   // Helper object to import SQL implicits without a concrete SQLContext
   private object internalImplicits extends SQLImplicits {

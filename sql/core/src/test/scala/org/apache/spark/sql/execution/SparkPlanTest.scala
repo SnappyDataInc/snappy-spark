@@ -240,7 +240,7 @@ object SparkPlanTest {
     val execution = new QueryExecution(spark.sparkSession, null) {
       override lazy val sparkPlan: SparkPlan = outputPlan transform {
         case plan: SparkPlan =>
-          val inputMap = plan.children.flatMap(_.output).map(a => (a.name.toLowerCase, a)).toMap
+          val inputMap = plan.children.flatMap(_.output).map(a => (a.name, a)).toMap
           plan transformExpressions {
             case UnresolvedAttribute(Seq(u)) =>
               inputMap.getOrElse(u,
