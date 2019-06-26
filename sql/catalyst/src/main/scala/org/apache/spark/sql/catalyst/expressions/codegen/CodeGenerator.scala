@@ -909,15 +909,17 @@ abstract class CodeGenerator[InType <: AnyRef, OutType <: AnyRef] extends Loggin
 }
 
 object CodeGenerator extends Logging {
+  val jobClassLoader = new ThreadLocal[ClassLoader]
+
   /**
    * Compile the Java source code into a Java class, using Janino.
    */
   def compile(code: CodeAndComment): GeneratedClass = {
-    cache.get(code)
+    cache.get((code, jobClassLoader.get()))
   }
 
   def invalidate(code: CodeAndComment) : Unit = {
-    cache.invalidate(code)
+    cache.invalidate((code, jobClassLoader.get()))
   }
 
   /**
@@ -1025,13 +1027,13 @@ object CodeGenerator extends Logging {
       env.conf.getInt("spark.sql.codegen.cacheSize", 2000)
     } else 2000
     CacheBuilder.newBuilder().maximumSize(cacheSize).build(
-      new CacheLoader[CodeAndComment, GeneratedClass]() {
-        override def load(code: CodeAndComment): GeneratedClass = {
+      new CacheLoader[(CodeAndComment, ClassLoader), GeneratedClass]() {
+        override def load(codeAndJobId: (CodeAndComment, ClassLoader)): GeneratedClass = {
           val startTime = System.nanoTime()
-          val result = doCompile(code)
+          val result = doCompile(codeAndJobId._1)
           val endTime = System.nanoTime()
           def timeMs: Double = (endTime - startTime).toDouble / 1000000
-          CodegenMetrics.METRIC_SOURCE_CODE_SIZE.update(code.body.length)
+          CodegenMetrics.METRIC_SOURCE_CODE_SIZE.update(codeAndJobId._1.body.length)
           CodegenMetrics.METRIC_COMPILATION_TIME.update(timeMs.toLong)
           logInfo(s"Code generated in $timeMs ms")
           result
