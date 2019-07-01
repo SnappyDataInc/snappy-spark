@@ -358,66 +358,77 @@ private[hive] class HiveClientImpl(
       dbName: String,
       tableName: String): Option[CatalogTable] = withHiveState {
     logDebug(s"Looking up $dbName.$tableName")
-    Option(client.getTable(dbName, tableName, false)).map { h =>
-      // Note: Hive separates partition columns and the schema, but for us the
-      // partition columns are part of the schema
-      val partCols = h.getPartCols.asScala.map(fromHiveColumn)
-      val schema = StructType(h.getCols.asScala.map(fromHiveColumn) ++ partCols)
+    try {
+      Option(client.getTable(dbName, tableName, false)).map { h =>
+        // Note: Hive separates partition columns and the schema, but for us the
+        // partition columns are part of the schema
+        val partCols = h.getPartCols.asScala.map(fromHiveColumn)
+        val schema = StructType(h.getCols.asScala.map(fromHiveColumn) ++ partCols)
 
-      // Skew spec, storage handler, and bucketing info can't be mapped to CatalogTable (yet)
-      val unsupportedFeatures = ArrayBuffer.empty[String]
+        // Skew spec, storage handler, and bucketing info can't be mapped to CatalogTable (yet)
+        val unsupportedFeatures = ArrayBuffer.empty[String]
 
-      if (!h.getSkewedColNames.isEmpty) {
-        unsupportedFeatures += "skewed columns"
+        if (!h.getSkewedColNames.isEmpty) {
+          unsupportedFeatures += "skewed columns"
+        }
+
+        if (h.getStorageHandler != null) {
+          unsupportedFeatures += "storage handler"
+        }
+
+        if (!h.getBucketCols.isEmpty) {
+          unsupportedFeatures += "bucketing"
+        }
+
+        if (h.getTableType == HiveTableType.VIRTUAL_VIEW && partCols.nonEmpty) {
+          unsupportedFeatures += "partitioned view"
+        }
+
+        val properties = Option(h.getParameters).map(_.asScala.toMap).orNull
+
+        CatalogTable(
+          identifier = TableIdentifier(h.getTableName, Option(h.getDbName)),
+          tableType = h.getTableType match {
+            case HiveTableType.EXTERNAL_TABLE => CatalogTableType.EXTERNAL
+            case HiveTableType.MANAGED_TABLE => CatalogTableType.MANAGED
+            case HiveTableType.VIRTUAL_VIEW => CatalogTableType.VIEW
+            case HiveTableType.INDEX_TABLE =>
+              throw new AnalysisException("Hive index table is not supported.")
+          },
+          schema = schema,
+          partitionColumnNames = partCols.map(_.name),
+          // We can not populate bucketing information for Hive tables as Spark SQL has a different
+          // implementation of hash function from Hive.
+          bucketSpec = None,
+          owner = h.getOwner,
+          createTime = h.getTTable.getCreateTime.toLong * 1000,
+          lastAccessTime = h.getLastAccessTime.toLong * 1000,
+          storage = CatalogStorageFormat(
+            locationUri = shim.getDataLocation(h),
+            inputFormat = Option(h.getInputFormatClass).map(_.getName),
+            outputFormat = Option(h.getOutputFormatClass).map(_.getName),
+            serde = Option(h.getSerializationLib),
+            compressed = h.getTTable.getSd.isCompressed,
+            properties = Option(h.getTTable.getSd.getSerdeInfo.getParameters)
+                .map(_.asScala.toMap).orNull
+          ),
+          // For EXTERNAL_TABLE, the table properties has a particular field "EXTERNAL". This is added
+          // in the function toHiveTable.
+          properties = properties.filter(kv => kv._1 != "comment" && kv._1 != "EXTERNAL"),
+          comment = properties.get("comment"),
+          viewOriginalText = Option(h.getViewOriginalText),
+          viewText = Option(h.getViewExpandedText),
+          unsupportedFeatures = unsupportedFeatures)
       }
-
-      if (h.getStorageHandler != null) {
-        unsupportedFeatures += "storage handler"
-      }
-
-      if (!h.getBucketCols.isEmpty) {
-        unsupportedFeatures += "bucketing"
-      }
-
-      if (h.getTableType == HiveTableType.VIRTUAL_VIEW && partCols.nonEmpty) {
-        unsupportedFeatures += "partitioned view"
-      }
-
-      val properties = Option(h.getParameters).map(_.asScala.toMap).orNull
-
-      CatalogTable(
-        identifier = TableIdentifier(h.getTableName, Option(h.getDbName)),
-        tableType = h.getTableType match {
-          case HiveTableType.EXTERNAL_TABLE => CatalogTableType.EXTERNAL
-          case HiveTableType.MANAGED_TABLE => CatalogTableType.MANAGED
-          case HiveTableType.VIRTUAL_VIEW => CatalogTableType.VIEW
-          case HiveTableType.INDEX_TABLE =>
-            throw new AnalysisException("Hive index table is not supported.")
-        },
-        schema = schema,
-        partitionColumnNames = partCols.map(_.name),
-        // We can not populate bucketing information for Hive tables as Spark SQL has a different
-        // implementation of hash function from Hive.
-        bucketSpec = None,
-        owner = h.getOwner,
-        createTime = h.getTTable.getCreateTime.toLong * 1000,
-        lastAccessTime = h.getLastAccessTime.toLong * 1000,
-        storage = CatalogStorageFormat(
-          locationUri = shim.getDataLocation(h),
-          inputFormat = Option(h.getInputFormatClass).map(_.getName),
-          outputFormat = Option(h.getOutputFormatClass).map(_.getName),
-          serde = Option(h.getSerializationLib),
-          compressed = h.getTTable.getSd.isCompressed,
-          properties = Option(h.getTTable.getSd.getSerdeInfo.getParameters)
-            .map(_.asScala.toMap).orNull
-        ),
-        // For EXTERNAL_TABLE, the table properties has a particular field "EXTERNAL". This is added
-        // in the function toHiveTable.
-        properties = properties.filter(kv => kv._1 != "comment" && kv._1 != "EXTERNAL"),
-        comment = properties.get("comment"),
-        viewOriginalText = Option(h.getViewOriginalText),
-        viewText = Option(h.getViewExpandedText),
-        unsupportedFeatures = unsupportedFeatures)
+    } catch {
+      // Observed a scenario(SNAP-3055) where drop database cascade is cancelled before
+      // completion which leads to inconsistent catalog state and causes NPE
+      case npe: Exception =>
+        logWarning(s"Catalog look up failed for $dbName.$tableName. " +
+            s"Use following system procedure to remove catalog inconsistency and drop this table. " +
+            s"call sys.DROP_CATALOG_TABLE_UNSAFE('$dbName.$tableName'); " +
+            s"NOTE: also check for any related policies and base tables and drop them ")
+        None
     }
   }
 
