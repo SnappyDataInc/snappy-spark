@@ -909,16 +909,17 @@ abstract class CodeGenerator[InType <: AnyRef, OutType <: AnyRef] extends Loggin
 }
 
 object CodeGenerator extends Logging {
+  val jobClassLoader = new ThreadLocal[ClassLoader]
 
   /**
    * Compile the Java source code into a Java class, using Janino.
    */
   def compile(code: CodeAndComment): GeneratedClass = {
-    cache.get((code, Thread.currentThread().getContextClassLoader))
+    cache.get((code, jobClassLoader.get()))
   }
 
   def invalidate(code: CodeAndComment) : Unit = {
-    cache.invalidate((code,  Thread.currentThread().getContextClassLoader))
+    cache.invalidate((code, jobClassLoader.get()))
   }
 
   /**
