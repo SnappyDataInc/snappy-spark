@@ -1028,12 +1028,12 @@ object CodeGenerator extends Logging {
     } else 2000
     CacheBuilder.newBuilder().maximumSize(cacheSize).build(
       new CacheLoader[(CodeAndComment, ClassLoader), GeneratedClass]() {
-        override def load(codeAndJobId: (CodeAndComment, ClassLoader)): GeneratedClass = {
+        override def load(codeAndClassLoader: (CodeAndComment, ClassLoader)): GeneratedClass = {
           val startTime = System.nanoTime()
-          val result = doCompile(codeAndJobId._1)
+          val result = doCompile(codeAndClassLoader._1)
           val endTime = System.nanoTime()
           def timeMs: Double = (endTime - startTime).toDouble / 1000000
-          CodegenMetrics.METRIC_SOURCE_CODE_SIZE.update(codeAndJobId._1.body.length)
+          CodegenMetrics.METRIC_SOURCE_CODE_SIZE.update(codeAndClassLoader._1.body.length)
           CodegenMetrics.METRIC_COMPILATION_TIME.update(timeMs.toLong)
           logInfo(s"Code generated in $timeMs ms")
           result
