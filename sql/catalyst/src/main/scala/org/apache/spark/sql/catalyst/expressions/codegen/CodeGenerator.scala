@@ -1240,13 +1240,15 @@ object CodeGenerator extends Logging {
   // bytecode instruction
   final val MUTABLESTATEARRAY_SIZE_LIMIT = 32768
 
+  private[sql] val jobClassLoader = new ThreadLocal[ClassLoader]
+
   /**
    * Compile the Java source code into a Java class, using Janino.
    *
    * @return a pair of a generated class and the max bytecode size of generated functions.
    */
   def compile(code: CodeAndComment): (GeneratedClass, Int) = try {
-    cache.get(code)
+    cache.get((code, jobClassLoader.get()))
   } catch {
     // Cache.get() may wrap the original exception. See the following URL
     // http://google.github.io/guava/releases/14.0/api/docs/com/google/common/cache/
@@ -1256,7 +1258,7 @@ object CodeGenerator extends Logging {
   }
 
   def invalidate(code: CodeAndComment) : Unit = {
-    cache.invalidate(code)
+    cache.invalidate((code, jobClassLoader.get()))
   }
 
   /**
@@ -1392,13 +1394,14 @@ object CodeGenerator extends Logging {
   private val cache = CacheBuilder.newBuilder()
     .maximumSize(SQLConf.get.codegenCacheMaxEntries)
     .build(
-      new CacheLoader[CodeAndComment, (GeneratedClass, Int)]() {
-        override def load(code: CodeAndComment): (GeneratedClass, Int) = {
+      new CacheLoader[(CodeAndComment, ClassLoader), (GeneratedClass, Int)]() {
+        override def load(
+            codeAndClassLoader: (CodeAndComment, ClassLoader)): (GeneratedClass, Int) = {
           val startTime = System.nanoTime()
-          val result = doCompile(code)
+          val result = doCompile(codeAndClassLoader._1)
           val endTime = System.nanoTime()
           def timeMs: Double = (endTime - startTime).toDouble / 1000000
-          CodegenMetrics.METRIC_SOURCE_CODE_SIZE.update(code.body.length)
+          CodegenMetrics.METRIC_SOURCE_CODE_SIZE.update(codeAndClassLoader._1.body.length)
           CodegenMetrics.METRIC_COMPILATION_TIME.update(timeMs.toLong)
           logInfo(s"Code generated in $timeMs ms")
           result
