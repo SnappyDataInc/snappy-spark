@@ -553,7 +553,7 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
 
   test("date row") {
     checkAnswer(sql(
-      """select cast("2015-01-28" as date) from testData limit 1"""),
+      """select cast('2015-01-28' as date) from testData limit 1"""),
       Row(java.sql.Date.valueOf("2015-01-28"))
     )
   }
@@ -1612,12 +1612,12 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
     var e = intercept[AnalysisException] {
       sql("select * from in_valid_table")
     }
-    assert(e.message.contains("Table or view not found"))
+    assert(e.message.matches("Table or view.* not found.*"))
 
     e = intercept[AnalysisException] {
       sql("select * from no_db.no_table").show()
     }
-    assert(e.message.contains("Table or view not found"))
+    assert(e.message.matches("Table or view.* not found.*"))
 
     e = intercept[AnalysisException] {
       sql("select * from json.invalid_file")
@@ -1627,7 +1627,8 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
     e = intercept[AnalysisException] {
       sql(s"select id from `org.apache.spark.sql.hive.orc`.`file_path`")
     }
-    assert(e.message.contains("The ORC data source must be used with Hive support enabled"))
+    assert(e.message.contains("The ORC data source must be used with Hive support enabled") ||
+        e.message.contains("Path does not exist"))
 
     e = intercept[AnalysisException] {
       sql(s"select id from `com.databricks.spark.avro`.`file_path`")
@@ -1874,12 +1875,12 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
       var e = intercept[AnalysisException] {
         sql("SELECT a.* FROM temp_table_no_cols a")
       }.getMessage
-      assert(e.contains("cannot resolve 'a.*' give input columns ''"))
+      assert(e.contains("cannot resolve 'a.*' given input columns ''"))
 
       e = intercept[AnalysisException] {
         dfNoCols.select($"b.*")
       }.getMessage
-      assert(e.contains("cannot resolve 'b.*' give input columns ''"))
+      assert(e.contains("cannot resolve 'b.*' given input columns ''"))
     }
   }
 

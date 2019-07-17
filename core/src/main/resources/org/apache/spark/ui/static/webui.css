@@ -279,7 +279,7 @@ a.expandbutton {
 /* The actual popup */
 .popup .popuptext {
   visibility: hidden;
-  width: 400px;
+  width: 450px;
   background-color: #CCCCCC;
   color: #202020;
   text-align: left;
@@ -301,7 +301,7 @@ a.expandbutton {
   content: "";
   position: absolute;
   bottom: 100%;
-  left:90%;
+  left:93%;
   border-width: 10px;
   border-style: solid;
   border-color:  transparent transparent #CCCCCC transparent;

@@ -1,4 +1,4 @@
-/**
+/*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -14,6 +14,24 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ */
+/*
+ * Changes for SnappyData data platform.
+ *
+ * Portions Copyright (c) 2018 SnappyData, Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
  */
 
 package org.apache.hive.service.cli.thrift;
@@ -343,6 +361,10 @@ public abstract class ThriftCLIService extends AbstractService implements TCLISe
   SessionHandle getSessionHandle(TOpenSessionReq req, TOpenSessionResp res)
       throws HiveSQLException, LoginException, IOException {
     String userName = getUserName(req);
+    String password = req.getPassword();
+    if ((password == null || password.isEmpty()) && !isKerberosAuthMode()) {
+      password = TSetIpAddressProcessor.getPassword();
+    }
     String ipAddress = getIpAddress();
     TProtocolVersion protocol = getMinVersion(CLIService.SERVER_VERSION,
         req.getClient_protocol());
@@ -351,9 +373,9 @@ public abstract class ThriftCLIService extends AbstractService implements TCLISe
         (userName != null)) {
       String delegationTokenStr = getDelegationToken(userName);
       sessionHandle = cliService.openSessionWithImpersonation(protocol, userName,
-          req.getPassword(), ipAddress, req.getConfiguration(), delegationTokenStr);
+          password, ipAddress, req.getConfiguration(), delegationTokenStr);
     } else {
-      sessionHandle = cliService.openSession(protocol, userName, req.getPassword(),
+      sessionHandle = cliService.openSession(protocol, userName, password,
           ipAddress, req.getConfiguration());
     }
     res.setServerProtocolVersion(protocol);

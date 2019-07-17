@@ -20,7 +20,7 @@ package org.apache.spark.sql.internal
 import org.apache.hadoop.fs.Path
 
 import org.apache.spark.sql._
-import org.apache.spark.sql.execution.WholeStageCodegenExec
+import org.apache.spark.sql.execution.{SparkPlan, WholeStageCodegenExec}
 import org.apache.spark.sql.internal.StaticSQLConf._
 import org.apache.spark.sql.test.{SharedSQLContext, TestSQLContext}
 import org.apache.spark.util.Utils
@@ -221,6 +221,11 @@ class SQLConfSuite extends QueryTest with SharedSQLContext {
       .sessionState.conf.warehousePath.stripSuffix("/"))
   }
 
+  private def searchWholeStageCodegenExec(plan: SparkPlan): SparkPlan = plan match {
+    case _: WholeStageCodegenExec => plan
+    case _ => plan.children.head
+  }
+
   test("MAX_CASES_BRANCHES") {
     withTable("tab1") {
       spark.range(10).write.saveAsTable("tab1")
@@ -228,24 +233,24 @@ class SQLConfSuite extends QueryTest with SharedSQLContext {
       val sql_two_branch_caseWhen = "SELECT CASE WHEN id = 1 THEN 1 ELSE 0 END FROM tab1"
 
       withSQLConf(SQLConf.MAX_CASES_BRANCHES.key -> "0") {
-        assert(!sql(sql_one_branch_caseWhen)
-          .queryExecution.executedPlan.isInstanceOf[WholeStageCodegenExec])
-        assert(!sql(sql_two_branch_caseWhen)
-          .queryExecution.executedPlan.isInstanceOf[WholeStageCodegenExec])
+        assert(!searchWholeStageCodegenExec(sql(sql_one_branch_caseWhen)
+          .queryExecution.executedPlan).isInstanceOf[WholeStageCodegenExec])
+        assert(!searchWholeStageCodegenExec(sql(sql_two_branch_caseWhen)
+          .queryExecution.executedPlan).isInstanceOf[WholeStageCodegenExec])
       }
 
       withSQLConf(SQLConf.MAX_CASES_BRANCHES.key -> "1") {
-        assert(sql(sql_one_branch_caseWhen)
-          .queryExecution.executedPlan.isInstanceOf[WholeStageCodegenExec])
-        assert(!sql(sql_two_branch_caseWhen)
-          .queryExecution.executedPlan.isInstanceOf[WholeStageCodegenExec])
+        assert(searchWholeStageCodegenExec(sql(sql_one_branch_caseWhen)
+          .queryExecution.executedPlan).isInstanceOf[WholeStageCodegenExec])
+        assert(!searchWholeStageCodegenExec(sql(sql_two_branch_caseWhen)
+          .queryExecution.executedPlan).isInstanceOf[WholeStageCodegenExec])
       }
 
       withSQLConf(SQLConf.MAX_CASES_BRANCHES.key -> "2") {
-        assert(sql(sql_one_branch_caseWhen)
-          .queryExecution.executedPlan.isInstanceOf[WholeStageCodegenExec])
-        assert(sql(sql_two_branch_caseWhen)
-          .queryExecution.executedPlan.isInstanceOf[WholeStageCodegenExec])
+        assert(searchWholeStageCodegenExec(sql(sql_one_branch_caseWhen)
+          .queryExecution.executedPlan).isInstanceOf[WholeStageCodegenExec])
+        assert(searchWholeStageCodegenExec(sql(sql_two_branch_caseWhen)
+          .queryExecution.executedPlan).isInstanceOf[WholeStageCodegenExec])
       }
     }
   }

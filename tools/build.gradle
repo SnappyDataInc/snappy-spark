@@ -19,7 +19,7 @@ description = 'Spark Project Tools'
 
 dependencies {
   compile group: 'org.scala-lang', name: 'scala-compiler', version: scalaVersion
-  compile group: 'org.clapper', name: 'classutil_' + scalaBinaryVersion, version: '1.0.12'
+  compile group: 'org.clapper', name: 'classutil_' + scalaBinaryVersion, version: classutilVersion
 }
 
 // TODO: anything special required for deploy, install and source plugins in maven?

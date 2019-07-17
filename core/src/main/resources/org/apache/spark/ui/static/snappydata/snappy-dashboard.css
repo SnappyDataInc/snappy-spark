@@ -163,7 +163,8 @@
 
 #CPUCoresContainer {
   position: absolute;
-  width: 100%;
+  width: 20%;
+  right: -20px;
 }
 
 #CPUCoresDetails {
@@ -205,4 +206,118 @@
   text-align:center !important;
   vertical-align: middle !important;
   font-size: 17px;
+}
+
+.row-caret-upward {
+  display: inline-block;
+  border: 5px solid #228b57;
+  border-top-color: transparent;
+  border-left-color: transparent;
+  border-right-color: transparent;
+}
+
+.row-caret-downward {
+  display: inline-block;
+  border: 5px solid #228b57;
+  border-bottom-color: transparent;
+  border-left-color: transparent;
+  border-right-color: transparent;
+}
+
+#autorefreshswitch-container {
+  position: absolute;
+  width: 100%;
+}
+
+#autorefreshswitch-holder {
+  width: 172px;
+  position: relative;
+  margin: 5px 50px 5px auto;
+  padding: 0px 5px;
+}
+
+#autorefreshswitch-label {
+  width: 100px;
+  float: left;
+  line-height: 25px;
+  font-weight: bold;
+}
+
+.onoffswitch {
+  position: relative;
+  float: right;
+  width: 70px;
+  -webkit-user-select:none;
+  -moz-user-select:none;
+  -ms-user-select: none;
+}
+
+.onoffswitch-checkbox {
+  display: none;
+}
+.onoffswitch-label {
+  display: block;
+  overflow: hidden;
+  cursor: pointer;
+  border: 2px solid #999999;
+  border-radius: 20px;
+}
+.onoffswitch-inner {
+  display: block;
+  width: 200%;
+  margin-left: -100%;
+  transition: margin 0.3s ease-in 0s;
+}
+.onoffswitch-inner:before, .onoffswitch-inner:after {
+  display: block;
+  float: left;
+  width: 50%;
+  height: 20px;
+  padding: 0;
+  line-height: 20px;
+  font-size: 14px;
+  color: white;
+  font-family: Trebuchet, Arial, sans-serif;
+  font-weight: bold;
+  box-sizing: border-box;
+}
+.onoffswitch-inner:before {
+  content: "ON";
+  padding-left: 10px;
+  background-color: #34C13F;
+  color: #FFFFFF;
+}
+.onoffswitch-inner:after {
+  content: "OFF";
+  padding-right: 10px;
+  background-color: #EEEEEE;
+  color: #999999;
+  text-align: right;
+}
+.onoffswitch-switch {
+  display: block;
+  width: 15px;
+  margin: 3px;
+  background: #FFFFFF;
+  position: absolute;
+  top: 0;
+  bottom: 5px;
+  right: 45px;
+  border: 2px solid #999999;
+  border-radius: 20px;
+  transition: all 0.3s ease-in 0s;
+}
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-inner {
+  margin-left: 0;
+}
+.onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-switch {
+  right: 0px;
+}
+
+/* Table Stats Grids */
+table#tableStatsGrid tbody tr td:nth-child(5),
+table#tableStatsGrid tbody tr td:nth-child(6),
+table#tableStatsGrid tbody tr td:nth-child(7) {
+  padding-right:10px;
+  text-align:right;
 }

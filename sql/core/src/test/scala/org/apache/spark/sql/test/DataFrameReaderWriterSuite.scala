@@ -624,7 +624,8 @@ class DataFrameReaderWriterSuite extends QueryTest with SharedSQLContext with Be
           .format("org.apache.spark.sql.test.DefaultSource")
           .mode("append").saveAsTable("t")
       }
-      assert(e.message.contains("The column number of the existing table"))
+      assert(e.message.contains("The column number of the existing table") ||
+          e.message.contains("same number of columns as the target table"))
     }
   }
 

@@ -22,8 +22,8 @@ import scala.util.Random
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.ml.linalg.{Vector, Vectors}
 import org.apache.spark.ml.param.ParamsSuite
-import org.apache.spark.ml.util.{DefaultReadWriteTest, MLTestingUtils}
 import org.apache.spark.ml.util.TestingUtils._
+import org.apache.spark.ml.util.{DefaultReadWriteTest, MLTestingUtils}
 import org.apache.spark.mllib.random.{ExponentialGenerator, WeibullGenerator}
 import org.apache.spark.mllib.util.MLlibTestSparkContext
 import org.apache.spark.sql.{DataFrame, Row}
@@ -81,7 +81,6 @@ class AFTSurvivalRegressionSuite
       .setQuantilesCol("quantiles")
       .fit(datasetUnivariate)
 
-    // copied model must have the same parent.
     MLTestingUtils.checkCopy(model)
 
     model.transform(datasetUnivariate)
