@@ -413,6 +413,29 @@ function getTableStatsGridConf() {
                            + '</div>';
                 return bcHtml;
               }
+      },
+      { // Redundancy
+        data: function(row, type) {
+                var bcHtml = '<div style="padding-right:10px; text-align:right;">'
+                             + row.redundancy
+                           + '</div>';
+                return bcHtml;
+              }
+      },
+      { // Redundancy Status
+        data: function(row, type) {
+                var bcHtml = '';
+                if (row.redundancyImpaired) {
+                  bcHtml = '<div style="padding-right:10px; text-align:right; color:#ea4335">'
+                           + 'BROKEN' +
+                           '</div>';
+                } else {
+                  bcHtml = '<div style="padding-right:10px; text-align:right; color:#34a853">'
+                           + 'SATISFIED' +
+                           '</div>';
+                }
+                return bcHtml;
+              }
       }
     ],
     "order": [[0, 'asc']],
