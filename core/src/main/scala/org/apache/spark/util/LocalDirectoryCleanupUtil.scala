@@ -79,7 +79,7 @@ object LocalDirectoryCleanupUtil extends Logging {
       try {
         Files.delete(listFilePath)
       } catch {
-        case ex: Exception => logError(s"Failure while deleting file or directory: $listFile.", ex)
+        case ex: Exception => logError(s"Failure while deleting file: $listFile.", ex)
           System.exit(1)
       }
     }
