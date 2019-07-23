@@ -79,7 +79,7 @@ object LocalDirectoryCleanupUtil extends Logging {
       try {
         Files.delete(listFilePath)
       } catch {
-        case ex: Exception => logError(s"Failure while deleting file: $listFile.", ex)
+        case ex: Exception => logError(s"Failure while deleting file or directory: $listFile.", ex)
           System.exit(1)
       }
     }
@@ -92,12 +92,12 @@ object LocalDirectoryCleanupUtil extends Logging {
           try {
             Files.delete(p)
           } catch {
-            case e: Exception => logError(s"Failure while deleting file: $p.", e)
+            case e: Exception => logError(s"Failure while deleting file or directory: $p.", e)
           }
         }
       })
     } else {
-      logInfo(s"File does not exists : $path")
+      logInfo(s"File or directory does not exists : $path")
     }
   }
 }
