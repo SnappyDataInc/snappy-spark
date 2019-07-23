@@ -34,9 +34,11 @@
 package org.apache.spark.util
 
 import java.io.File
+import java.nio.file.{Files, Path, Paths}
+import java.util.Collections
+import java.util.function.Consumer
 
 import scala.io.Source
-import scala.reflect.io.Path
 
 import com.google.common.collect.Lists
 import org.apache.commons.io.FileUtils
@@ -44,43 +46,58 @@ import org.apache.commons.io.FileUtils
 import org.apache.spark.internal.Logging
 
 /**
- * Contains utility methods to manage spark local directories. This service is written for handling
- * of spark local directories left orphan due to scenario like abrupt failure of JVM.
+ * Contains utility methods for cleaning of spark local directories left orphan due to scenario
+ * like abrupt failure of JVM.
  */
-object LocalDirectoryCleanupService extends Logging {
+object LocalDirectoryCleanupUtil extends Logging {
 
-  private val fileName = ".tempfiles.list"
+  private lazy val listFile = ".tempfiles.list"
 
   /**
    * Add new path to temporary file list.
    *
-   * @param path path to temp file/directory
+   * @param file temp file/directory
    */
-  def add(path: Path): Unit = {
-    FileUtils.writeLines(new File(fileName), "UTF-8",
-      Lists.newArrayList(path.toString()), true)
+  def add(file: File): Unit = {
+    FileUtils.writeLines(new File(listFile), "UTF-8",
+      Lists.newArrayList(file), true)
   }
 
   /**
-   * Attempts to recursively delete all files/directories available in temp files list in a fail
-   * safe manner. Also cleans the temp files list once deletion is complete.
+   * Attempts to recursively delete all files/directories present in temp files list.
+   * Also cleans the temp files list once deletion is complete.
    */
   def clean(): Unit = {
-    if (Path(fileName).exists) {
-      Source.fromFile(fileName, "UTF-8").getLines().foreach(f => {
-        try {
-          if (Path(f).exists) {
-            if (!Path(f).deleteRecursively()) {
-              logWarning(s"There was some error while deleting file: $f")
-            }
-          } else {
-            logInfo(s"$f does not exists.")
+    val listFilePath = Paths.get(listFile)
+    if (Files.exists(listFilePath)) {
+      val fileSource = Source.fromFile(listFile, "UTF-8")
+      try {
+        fileSource.getLines().map(Paths.get(_)).foreach(delete)
+      } finally {
+        fileSource.close()
+      }
+      try {
+        Files.delete(listFilePath)
+      } catch {
+        case ex: Exception => logError(s"Failure while deleting file: $listFile.", ex)
+          System.exit(1)
+      }
+    }
+  }
+
+  def delete(path: Path): Unit = {
+    if (Files.exists(path)) {
+      Files.walk(path).sorted(Collections.reverseOrder()).forEach(new Consumer[Path] {
+        override def accept(p: Path): Unit = {
+          try {
+            Files.delete(p)
+          } catch {
+            case e: Exception => logError(s"Failure while deleting file: $p.", e)
           }
-        } catch {
-          case ex: Exception => logWarning("There was some error while deleting file: $f", ex)
         }
       })
-      Path(fileName).delete()
+    } else {
+      logInfo(s"File does not exists : $path")
     }
   }
 }
