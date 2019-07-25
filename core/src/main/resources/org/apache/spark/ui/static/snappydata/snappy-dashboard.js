@@ -425,14 +425,20 @@ function getTableStatsGridConf() {
       { // Redundancy Status
         data: function(row, type) {
                 var bcHtml = '';
-                if (row.redundancyImpaired) {
-                  bcHtml = '<div style="padding-right:10px; text-align:right; color:#ea4335">'
-                           + 'BROKEN' +
+                if (row.redundancy == 0) {
+                  bcHtml = '<div style="padding-right:10px; text-align:right;">'
+                           + 'NA' +
                            '</div>';
                 } else {
-                  bcHtml = '<div style="padding-right:10px; text-align:right; color:#34a853">'
-                           + 'SATISFIED' +
-                           '</div>';
+                  if (row.redundancyImpaired) {
+                    bcHtml = '<div style="padding-right:10px; text-align:right; color:#ea4335;">'
+                             + 'BROKEN' +
+                             '</div>';
+                  } else {
+                    bcHtml = '<div style="padding-right:10px; text-align:right; color:#34a853;">'
+                             + 'SATISFIED' +
+                             '</div>';
+                  }
                 }
                 return bcHtml;
               }
