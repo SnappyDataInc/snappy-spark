@@ -50,7 +50,7 @@ private[ui] class ThriftServerPage(parent: ThriftServerTab) extends WebUIPage(""
         generateSessionStatsTable() ++
         generateSQLStatsTable()
       }
-    UIUtils.headerSparkPage("JDBC/ODBC Server", content, parent, Some(5000))
+    UIUtils.headerSparkPage("Hive Thrift Server", content, parent, Some(5000))
   }
 
   /** Generate basic stats of the thrift server program */

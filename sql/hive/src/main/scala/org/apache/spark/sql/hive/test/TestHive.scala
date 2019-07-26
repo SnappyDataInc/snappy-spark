@@ -77,7 +77,7 @@ class TestHiveContext(
    * when running in the JVM, i.e. it needs to be false when calling from Python.
    */
   def this(sc: SparkContext, loadTestTables: Boolean = true) {
-    this(new TestHiveSparkSession(HiveUtils.withHiveExternalCatalog(sc), loadTestTables))
+    this(TestHiveContext.newSparkSession(HiveUtils.withHiveExternalCatalog(sc), loadTestTables))
   }
 
   override def newSession(): TestHiveContext = {
@@ -523,6 +523,18 @@ private[hive] object TestHiveContext {
       // Fewer shuffle partitions to speed up testing.
       SQLConf.SHUFFLE_PARTITIONS.key -> "5"
     )
+
+  private def newSparkSession(sc: SparkContext,
+      loadTestTables: Boolean): TestHiveSparkSession = {
+    try {
+      Utils.classForName("org.apache.spark.sql.test.TestHiveSnappySession")
+          .getConstructor(classOf[SparkContext], classOf[Boolean])
+          .newInstance(sc, Boolean.box(loadTestTables)).asInstanceOf[TestHiveSparkSession]
+    } catch {
+      case _: Exception =>
+        new TestHiveSparkSession(HiveUtils.withHiveExternalCatalog(sc), loadTestTables)
+    }
+  }
 
   def makeWarehouseDir(): File = {
     val warehouseDir = Utils.createTempDir(namePrefix = "warehouse")
