@@ -40,7 +40,7 @@ import java.io.{File, IOException}
 import org.apache.spark.SparkConf
 import org.apache.spark.executor.ExecutorExitCode
 import org.apache.spark.internal.Logging
-import org.apache.spark.util.{ShutdownHookManager, Utils}
+import org.apache.spark.util.{LocalDirectoryCleanupUtil, ShutdownHookManager, Utils}
 
 /**
  * Creates and maintains the logical mapping between logical blocks and physical on-disk
@@ -144,10 +144,14 @@ private[spark] class DiskBlockManager(conf: SparkConf, deleteFilesOnStop: Boolea
    * be deleted on JVM exit when using the external shuffle service.
    */
   private def createLocalDirs(conf: SparkConf): Array[File] = {
+    if (!Utils.isLocalMaster(conf)) LocalDirectoryCleanupUtil.clean()
     Utils.getConfiguredLocalDirs(conf).flatMap { rootDir =>
       try {
         val localDir = Utils.createDirectory(rootDir, "blockmgr")
         logInfo(s"Created local directory at $localDir")
+        if (deleteFilesOnStop && !Utils.isLocalMaster(conf)) {
+          LocalDirectoryCleanupUtil.add(localDir)
+        }
         Some(localDir)
       } catch {
         case e: IOException =>
