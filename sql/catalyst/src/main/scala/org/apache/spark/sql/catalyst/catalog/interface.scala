@@ -60,6 +60,24 @@ case class CatalogStorageFormat(
     compressed: Boolean,
     properties: Map[String, String]) {
 
+  // Mask access key and secret access key in case of S3 URL
+  def getMaskedLocUri: Option[URI] = {
+    locationUri match {
+      case Some(uri) => uri.getScheme match {
+        case "s3a" | "s3" | "s3n" =>
+          val locUri = CatalogUtils.URIToString(uri)
+          val splitIndex = locUri.indexOf('@')
+          if (splitIndex == -1) locationUri
+          else {
+            Some(CatalogUtils.stringToURI(locUri.replace(locUri.slice(
+              locUri.indexOf("//") + 2, splitIndex), "****:****")))
+          }
+        case _ => locationUri
+      }
+      case None => None
+    }
+  }
+
   override def toString: String = {
     toLinkedHashMap.map { case ((key, value)) =>
       if (value.isEmpty) key else s"$key: $value"
@@ -68,7 +86,7 @@ case class CatalogStorageFormat(
 
   def toLinkedHashMap: mutable.LinkedHashMap[String, String] = {
     val map = new mutable.LinkedHashMap[String, String]()
-    locationUri.foreach(l => map.put("Location", l.toString))
+    getMaskedLocUri.foreach(l => map.put("Location", l.toString))
     serde.foreach(map.put("Serde Library", _))
     inputFormat.foreach(map.put("InputFormat", _))
     outputFormat.foreach(map.put("OutputFormat", _))

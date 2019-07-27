@@ -834,6 +834,38 @@ abstract class ExternalCatalogSuite extends SparkFunSuite with BeforeAndAfterEac
     assert(!exists(db.locationUri, "external_table"))
   }
 
+  test("test describe extended on external table on s3") {
+    // check Describe extended output for masked credentials in case of S3 URI
+    var csf = CatalogStorageFormat(locationUri =
+        Some(new URI("s3a://DUMMYKEY175GDRZIF4QQ:DUMMYKEY2zUkvIS88xrMJ7v5cMmQEWRjqS@" +
+            "ryft-public-sample-data/passengers.txt")),
+      Some("org.apache.hadoop.mapred.SequenceFileInputFormat"),
+      Some("org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat"),
+      Some("org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"), compressed = false, Map.empty)
+
+    var expectedStr = "Storage(Location: s3a://****:****@ryft-public-sample-data/passengers.txt," +
+        " InputFormat: org.apache.hadoop.mapred.SequenceFileInputFormat," +
+        " OutputFormat: org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat," +
+        " Serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe)"
+    assert(csf.toString == expectedStr)
+    assert(csf.getMaskedLocUri.get.toString ==
+        "s3a://****:****@ryft-public-sample-data/passengers.txt")
+
+    // without access and secret keys in the URI
+    csf = CatalogStorageFormat(locationUri =
+        Some(new URI("s3a://ryft-public-sample-data/passengers.txt")),
+      Some("org.apache.hadoop.mapred.SequenceFileInputFormat"),
+      Some("org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat"),
+      Some("org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"), compressed = false, Map.empty)
+
+    expectedStr = "Storage(Location: s3a://ryft-public-sample-data/passengers.txt," +
+        " InputFormat: org.apache.hadoop.mapred.SequenceFileInputFormat," +
+        " OutputFormat: org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat," +
+        " Serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe)"
+    assert(csf.toString == expectedStr)
+    assert(csf.getMaskedLocUri.get.toString == "s3a://ryft-public-sample-data/passengers.txt")
+  }
+
   test("create/drop/rename partitions should create/delete/rename the directory") {
     val catalog = newBasicCatalog()
     val table = CatalogTable(

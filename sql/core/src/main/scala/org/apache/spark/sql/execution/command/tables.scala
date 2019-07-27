@@ -1095,7 +1095,7 @@ case class ShowCreateTableCommand(table: TableIdentifier) extends RunnableComman
     }
 
     if (metadata.tableType == EXTERNAL) {
-      storage.locationUri.foreach { uri =>
+      storage.getMaskedLocUri.foreach { uri =>
         builder ++= s"LOCATION '$uri'\n"
       }
     }
@@ -1133,7 +1133,7 @@ case class ShowCreateTableCommand(table: TableIdentifier) extends RunnableComman
 
     val dataSourceOptions = SQLConf.get.redactOptions(metadata.storage.properties).map {
       case (key, value) => s"${quoteIdentifier(key)} '${escapeSingleQuotedString(value)}'"
-    } ++ metadata.storage.locationUri.flatMap { location =>
+    } ++ metadata.storage.getMaskedLocUri.flatMap { location =>
       if (metadata.tableType == MANAGED) {
         // If it's a managed table, omit PATH option. Spark SQL always creates external table
         // when the table creation DDL contains the PATH option.
