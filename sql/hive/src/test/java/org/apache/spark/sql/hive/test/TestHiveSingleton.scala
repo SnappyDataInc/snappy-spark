@@ -24,8 +24,8 @@ import org.apache.spark.SparkFunSuite
 
 
 trait TestHiveSingleton extends SparkFunSuite with BeforeAndAfterAll {
-  protected val spark: SparkSession = TestHive.sparkSession
-  protected val hiveContext: TestHiveContext = TestHive
+  protected lazy val spark: SparkSession = TestHive.sparkSession
+  protected lazy val hiveContext: TestHiveContext = TestHive
 
   protected override def afterAll(): Unit = {
     try {
