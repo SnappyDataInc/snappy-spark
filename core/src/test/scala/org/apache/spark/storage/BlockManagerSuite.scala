@@ -78,7 +78,6 @@ class BlockManagerSuite extends SparkFunSuite with Matchers with BeforeAndAfterE
       transferService: Option[BlockTransferService] = Option.empty): BlockManager = {
     conf.set("spark.testing.memory", maxMem.toString)
     conf.set("spark.memory.offHeap.size", maxMem.toString)
-    conf.set("spark.master", "local")
     val serializer = new KryoSerializer(conf)
     val transfer = transferService
       .getOrElse(new NettyBlockTransferService(conf, securityMgr, "localhost", "localhost", 0, 1))
