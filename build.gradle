@@ -355,7 +355,7 @@ gradle.taskGraph.whenReady { graph ->
         onlyIf { ! Boolean.getBoolean('skip.tests') }
 
         jvmArgs '-ea', '-XX:+HeapDumpOnOutOfMemoryError','-XX:+UseConcMarkSweepGC',
-                '-XX:+UseParNewGC', '-XX:+CMSClassUnloadingEnabled', '-XX:MaxPermSize=512m'
+                '-XX:+UseParNewGC', '-XX:+CMSClassUnloadingEnabled'
         minHeapSize '4g'
         maxHeapSize '4g'
         // disable assertions for hive tests as in Spark's pom.xml because HiveCompatibilitySuite currently fails (SPARK-4814)

@@ -54,13 +54,24 @@ case class CatalogStorageFormat(
     compressed: Boolean,
     properties: Map[String, String]) {
 
+  // Mask access key and secret access key in case of S3 URL
+  def getMaskedLocUri: Option[String] = {
+    var locUri = locationUri.getOrElse("")
+    locUri = if (locUri.toLowerCase().startsWith("s3a://")
+        || locUri.toLowerCase().startsWith("s3://")
+        || locUri.toLowerCase().startsWith("s3n://")) {
+      locUri.replace(locUri.slice(locUri.indexOf("//") + 2, locUri.indexOf("@")), "****:****")
+    } else locUri
+    Some(locUri)
+  }
+
   override def toString: String = {
     val serdePropsToString = CatalogUtils.maskCredentials(properties) match {
       case props if props.isEmpty => ""
       case props => "Properties: " + props.map(p => p._1 + "=" + p._2).mkString("[", ", ", "]")
     }
     val output =
-      Seq(locationUri.map("Location: " + _).getOrElse(""),
+      Seq(getMaskedLocUri.map("Location: " + _).getOrElse(""),
         inputFormat.map("InputFormat: " + _).getOrElse(""),
         outputFormat.map("OutputFormat: " + _).getOrElse(""),
         if (compressed) "Compressed" else "",
