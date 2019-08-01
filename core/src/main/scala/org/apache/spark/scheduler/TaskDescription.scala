@@ -44,6 +44,8 @@ private[spark] class TaskDescription(
   def name: String = _name
   def index: Int = _index
 
+  @transient private[spark] var cpusPerTask = 1
+
   // Because ByteBuffers are not serializable, wrap the task in a SerializableBuffer
   private val buffer =
     if (_serializedTask ne null) new SerializableBuffer(_serializedTask) else null

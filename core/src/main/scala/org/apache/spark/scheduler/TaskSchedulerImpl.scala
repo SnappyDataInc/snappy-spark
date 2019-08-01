@@ -76,7 +76,8 @@ private[spark] class TaskSchedulerImpl(
   val STARVATION_TIMEOUT_MS = conf.getTimeAsMs("spark.starvation.timeout", "15s")
 
   // CPUs to request per task
-  val CPUS_PER_TASK = conf.getInt("spark.task.cpus", 1)
+  val CPUS_PER_TASK_PROP = "spark.task.cpus"
+  val CPUS_PER_TASK = conf.getInt(CPUS_PER_TASK_PROP, 1)
 
   // TaskSetManagers are not thread safe, so any access to one should be synchronized
   // on this class.
@@ -249,6 +250,13 @@ private[spark] class TaskSchedulerImpl(
       s" ${manager.parent.name}")
   }
 
+  private def getCpusPerTask(taskSet: TaskSetManager): Int = {
+    taskSet.taskSet.properties.getProperty(CPUS_PER_TASK_PROP) match {
+      case null => CPUS_PER_TASK
+      case s => math.max(s.toInt, CPUS_PER_TASK)
+    }
+  }
+
   private def resourceOfferSingleTaskSet(
       taskSet: TaskSetManager,
       maxLocality: TaskLocality,
@@ -256,10 +264,11 @@ private[spark] class TaskSchedulerImpl(
       availableCpus: Array[Int],
       tasks: IndexedSeq[ArrayBuffer[TaskDescription]]) : Boolean = {
     var launchedTask = false
+    val cpusPerTask = getCpusPerTask(taskSet)
     for (i <- 0 until shuffledOffers.size) {
       val execId = shuffledOffers(i).executorId
       val host = shuffledOffers(i).host
-      if (availableCpus(i) >= CPUS_PER_TASK) {
+      if (availableCpus(i) >= cpusPerTask) {
         try {
           for (task <- taskSet.resourceOffer(execId, host, maxLocality)) {
             tasks(i) += task
@@ -267,7 +276,8 @@ private[spark] class TaskSchedulerImpl(
             taskIdToTaskSetManager(tid) = taskSet
             taskIdToExecutorId(tid) = execId
             executorIdToRunningTaskIds(execId).add(tid)
-            availableCpus(i) -= CPUS_PER_TASK
+            task.cpusPerTask = cpusPerTask
+            availableCpus(i) -= cpusPerTask
             assert(availableCpus(i) >= 0)
             launchedTask = true
           }
@@ -346,9 +356,10 @@ private[spark] class TaskSchedulerImpl(
     return tasks
   }
 
-  def statusUpdate(tid: Long, state: TaskState, serializedData: ByteBuffer) {
+  def statusUpdate(tid: Long, state: TaskState, serializedData: ByteBuffer): Int = {
     var failedExecutor: Option[String] = None
     var reason: Option[ExecutorLossReason] = None
+    var cpusPerTask = CPUS_PER_TASK
     synchronized {
       try {
         taskIdToTaskSetManager.get(tid) match {
@@ -374,6 +385,7 @@ private[spark] class TaskSchedulerImpl(
                 taskResultGetter.enqueueFailedTask(taskSet, tid, state, serializedData)
               }
             }
+            cpusPerTask = getCpusPerTask(taskSet)
           case None =>
             logError(
               ("Ignoring update with state %s for TID %s because its task set is gone (this is " +
@@ -391,6 +403,7 @@ private[spark] class TaskSchedulerImpl(
       dagScheduler.executorLost(failedExecutor.get, reason.get)
       backend.reviveOffers()
     }
+    cpusPerTask
   }
 
   /**

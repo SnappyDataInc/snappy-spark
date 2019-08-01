@@ -134,11 +134,11 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
 
     override def receive: PartialFunction[Any, Unit] = {
       case StatusUpdate(executorId, taskId, state, data) =>
-        scheduler.statusUpdate(taskId, state, data.value)
+        val cpusPerTask = scheduler.statusUpdate(taskId, state, data.value)
         if (TaskState.isFinished(state)) {
           executorDataMap.get(executorId) match {
             case Some(executorInfo) =>
-              executorInfo.freeCores += scheduler.CPUS_PER_TASK
+              executorInfo.freeCores += cpusPerTask
               makeOffers(executorId)
             case None =>
               // Ignoring the update since we don't know about the executor.
@@ -304,7 +304,7 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
               if (!executorTaskGroup.addTask(task, taskLimit, maxRpcMessageSize)) {
                 // send this task separately
                 val executorData = executorTaskGroup.executorData
-                executorData.freeCores -= scheduler.CPUS_PER_TASK
+                executorData.freeCores -= task.cpusPerTask
                 scheduler.sc.env.taskLogger.logInfo(
                   s"Launching task ${task.taskId} on executor id: " +
                     s"${task.executorId} hostname: ${executorData.executorHost}.")
@@ -321,7 +321,7 @@ class CoarseGrainedSchedulerBackend(scheduler: TaskSchedulerImpl, val rpcEnv: Rp
         val taskGroup = executorTaskGroup.taskGroup
         val executorData = executorTaskGroup.executorData
 
-        executorData.freeCores -= (scheduler.CPUS_PER_TASK * taskGroup.length)
+        executorData.freeCores -= taskGroup.foldLeft(0)(_ + _.cpusPerTask)
         logDebug(s"Launching tasks ${taskGroup.map(_.taskId).mkString(",")} on " +
             s"executor id: $executorId hostname: ${executorData.executorHost}.")
         executorData.executorEndpoint.send(LaunchTasks(taskGroup,
