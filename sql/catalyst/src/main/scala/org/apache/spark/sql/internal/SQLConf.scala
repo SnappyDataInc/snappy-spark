@@ -484,7 +484,8 @@ object SQLConf {
       .internal()
       .doc("The maximum number of partitions to use for file scanning. Default value of 0" +
           " implies no fixed limit rather determined from the file size. This property" +
-          s" overrides ${FILES_MAX_PARTITION_BYTES.key} if > 0.")
+          s" overrides ${FILES_MAX_PARTITION_BYTES.key} if > 0. Note that the final number" +
+          " of partitions may be a bit more than this limit in some cases.")
       .intConf
       .createWithDefault(0)
 
