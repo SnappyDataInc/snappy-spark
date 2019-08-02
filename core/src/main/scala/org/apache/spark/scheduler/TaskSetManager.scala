@@ -816,11 +816,14 @@ private[spark] class TaskSetManager(
       reason match {
         case e: ExceptionFailure if e.className.contains("OutOfMemory") ||
             e.className.contains("LowMemoryException") =>
-          taskSet.properties.getProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP) match {
-            case null => taskSet.properties.setProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP, "2")
-            case s => taskSet.properties.setProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP,
-              (s.toInt * 2).toString)
-          }
+          val newCpusPerTask =
+            taskSet.properties.getProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP) match {
+              case null => "2"
+              case s => (s.toInt * 2).toString
+            }
+          taskSet.properties.setProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP, newCpusPerTask)
+          logWarning("Retrying failed task %d in stage %s with %s = %s".format(
+            index, taskSet.id, TaskSchedulerImpl.CPUS_PER_TASK_PROP, newCpusPerTask))
         case _ =>
       }
       if (numFailures(index) >= maxTaskFailures) {
