@@ -480,6 +480,14 @@ object SQLConf {
     .longConf
     .createWithDefault(128 * 1024 * 1024) // parquet.block.size
 
+  val FILES_MAX_PARTITIONS: ConfigEntry[Int] = SQLConfigBuilder("spark.sql.files.maxPartitions")
+      .internal()
+      .doc("The maximum number of partitions to use for file scanning. Default value of 0" +
+          " implies no fixed limit rather determined from the file size. This property" +
+          s" overrides ${FILES_MAX_PARTITION_BYTES.key} if > 0.")
+      .intConf
+      .createWithDefault(0)
+
   val FILES_OPEN_COST_IN_BYTES = SQLConfigBuilder("spark.sql.files.openCostInBytes")
     .internal()
     .doc("The estimated cost to open a file, measured by the number of bytes could be scanned in" +
@@ -702,6 +710,8 @@ class SQLConf extends Serializable with Logging {
   def streamingProgressRetention: Int = getConf(STREAMING_PROGRESS_RETENTION)
 
   def filesMaxPartitionBytes: Long = getConf(FILES_MAX_PARTITION_BYTES)
+
+  def filesMaxPartitions: Int = getConf(FILES_MAX_PARTITIONS)
 
   def filesOpenCostInBytes: Long = getConf(FILES_OPEN_COST_IN_BYTES)
 

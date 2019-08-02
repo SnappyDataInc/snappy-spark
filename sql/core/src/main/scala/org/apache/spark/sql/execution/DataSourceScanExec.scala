@@ -473,8 +473,11 @@ case class FileSourceScanExec(
     val defaultParallelism = fsRelation.sparkSession.sparkContext.defaultParallelism
     val totalBytes = selectedPartitions.flatMap(_.files.map(_.getLen + openCostInBytes)).sum
     val bytesPerCore = totalBytes / defaultParallelism
+    val maxParts = fsRelation.sparkSession.sessionState.conf.filesMaxPartitions
 
-    val maxSplitBytes = Math.min(defaultMaxSplitBytes, Math.max(openCostInBytes, bytesPerCore))
+    val maxSplitBytes = if (maxParts > 0) Math.max(openCostInBytes, totalBytes / maxParts)
+    else Math.min(defaultMaxSplitBytes, Math.max(openCostInBytes, bytesPerCore))
+
     logInfo(s"Planning scan with bin packing, max size: $maxSplitBytes bytes, " +
       s"open cost is considered as scanning $openCostInBytes bytes.")
 
