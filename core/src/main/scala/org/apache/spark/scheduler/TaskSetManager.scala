@@ -822,6 +822,8 @@ private[spark] class TaskSetManager(
               case s => (s.toInt * 2).toString
             }
           taskSet.properties.setProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP, newCpusPerTask)
+          tasks(index).localProperties.setProperty(
+            TaskSchedulerImpl.CPUS_PER_TASK_PROP, newCpusPerTask)
           logWarning("Retrying failed task %d in stage %s with %s = %s".format(
             index, taskSet.id, TaskSchedulerImpl.CPUS_PER_TASK_PROP, newCpusPerTask))
         case _ =>
