@@ -37,7 +37,7 @@ package org.apache.spark.scheduler
 
 import java.io.NotSerializableException
 import java.nio.ByteBuffer
-import java.util.Arrays
+import java.util.{Arrays, Properties}
 import java.util.concurrent.ConcurrentLinkedQueue
 
 import scala.collection.mutable.{ArrayBuffer, HashMap, HashSet}
@@ -823,14 +823,19 @@ private[spark] class TaskSetManager(
               case s => s.toInt * 2
             }
           val cpusPerTaskStr = cpusPerTask.toString
+          // initially the properties object is shared between TaskSet and Task
+          // so create a new copy here for the task since we don't want individual
+          // tasks in the same TaskSet to repeatedly increase the cpusPerTask
+          if (task.localProperties eq taskSet.properties) {
+            task.localProperties = task.localProperties.clone().asInstanceOf[Properties]
+          }
           task.localProperties.setProperty(
             TaskSchedulerImpl.CPUS_PER_TASK_PROP, cpusPerTaskStr)
-          taskSet.properties.getProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP) match {
-            case s if (s eq null) || s.toInt < cpusPerTask => taskSet.properties.setProperty(
-              TaskSchedulerImpl.CPUS_PER_TASK_PROP, cpusPerTaskStr)
-              logWarning("Retrying failed task %d in stage %s with %s = %s".format(
-                index, taskSet.id, TaskSchedulerImpl.CPUS_PER_TASK_PROP, cpusPerTaskStr))
-            case _ =>
+          val taskSetCpus = taskSet.properties.getProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP)
+          if ((taskSetCpus eq null) || taskSetCpus.toInt < cpusPerTask) {
+            taskSet.properties.setProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP, cpusPerTaskStr)
+            logWarning("Retrying failed task %d in stage %s with %s = %s".format(
+              index, taskSet.id, TaskSchedulerImpl.CPUS_PER_TASK_PROP, cpusPerTaskStr))
           }
         case _ =>
       }
