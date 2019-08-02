@@ -249,10 +249,22 @@ private[spark] class TaskSchedulerImpl(
       s" ${manager.parent.name}")
   }
 
+  private[scheduler] def getCpusPerTask(task: Task[_]): Int = {
+    task.localProperties.getProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP) match {
+      case null => 1
+      case s => s.toInt
+    }
+  }
+
   private def getCpusPerTask(taskSet: TaskSetManager): Int = {
     taskSet.taskSet.properties.getProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP) match {
       case null => CPUS_PER_TASK
-      case s => math.max(s.toInt, CPUS_PER_TASK)
+      case s =>
+        if (taskSet.hasFailures) {
+          // find the max among all the tasks
+          taskSet.tasks.foldLeft(math.max(s.toInt, CPUS_PER_TASK))(
+            (r, t) => math.max(r, getCpusPerTask(t)))
+        } else math.max(s.toInt, CPUS_PER_TASK)
     }
   }
 

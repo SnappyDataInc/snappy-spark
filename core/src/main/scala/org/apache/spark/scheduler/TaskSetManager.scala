@@ -89,6 +89,7 @@ private[spark] class TaskSetManager(
   val copiesRunning = new Array[Int](numTasks)
   val successful = new Array[Boolean](numTasks)
   private val numFailures = new Array[Int](numTasks)
+  var hasFailures: Boolean = false
 
   val taskAttempts = Array.fill[List[TaskInfo]](numTasks)(Nil)
   var tasksSuccessful = 0
@@ -812,31 +813,22 @@ private[spark] class TaskSetManager(
         info.host, info.executorId, index))
       assert (null != failureReason)
       numFailures(index) += 1
+      hasFailures = true
       // for next round double cpusPerTask for OOME/LME
       reason match {
         case e: ExceptionFailure if e.className.contains("OutOfMemory") ||
             e.className.contains("LowMemoryException") =>
           val task = tasks(index)
-          val cpusPerTask =
-            task.localProperties.getProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP) match {
-              case null => 2
-              case s => s.toInt * 2
-            }
-          val cpusPerTaskStr = cpusPerTask.toString
           // initially the properties object is shared between TaskSet and Task
           // so create a new copy here for the task since we don't want individual
           // tasks in the same TaskSet to repeatedly increase the cpusPerTask
           if (task.localProperties eq taskSet.properties) {
-            taskSet.properties = taskSet.properties.clone().asInstanceOf[Properties]
+            task.localProperties = task.localProperties.clone().asInstanceOf[Properties]
           }
-          task.localProperties.setProperty(
-            TaskSchedulerImpl.CPUS_PER_TASK_PROP, cpusPerTaskStr)
-          val taskSetCpus = taskSet.properties.getProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP)
-          if ((taskSetCpus eq null) || taskSetCpus.toInt < cpusPerTask) {
-            taskSet.properties.setProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP, cpusPerTaskStr)
-            logWarning("Retrying failed task %d in stage %s with %s = %s".format(
-              index, taskSet.id, TaskSchedulerImpl.CPUS_PER_TASK_PROP, cpusPerTaskStr))
-          }
+          val cpusPerTask = (sched.getCpusPerTask(task) * 2).toString
+          task.localProperties.setProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP, cpusPerTask)
+          logWarning("Retrying failed task %d in stage %s with %s = %s".format(
+            index, taskSet.id, TaskSchedulerImpl.CPUS_PER_TASK_PROP, cpusPerTask))
         case _ =>
       }
       if (numFailures(index) >= maxTaskFailures) {
