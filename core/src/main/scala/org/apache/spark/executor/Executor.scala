@@ -34,7 +34,7 @@ import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rpc.RpcTimeout
-import org.apache.spark.scheduler.{DirectTaskResult, IndirectTaskResult, Task}
+import org.apache.spark.scheduler.{DirectTaskResult, IndirectTaskResult, Task, TaskSchedulerImpl}
 import org.apache.spark.shuffle.FetchFailedException
 import org.apache.spark.storage.{StorageLevel, TaskResultBlockId}
 import org.apache.spark.util._
@@ -289,11 +289,14 @@ private[spark] class Executor(
       var taskStart: Long = 0
       var taskStartCpu: Long = 0
       startGCTime = computeTotalGcTime()
+      var hasNonDefaultCpusPerTask = false
 
       try {
         val (taskFiles, taskJars, taskProps, taskBytes) =
           Task.deserializeWithDependencies(serializedTask)
 
+        hasNonDefaultCpusPerTask = taskProps.containsKey(TaskSchedulerImpl.CPUS_PER_TASK_PROP)
+        if (hasNonDefaultCpusPerTask) handleNonDefaultCpusPerTask(init = true)
         // Must be set before updateDependencies() is called, in case fetching dependencies
         // requires access to properties contained within (e.g. for access control).
         Executor.taskDeserializationProps.set(taskProps)
@@ -475,15 +478,16 @@ private[spark] class Executor(
 
           // wrap the OOM error in LowMemoryException if
           // it is a non fatal OOM error thrown from Spark layer
+          val fatalError = isFatalError(t)
           val ex: Throwable = t match {
-            case oom: OutOfMemoryError if !isFatalError(t) =>
+            case oom: OutOfMemoryError if !fatalError =>
               try {
                 val clazz = Utils.classForName("com.gemstone.gemfire.cache.LowMemoryException")
                 val e = clazz.getConstructor(classOf[java.lang.Throwable]).newInstance(t)
                 e.asInstanceOf[Throwable]
               } catch {
                 // return OOM error as it is if LowMemoryException class is not found
-                case _: ClassNotFoundException => t
+                case _: ClassNotFoundException | _: Error => t
               }
             case _ => t
           }
@@ -502,7 +506,7 @@ private[spark] class Executor(
 
           // Don't forcibly exit unless the exception was inherently fatal, to avoid
           // stopping other tasks unnecessarily.
-          if (isFatalError(t)) {
+          if (fatalError) {
             if (!isLocal) {
               Thread.getDefaultUncaughtExceptionHandler.
                   uncaughtException(Thread.currentThread(), t)
@@ -513,6 +517,7 @@ private[spark] class Executor(
 
       } finally {
         runningTasks.remove(taskId)
+        if (hasNonDefaultCpusPerTask) handleNonDefaultCpusPerTask(init = false)
       }
     }
   }
@@ -768,13 +773,15 @@ private[spark] class Executor(
   }
 
   // Pluggable Throwable handlers for a task related to underlying store
-  protected  def isStoreCloseException(t: Throwable) : Boolean = false
+  protected def isStoreCloseException(t: Throwable): Boolean = false
 
-  protected  def isStoreException(t: Throwable) : Boolean = false
+  protected def isStoreException(t: Throwable): Boolean = false
 
-  protected  def isFatalError(t: Throwable) : Boolean = {
+  protected def isFatalError(t: Throwable): Boolean = {
     Utils.isFatalError(t)
   }
+
+  protected def handleNonDefaultCpusPerTask(init: Boolean): Unit = {}
 }
 
 private[spark] object Executor {

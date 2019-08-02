@@ -139,7 +139,15 @@ public final class Platform {
   }
 
   public static long allocateMemory(long size) {
-    return _UNSAFE.allocateMemory(size);
+    try {
+      return _UNSAFE.allocateMemory(size);
+    } catch (OutOfMemoryError oome) {
+      if (oome.getMessage().contains("Direct buffer")) {
+        throw oome;
+      } else {
+        throw new OutOfMemoryError("Direct buffer allocation of size = " + size + " failed");
+      }
+    }
   }
 
   public static void freeMemory(long address) {
@@ -147,7 +155,7 @@ public final class Platform {
   }
 
   public static long reallocateMemory(long address, long oldSize, long newSize) {
-    long newMemory = _UNSAFE.allocateMemory(newSize);
+    long newMemory = allocateMemory(newSize);
     copyMemory(null, address, null, newMemory, oldSize);
     freeMemory(address);
     return newMemory;

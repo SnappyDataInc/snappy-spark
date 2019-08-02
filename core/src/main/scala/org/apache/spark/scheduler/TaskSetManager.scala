@@ -812,6 +812,17 @@ private[spark] class TaskSetManager(
         info.host, info.executorId, index))
       assert (null != failureReason)
       numFailures(index) += 1
+      // for next round double cpusPerTask for OOME/LME
+      reason match {
+        case e: ExceptionFailure if e.className.contains("OutOfMemory") ||
+            e.className.contains("LowMemoryException") =>
+          taskSet.properties.getProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP) match {
+            case null => taskSet.properties.setProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP, "2")
+            case s => taskSet.properties.setProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP,
+              (s.toInt * 2).toString)
+          }
+        case _ =>
+      }
       if (numFailures(index) >= maxTaskFailures) {
         logError("Task %d in stage %s failed %d times; aborting job".format(
           index, taskSet.id, maxTaskFailures))
