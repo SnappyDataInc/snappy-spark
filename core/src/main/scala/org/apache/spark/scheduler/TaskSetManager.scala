@@ -827,7 +827,7 @@ private[spark] class TaskSetManager(
           // so create a new copy here for the task since we don't want individual
           // tasks in the same TaskSet to repeatedly increase the cpusPerTask
           if (task.localProperties eq taskSet.properties) {
-            task.localProperties = task.localProperties.clone().asInstanceOf[Properties]
+            taskSet.properties = taskSet.properties.clone().asInstanceOf[Properties]
           }
           task.localProperties.setProperty(
             TaskSchedulerImpl.CPUS_PER_TASK_PROP, cpusPerTaskStr)
