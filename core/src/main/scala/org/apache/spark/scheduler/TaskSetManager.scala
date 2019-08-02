@@ -816,16 +816,22 @@ private[spark] class TaskSetManager(
       reason match {
         case e: ExceptionFailure if e.className.contains("OutOfMemory") ||
             e.className.contains("LowMemoryException") =>
-          val newCpusPerTask =
-            taskSet.properties.getProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP) match {
-              case null => "2"
-              case s => (s.toInt * 2).toString
+          val task = tasks(index)
+          val cpusPerTask =
+            task.localProperties.getProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP) match {
+              case null => 2
+              case s => s.toInt * 2
             }
-          taskSet.properties.setProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP, newCpusPerTask)
-          tasks(index).localProperties.setProperty(
-            TaskSchedulerImpl.CPUS_PER_TASK_PROP, newCpusPerTask)
-          logWarning("Retrying failed task %d in stage %s with %s = %s".format(
-            index, taskSet.id, TaskSchedulerImpl.CPUS_PER_TASK_PROP, newCpusPerTask))
+          val cpusPerTaskStr = cpusPerTask.toString
+          task.localProperties.setProperty(
+            TaskSchedulerImpl.CPUS_PER_TASK_PROP, cpusPerTaskStr)
+          taskSet.properties.getProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP) match {
+            case s if (s eq null) || s.toInt < cpusPerTask => taskSet.properties.setProperty(
+              TaskSchedulerImpl.CPUS_PER_TASK_PROP, cpusPerTaskStr)
+              logWarning("Retrying failed task %d in stage %s with %s = %s".format(
+                index, taskSet.id, TaskSchedulerImpl.CPUS_PER_TASK_PROP, cpusPerTaskStr))
+            case _ =>
+          }
         case _ =>
       }
       if (numFailures(index) >= maxTaskFailures) {
