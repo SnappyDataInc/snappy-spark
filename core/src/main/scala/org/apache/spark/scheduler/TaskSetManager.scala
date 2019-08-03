@@ -94,7 +94,7 @@ private[spark] class TaskSetManager(
 
   // dynamic spark.task.cpus only supported by CoarseGrainedSchedulerBackend
   private[this] val supportsDynamicCpusPerTask =
-    sched.backend.isInstanceOf[org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend]
+    sched.backend.getClass.getName.contains("SnappyCoarseGrainedSchedulerBackend")
 
   // keep the configured value for spark.task.cpus preferring local job setting if present
   val confCpusPerTask: Int = taskSet.properties.getProperty(CPUS_PER_TASK) match {
@@ -928,8 +928,7 @@ private[spark] class TaskSetManager(
   }
 
   /** Called by TaskScheduler when an executor is lost so we can re-enqueue our tasks */
-  override def executorLost(execId: String, host: String,
-      reason: ExecutorLossReason): Unit = sched.synchronized {
+  override def executorLost(execId: String, host: String, reason: ExecutorLossReason) {
     // Re-enqueue any tasks that ran on the failed executor if this is a shuffle map stage,
     // and we are not using an external shuffle server which could serve the shuffle outputs.
     // The reason is the next stage wouldn't be able to fetch the data from this dead executor
@@ -969,7 +968,7 @@ private[spark] class TaskSetManager(
    * TODO: To make this scale to large jobs, we need to maintain a list of running tasks, so that
    * we don't scan the whole task set. It might also help to make this sorted by launch time.
    */
-  override def checkSpeculatableTasks(minTimeToSpeculation: Int): Boolean = sched.synchronized {
+  override def checkSpeculatableTasks(minTimeToSpeculation: Int): Boolean = {
     // Can't speculate if we only have one task, and no need to speculate if the task set is a
     // zombie.
     if (isZombie || numTasks == 1) {
