@@ -92,7 +92,7 @@ private[spark] class TaskSetManager(
 
   import TaskSchedulerImpl.CPUS_PER_TASK
 
-  // dynamic spark.task.cpus only supported by CoarseGrainedSchedulerBackend
+  // dynamic spark.task.cpus only supported by SnappyCoarseGrainedSchedulerBackend
   private[this] val supportsDynamicCpusPerTask =
     sched.backend.getClass.getName.contains("SnappyCoarseGrainedSchedulerBackend")
 
@@ -846,7 +846,7 @@ private[spark] class TaskSetManager(
           }
           // increase the max retries for such tasks since repeated failures would be common
           // before system stabilizes
-          maxTaskFailures += 12
+          maxTaskFailures += 10
         }
 
         ef.exception
