@@ -92,17 +92,20 @@ private[spark] class TaskSetManager(
 
   import TaskSchedulerImpl.CPUS_PER_TASK
 
+  // dynamic spark.task.cpus only supported by CoarseGrainedSchedulerBackend
   private[this] val supportsDynamicCpusPerTask =
     sched.backend.isInstanceOf[org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend]
+
+  // keep the configured value for spark.task.cpus preferring local job setting if present
   val confCpusPerTask: Int = taskSet.properties.getProperty(CPUS_PER_TASK) match {
     case s if (s ne null) && supportsDynamicCpusPerTask => max(s.toInt, sched.CPUS_PER_TASK)
     case _ => sched.CPUS_PER_TASK
   }
-  // tracks the max of cpusPerTask across all tasks when those
-  // are dynamically incremented for OOME/LME failures
+  // tracks the max of spark.task.cpus across all tasks in this task set
+  // when they are dynamically incremented for OOME/LME failures
   private[spark] var maxCpusPerTask: Int = confCpusPerTask
-  // true when cpusPerTask are incremented dynamically for a task
-  // for OOME/LME failures
+  // true when spark.task.cpus was incremented dynamically for any task
+  // in this task set for an OOME/LME failure
   private[spark] var hasDynamicCpusPerTask: Boolean = false
 
   val taskAttempts = Array.fill[List[TaskInfo]](numTasks)(Nil)
@@ -466,6 +469,20 @@ private[spark] class TaskSetManager(
       dequeueTask(execId, host, allowedLocality).map { case ((index, taskLocality, speculative)) =>
         // Found a task; do some bookkeeping and return a task description
         val task = tasks(index)
+        // increase the cpusPerTask of this task so that this sees less failures when scheduled
+        if (hasDynamicCpusPerTask) {
+          var sumCpusPerTask = 0.0
+          var countCpusPerTask = 0
+          for (t <- tasks if (t ne task) && t.cpusPerTask > confCpusPerTask) {
+            sumCpusPerTask += t.cpusPerTask
+            countCpusPerTask += 1
+          }
+          if (countCpusPerTask > 0) {
+            // use midway between average and max because both can be skewed
+            task.cpusPerTask = math.min(maxCpusPerTask, math.max(task.cpusPerTask,
+              math.ceil((sumCpusPerTask / countCpusPerTask + maxCpusPerTask) / 2.0).toInt))
+          }
+        }
         val taskId = sched.newTaskId()
         // Do various bookkeeping
         copiesRunning(index) += 1
@@ -749,6 +766,7 @@ private[spark] class TaskSetManager(
     }
     removeRunningTask(tid)
     info.markFinished(state)
+    var maxTaskFailures = this.maxTaskFailures
     val index = info.index
     copiesRunning(index) -= 1
     var accumUpdates: Seq[AccumulatorV2[_, _]] = Seq.empty
@@ -792,6 +810,38 @@ private[spark] class TaskSetManager(
             (true, 0)
           }
         }
+
+        // for next round increase cpusPerTask for OOME/LME
+        if (supportsDynamicCpusPerTask && !isZombie && (ef.className.contains("OutOfMemory") ||
+            ef.className.contains("LowMemoryException"))) {
+          hasDynamicCpusPerTask = true
+          val task = tasks(index)
+          // apply a reasonable upper limit on dynamic cpusPerTask
+          if (task.cpusPerTask < min(confCpusPerTask + 4, sched.maxAvailableCpus / 2)) {
+            task.cpusPerTask += 1
+            // update maxCpusPerTask tracked in the TaskSetManager which is
+            // required for the check in TaskSchedulerImpl.resourceOfferSingleTaskSet
+            if (task.cpusPerTask > maxCpusPerTask) {
+              maxCpusPerTask = task.cpusPerTask
+            }
+          }
+          // set in properties, if required, for Executor to allow taking any required actions
+          // for OOME/LME (mostly to avoid catastrophic node failure as far as possible)
+          if (!task.localProperties.containsKey(CPUS_PER_TASK)) {
+            task.localProperties.setProperty(CPUS_PER_TASK, task.cpusPerTask.toString)
+          }
+          if (printFull) {
+            logWarning("Retrying failed task %s in stage %s (TID %d) increasing %s to %d [dup=%d]"
+                .format(info.id, taskSet.id, tid, CPUS_PER_TASK, task.cpusPerTask, dupCount))
+          } else {
+            logInfo("Retrying failed task %s in stage %s (TID %d) increasing %s to %d"
+                .format(info.id, taskSet.id, tid, CPUS_PER_TASK, task.cpusPerTask))
+          }
+          // increase the max retries for such tasks since repeated failures would be common
+          // before system stabilizes
+          maxTaskFailures += 12
+        }
+
         if (printFull) {
           logWarning(failureReason)
         } else {
@@ -828,47 +878,6 @@ private[spark] class TaskSetManager(
         info.host, info.executorId, index))
       assert (null != failureReason)
       numFailures(index) += 1
-      var maxTaskFailures = this.maxTaskFailures
-      // for next round increase cpusPerTask for OOME/LME
-      reason match {
-        case e: ExceptionFailure if supportsDynamicCpusPerTask &&
-            (e.className.contains("OutOfMemory") || e.className.contains("LowMemoryException")) =>
-          hasDynamicCpusPerTask = true
-          val task = tasks(index)
-          // apply a reasonable upper limit on dynamic cpusPerTask
-          if (task.cpusPerTask < min(confCpusPerTask + 4, sched.maxAvailableCpus / 2)) {
-            task.cpusPerTask += 1
-            // update maxCpusPerTask tracked in the TaskSetManager which is
-            // required for the check in TaskSchedulerImpl.resourceOfferSingleTaskSet
-            if (task.cpusPerTask > maxCpusPerTask) {
-              maxCpusPerTask = task.cpusPerTask
-            }
-            // increase the cpusPerTask of the other tasks to average of ones with increased
-            // cpusPerTask so that they see less failures when scheduled
-            var sumDynamicCpusPerTask = 0.0
-            var countDynamicCpusPerTask = 0
-            for (t <- tasks if (t ne task) && t.cpusPerTask > confCpusPerTask) {
-              sumDynamicCpusPerTask += t.cpusPerTask
-              countDynamicCpusPerTask += 1
-            }
-            if (countDynamicCpusPerTask > 0) {
-              for (t <- tasks if (t ne task) && t.cpusPerTask <= confCpusPerTask) {
-                t.cpusPerTask = math.ceil(sumDynamicCpusPerTask / countDynamicCpusPerTask).toInt
-              }
-            }
-          }
-          // set in properties, if required, for Executor to allow handling OOME/LME
-          if (!task.localProperties.containsKey(CPUS_PER_TASK)) {
-            task.localProperties.setProperty(CPUS_PER_TASK, task.cpusPerTask.toString)
-          }
-          logWarning("Retrying failed task %s in stage %s (TID %d) with %s = %s".format(
-            info.id, taskSet.id, tid, CPUS_PER_TASK, task.cpusPerTask))
-          // increase the max retries for such tasks since repeated failures would be common
-          // before system stabilizes
-          maxTaskFailures += 12
-
-        case _ =>
-      }
       if (numFailures(index) >= maxTaskFailures) {
         logError("Task %d in stage %s failed %d times; aborting job".format(
           index, taskSet.id, maxTaskFailures))
