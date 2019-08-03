@@ -810,6 +810,13 @@ private[spark] class TaskSetManager(
             (true, 0)
           }
         }
+        if (printFull) {
+          logWarning(failureReason)
+        } else {
+          logInfo(
+            s"Lost task ${info.id} in stage ${taskSet.id} (TID $tid) on ${info.host}, executor" +
+              s" ${info.executorId}: ${ef.className} (${ef.description}) [duplicate $dupCount]")
+        }
 
         // for next round increase cpusPerTask for OOME/LME
         if (supportsDynamicCpusPerTask && !isZombie && (ef.className.contains("OutOfMemory") ||
@@ -842,13 +849,6 @@ private[spark] class TaskSetManager(
           maxTaskFailures += 12
         }
 
-        if (printFull) {
-          logWarning(failureReason)
-        } else {
-          logInfo(
-            s"Lost task ${info.id} in stage ${taskSet.id} (TID $tid) on ${info.host}, executor" +
-              s" ${info.executorId}: ${ef.className} (${ef.description}) [duplicate $dupCount]")
-        }
         ef.exception
 
       case e: ExecutorLostFailure if !e.exitCausedByApp =>
