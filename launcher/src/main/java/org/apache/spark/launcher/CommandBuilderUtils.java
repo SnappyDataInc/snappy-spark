@@ -124,6 +124,9 @@ class CommandBuilderUtils {
     if (vendorString.contains("OpenJDK")) {
       return JavaVendor.OpenJDK;
     }
+    if (System.getProperty("java.vm.name").contains("OpenJDK")) {
+      return JavaVendor.OpenJDK;
+    }
     return JavaVendor.Unknown;
   }
 
