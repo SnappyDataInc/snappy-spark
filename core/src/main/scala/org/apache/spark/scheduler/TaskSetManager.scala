@@ -37,7 +37,7 @@ package org.apache.spark.scheduler
 
 import java.io.NotSerializableException
 import java.nio.ByteBuffer
-import java.util.{Arrays, Properties}
+import java.util.Arrays
 import java.util.concurrent.ConcurrentLinkedQueue
 
 import scala.collection.mutable.{ArrayBuffer, HashMap, HashSet}
@@ -89,7 +89,21 @@ private[spark] class TaskSetManager(
   val copiesRunning = new Array[Int](numTasks)
   val successful = new Array[Boolean](numTasks)
   private val numFailures = new Array[Int](numTasks)
-  var hasFailures: Boolean = false
+
+  import TaskSchedulerImpl.CPUS_PER_TASK
+
+  private[this] val supportsDynamicCpusPerTask =
+    sched.backend.isInstanceOf[org.apache.spark.scheduler.cluster.CoarseGrainedSchedulerBackend]
+  val confCpusPerTask: Int = taskSet.properties.getProperty(CPUS_PER_TASK) match {
+    case s if (s ne null) && supportsDynamicCpusPerTask => max(s.toInt, sched.CPUS_PER_TASK)
+    case _ => sched.CPUS_PER_TASK
+  }
+  // tracks the max of cpusPerTask across all tasks when those
+  // are dynamically incremented for OOME/LME failures
+  private[spark] var maxCpusPerTask: Int = confCpusPerTask
+  // true when cpusPerTask are incremented dynamically for a task
+  // for OOME/LME failures
+  private[spark] var hasDynamicCpusPerTask: Boolean = false
 
   val taskAttempts = Array.fill[List[TaskInfo]](numTasks)(Nil)
   var tasksSuccessful = 0
@@ -171,6 +185,7 @@ private[spark] class TaskSetManager(
   logDebug("Epoch for " + taskSet + ": " + epoch)
   for (t <- tasks) {
     t.epoch = epoch
+    t.cpusPerTask = confCpusPerTask
   }
 
   // Add all our tasks to the pending lists. We do this in reverse order
@@ -495,7 +510,7 @@ private[spark] class TaskSetManager(
 
         sched.dagScheduler.taskStarted(task, info)
         new TaskDescription(_taskId = taskId, _attemptNumber = attemptNum, execId,
-          taskName, index, serializedTask, task.taskData)
+          taskName, index, serializedTask, task.taskData, task.cpusPerTask)
       }
     } else {
       None
@@ -813,22 +828,45 @@ private[spark] class TaskSetManager(
         info.host, info.executorId, index))
       assert (null != failureReason)
       numFailures(index) += 1
-      hasFailures = true
-      // for next round double cpusPerTask for OOME/LME
+      var maxTaskFailures = this.maxTaskFailures
+      // for next round increase cpusPerTask for OOME/LME
       reason match {
-        case e: ExceptionFailure if e.className.contains("OutOfMemory") ||
-            e.className.contains("LowMemoryException") =>
+        case e: ExceptionFailure if supportsDynamicCpusPerTask &&
+            (e.className.contains("OutOfMemory") || e.className.contains("LowMemoryException")) =>
+          hasDynamicCpusPerTask = true
           val task = tasks(index)
-          // initially the properties object is shared between TaskSet and Task
-          // so create a new copy here for the task since we don't want individual
-          // tasks in the same TaskSet to repeatedly increase the cpusPerTask
-          if (task.localProperties eq taskSet.properties) {
-            task.localProperties = task.localProperties.clone().asInstanceOf[Properties]
+          // apply a reasonable upper limit on dynamic cpusPerTask
+          if (task.cpusPerTask < min(confCpusPerTask + 4, sched.maxAvailableCpus / 2)) {
+            task.cpusPerTask += 1
+            // update maxCpusPerTask tracked in the TaskSetManager which is
+            // required for the check in TaskSchedulerImpl.resourceOfferSingleTaskSet
+            if (task.cpusPerTask > maxCpusPerTask) {
+              maxCpusPerTask = task.cpusPerTask
+            }
+            // increase the cpusPerTask of the other tasks to average of ones with increased
+            // cpusPerTask so that they see less failures when scheduled
+            var sumDynamicCpusPerTask = 0.0
+            var countDynamicCpusPerTask = 0
+            for (t <- tasks if (t ne task) && t.cpusPerTask > confCpusPerTask) {
+              sumDynamicCpusPerTask += t.cpusPerTask
+              countDynamicCpusPerTask += 1
+            }
+            if (countDynamicCpusPerTask > 0) {
+              for (t <- tasks if (t ne task) && t.cpusPerTask <= confCpusPerTask) {
+                t.cpusPerTask = math.ceil(sumDynamicCpusPerTask / countDynamicCpusPerTask).toInt
+              }
+            }
           }
-          val cpusPerTask = (sched.getCpusPerTask(task) * 2).toString
-          task.localProperties.setProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP, cpusPerTask)
-          logWarning("Retrying failed task %d in stage %s with %s = %s".format(
-            index, taskSet.id, TaskSchedulerImpl.CPUS_PER_TASK_PROP, cpusPerTask))
+          // set in properties, if required, for Executor to allow handling OOME/LME
+          if (!task.localProperties.containsKey(CPUS_PER_TASK)) {
+            task.localProperties.setProperty(CPUS_PER_TASK, task.cpusPerTask.toString)
+          }
+          logWarning("Retrying failed task %s in stage %s (TID %d) with %s = %s".format(
+            info.id, taskSet.id, tid, CPUS_PER_TASK, task.cpusPerTask))
+          // increase the max retries for such tasks since repeated failures would be common
+          // before system stabilizes
+          maxTaskFailures += 12
+
         case _ =>
       }
       if (numFailures(index) >= maxTaskFailures) {
@@ -881,7 +919,8 @@ private[spark] class TaskSetManager(
   }
 
   /** Called by TaskScheduler when an executor is lost so we can re-enqueue our tasks */
-  override def executorLost(execId: String, host: String, reason: ExecutorLossReason) {
+  override def executorLost(execId: String, host: String,
+      reason: ExecutorLossReason): Unit = sched.synchronized {
     // Re-enqueue any tasks that ran on the failed executor if this is a shuffle map stage,
     // and we are not using an external shuffle server which could serve the shuffle outputs.
     // The reason is the next stage wouldn't be able to fetch the data from this dead executor
@@ -921,7 +960,7 @@ private[spark] class TaskSetManager(
    * TODO: To make this scale to large jobs, we need to maintain a list of running tasks, so that
    * we don't scan the whole task set. It might also help to make this sorted by launch time.
    */
-  override def checkSpeculatableTasks(minTimeToSpeculation: Int): Boolean = {
+  override def checkSpeculatableTasks(minTimeToSpeculation: Int): Boolean = sched.synchronized {
     // Can't speculate if we only have one task, and no need to speculate if the task set is a
     // zombie.
     if (isZombie || numTasks == 1) {

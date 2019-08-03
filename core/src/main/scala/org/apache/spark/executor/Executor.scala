@@ -295,7 +295,7 @@ private[spark] class Executor(
         val (taskFiles, taskJars, taskProps, taskBytes) =
           Task.deserializeWithDependencies(serializedTask)
 
-        hasNonDefaultCpusPerTask = taskProps.containsKey(TaskSchedulerImpl.CPUS_PER_TASK_PROP)
+        hasNonDefaultCpusPerTask = taskProps.containsKey(TaskSchedulerImpl.CPUS_PER_TASK)
         if (hasNonDefaultCpusPerTask) handleNonDefaultCpusPerTask(init = true)
         // Must be set before updateDependencies() is called, in case fetching dependencies
         // requires access to properties contained within (e.g. for access control).

@@ -35,7 +35,8 @@ private[spark] class TaskDescription(
     private var _name: String,
     private var _index: Int,    // Index within this task's TaskSet
     @transient private var _serializedTask: ByteBuffer,
-    private[spark] var taskData: TaskData = TaskData.EMPTY)
+    private[spark] var taskData: TaskData = TaskData.EMPTY,
+    @transient private[spark] val cpusPerTask: Int = 1)
   extends Serializable with KryoSerializable {
 
   def taskId: Long = _taskId
@@ -43,8 +44,6 @@ private[spark] class TaskDescription(
   def executorId: String = _executorId
   def name: String = _name
   def index: Int = _index
-
-  @transient private[spark] var cpusPerTask = 1
 
   // Because ByteBuffers are not serializable, wrap the task in a SerializableBuffer
   private val buffer =

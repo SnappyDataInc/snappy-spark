@@ -76,7 +76,7 @@ private[spark] class TaskSchedulerImpl(
   val STARVATION_TIMEOUT_MS = conf.getTimeAsMs("spark.starvation.timeout", "15s")
 
   // CPUs to request per task
-  val CPUS_PER_TASK = conf.getInt(TaskSchedulerImpl.CPUS_PER_TASK_PROP, 1)
+  val CPUS_PER_TASK = conf.getInt(TaskSchedulerImpl.CPUS_PER_TASK, 1)
 
   // TaskSetManagers are not thread safe, so any access to one should be synchronized
   // on this class.
@@ -107,6 +107,9 @@ private[spark] class TaskSchedulerImpl(
   protected val hostsByRack = new HashMap[String, HashSet[String]]
 
   protected val executorIdToHost = new HashMap[String, String]
+
+  // track the max availableCpus seen so far so that cpusPerTask does not exceed it
+  private[spark] var maxAvailableCpus: Int = _
 
   // Listener object to pass upcalls into
   var dagScheduler: DAGScheduler = null
@@ -223,8 +226,10 @@ private[spark] class TaskSchedulerImpl(
         // 2. The task set manager has been created but no tasks has been scheduled. In this case,
         //    simply abort the stage.
         tsm.runningTasksSet.foreach { tid =>
-          val execId = taskIdToExecutorId(tid)
-          backend.killTask(tid, execId, interruptThread)
+          taskIdToExecutorId.get(tid) match {
+            case Some(execId) => backend.killTask(tid, execId, interruptThread)
+            case _ =>
+          }
         }
         tsm.abort("Stage %s cancelled".format(stageId))
         logInfo("Stage %d was cancelled".format(stageId))
@@ -249,25 +254,6 @@ private[spark] class TaskSchedulerImpl(
       s" ${manager.parent.name}")
   }
 
-  private[scheduler] def getCpusPerTask(task: Task[_]): Int = {
-    task.localProperties.getProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP) match {
-      case null => 1
-      case s => s.toInt
-    }
-  }
-
-  private def getCpusPerTask(taskSet: TaskSetManager): Int = {
-    taskSet.taskSet.properties.getProperty(TaskSchedulerImpl.CPUS_PER_TASK_PROP) match {
-      case null => CPUS_PER_TASK
-      case s =>
-        if (taskSet.hasFailures) {
-          // find the max among all the tasks
-          taskSet.tasks.foldLeft(math.max(s.toInt, CPUS_PER_TASK))(
-            (r, t) => math.max(r, getCpusPerTask(t)))
-        } else math.max(s.toInt, CPUS_PER_TASK)
-    }
-  }
-
   private def resourceOfferSingleTaskSet(
       taskSet: TaskSetManager,
       maxLocality: TaskLocality,
@@ -275,11 +261,14 @@ private[spark] class TaskSchedulerImpl(
       availableCpus: Array[Int],
       tasks: IndexedSeq[ArrayBuffer[TaskDescription]]) : Boolean = {
     var launchedTask = false
-    val cpusPerTask = getCpusPerTask(taskSet)
     for (i <- 0 until shuffledOffers.size) {
       val execId = shuffledOffers(i).executorId
       val host = shuffledOffers(i).host
-      if (availableCpus(i) >= cpusPerTask) {
+      val availCpus = availableCpus(i)
+      if (availCpus >= taskSet.maxCpusPerTask) {
+        if (availCpus > maxAvailableCpus) {
+          maxAvailableCpus = availCpus
+        }
         try {
           for (task <- taskSet.resourceOffer(execId, host, maxLocality)) {
             tasks(i) += task
@@ -287,8 +276,7 @@ private[spark] class TaskSchedulerImpl(
             taskIdToTaskSetManager(tid) = taskSet
             taskIdToExecutorId(tid) = execId
             executorIdToRunningTaskIds(execId).add(tid)
-            task.cpusPerTask = cpusPerTask
-            availableCpus(i) -= cpusPerTask
+            availableCpus(i) -= task.cpusPerTask
             assert(availableCpus(i) >= 0)
             launchedTask = true
           }
@@ -395,8 +383,13 @@ private[spark] class TaskSchedulerImpl(
               } else if (Set(TaskState.FAILED, TaskState.KILLED, TaskState.LOST).contains(state)) {
                 taskResultGetter.enqueueFailedTask(taskSet, tid, state, serializedData)
               }
+              if (taskSet.hasDynamicCpusPerTask) {
+                // find CPUS_PER_TASK from the Task which may have changed in retries
+                cpusPerTask = taskSet.tasks(taskSet.taskInfos(tid).index).cpusPerTask
+              } else {
+                cpusPerTask = taskSet.confCpusPerTask
+              }
             }
-            cpusPerTask = getCpusPerTask(taskSet)
           case None =>
             logError(
               ("Ignoring update with state %s for TID %s because its task set is gone (this is " +
@@ -663,7 +656,7 @@ private[spark] class TaskSchedulerImpl(
 
 private[spark] object TaskSchedulerImpl {
 
-  val CPUS_PER_TASK_PROP = "spark.task.cpus"
+  val CPUS_PER_TASK = "spark.task.cpus"
 
   /**
    * Used to balance containers across hosts.

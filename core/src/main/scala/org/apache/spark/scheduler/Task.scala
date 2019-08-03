@@ -85,6 +85,8 @@ private[spark] abstract class Task[T](
 
   @transient private[spark] var taskDataBytes: Array[Byte] = _
 
+  @transient private[spark] var cpusPerTask: Int = _
+
   protected final def getTaskBytes: Array[Byte] = {
     val bytes = taskDataBytes
     if ((bytes ne null) && bytes.length > 0) bytes else taskBinary.get.value
