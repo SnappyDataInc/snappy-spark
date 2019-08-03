@@ -750,9 +750,21 @@ private[spark] class Executor(
         logWarning("Issue communicating with driver in heartbeater", e)
         heartbeatFailures += 1
         if (heartbeatFailures >= HEARTBEAT_MAX_FAILURES) {
-          logError(s"Exit as unable to send heartbeats to driver " +
+          logError(s"System failure as unable to send heartbeats to driver " +
             s"more than $HEARTBEAT_MAX_FAILURES times")
-          System.exit(ExecutorExitCode.HEARTBEAT_FAILURE)
+          val uncaughtHandler = Thread.getDefaultUncaughtExceptionHandler
+          if (uncaughtHandler ne null) {
+            uncaughtHandler.uncaughtException(Thread.currentThread(), e)
+          } else {
+            System.exit(ExecutorExitCode.HEARTBEAT_FAILURE)
+          }
+        }
+      case t: Throwable =>
+        val uncaughtHandler = Thread.getDefaultUncaughtExceptionHandler
+        if (uncaughtHandler ne null) {
+          uncaughtHandler.uncaughtException(Thread.currentThread(), t)
+        } else {
+          throw t
         }
     }
   }
