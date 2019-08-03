@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 /*
- * Changes for SnappyData data platform.
+ * Changes for TIBCO ComputeDB data platform.
  *
- * Portions Copyright (c) 2018 SnappyData, Inc. All rights reserved.
+ * Portions Copyright (c) 2017-2019 TIBCO Software Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License. You
@@ -469,7 +469,7 @@ private[spark] class TaskSetManager(
       dequeueTask(execId, host, allowedLocality).map { case ((index, taskLocality, speculative)) =>
         // Found a task; do some bookkeeping and return a task description
         val task = tasks(index)
-        // increase the cpusPerTask of this task so that this sees less failures when scheduled
+        // increase the cpusPerTask of this task so that this has less failures when scheduled
         if (hasDynamicCpusPerTask) {
           var sumCpusPerTask = 0.0
           var countCpusPerTask = 0
