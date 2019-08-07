@@ -60,7 +60,7 @@ allprojects {
     scalaVersion = scalaBinaryVersion + '.8'
     hadoopVersion = '2.7.7'
     protobufVersion = '3.6.1'
-    jerseyVersion = '2.27'
+    jerseyVersion = '2.22.2'
     sunJerseyVersion = '1.19.4'
     jettyVersion = '9.2.26.v20180806'
     jettyOldVersion = '6.1.26'
