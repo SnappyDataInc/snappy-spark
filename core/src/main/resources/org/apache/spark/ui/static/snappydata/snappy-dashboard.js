@@ -4,6 +4,62 @@ var isAutoUpdateTurnedON = true;
 var isMemberCellExpanded = {};
 var isMemberRowExpanded = {};
 
+function setClusterStartDate() {
+  var months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN' , 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+  var clusterStartTime = $("#hiddenData").data("clusterstarttime");
+  var dt = new Date(clusterStartTime);
+  var dd = dt.getDate();
+  if ( dd < 10 ) { dd = '0' + dd; }
+
+  var displayDateStr = months[dt.getMonth()] + ' ' + dd + ', ' + dt.getFullYear()
+                     + ' ' + dt.getHours() + ':' + dt.getMinutes() + ':' + dt.getSeconds();
+
+  $("#clusterStartDate").html(displayDateStr);
+  updateClusterUptime();
+}
+
+function updateClusterUptime() {
+  var clusterStartTime = $("#hiddenData").data("clusterstarttime");
+  var start_date = new Date(clusterStartTime);
+  var now_date = new Date();
+
+  var seconds = Math.floor((now_date - start_date)/1000);
+  var minutes = Math.floor(seconds/60);
+  var hours = Math.floor(minutes/60);
+  var days = Math.floor(hours/24);
+
+  hours = hours-(days*24);
+  minutes = minutes-(days*24*60)-(hours*60);
+  seconds = seconds-(days*24*60*60)-(hours*60*60)-(minutes*60);
+
+  var displayDateStr = "";
+  if (days > 0) {
+    if (days < 2) {
+      displayDateStr += days + ' Day ';
+    } else {
+      displayDateStr += days + ' Days ';
+    }
+  }
+  if (hours > 0) {
+    if (hours < 2) {
+      displayDateStr += hours + ' Hr ';
+    } else {
+      displayDateStr += hours + ' Hrs ';
+    }
+  }
+  if (minutes > 0) {
+    if (minutes > 0 && minutes < 2) {
+      displayDateStr += minutes + ' Min ';
+    } else {
+      displayDateStr += minutes + ' Mins ';
+    }
+  }
+  displayDateStr += seconds + ' Secs';
+
+  $("#clusterUptime").html(displayDateStr);
+}
+
 function updateCoreDetails(coresInfo) {
   $("#totalCores").html(coresInfo.totalCores);
 }
@@ -732,6 +788,7 @@ function loadClusterInfo() {
       }
 
       updateCoreDetails(clusterInfo.coresInfo);
+      updateClusterUptime();
 
     },
     error: ajaxRequestErrorHandler
@@ -757,6 +814,8 @@ $(document).ready(function() {
   $.ajaxSetup({
       cache : false
     });
+
+  setClusterStartDate();
 
   $("#myonoffswitch").on( 'change', toggleAutoUpdateSwitch );
 
