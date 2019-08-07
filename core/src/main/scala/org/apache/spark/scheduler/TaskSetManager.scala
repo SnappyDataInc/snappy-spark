@@ -819,8 +819,7 @@ private[spark] class TaskSetManager(
         }
 
         // for next round increase cpusPerTask for OOME/LME
-        if (supportsDynamicCpusPerTask && !isZombie && (ef.className.contains("OutOfMemory") ||
-            ef.className.contains("LowMemoryException"))) {
+        if (supportsDynamicCpusPerTask && !isZombie && hasMemoryError(ef)) {
           hasDynamicCpusPerTask = true
           val task = tasks(index)
           // apply a reasonable upper limit on dynamic cpusPerTask
@@ -887,6 +886,20 @@ private[spark] class TaskSetManager(
       }
     }
     maybeFinishTaskSet()
+  }
+
+  private def hasMemoryError(ef: ExceptionFailure): Boolean = {
+    if (ef.className.contains("OutOfMemory") ||
+        ef.className.contains("LowMemoryException")) {
+      return true
+    }
+    for (st <- ef.stackTrace) {
+      if (st.getClassName.contains("OutOfMemory") ||
+          st.getClassName.contains("LowMemoryException")) {
+        return true
+      }
+    }
+    false
   }
 
   def abort(message: String, exception: Option[Throwable] = None): Unit = sched.synchronized {
