@@ -24,14 +24,14 @@ function updateClusterUptime() {
   var start_date = new Date(clusterStartTime);
   var now_date = new Date();
 
-  var seconds = Math.floor((now_date - start_date)/1000);
-  var minutes = Math.floor(seconds/60);
-  var hours = Math.floor(minutes/60);
-  var days = Math.floor(hours/24);
+  var seconds = Math.floor((now_date - start_date) / 1000);
+  var minutes = Math.floor(seconds / 60);
+  var hours = Math.floor(minutes / 60);
+  var days = Math.floor(hours / 24);
 
-  hours = hours-(days*24);
-  minutes = minutes-(days*24*60)-(hours*60);
-  seconds = seconds-(days*24*60*60)-(hours*60*60)-(minutes*60);
+  hours = hours - (days * 24);
+  minutes = minutes - (days * 24 * 60) - (hours * 60);
+  seconds = seconds - (days * 24 * 60 * 60) - (hours * 60 * 60) - (minutes * 60);
 
   var displayDateStr = "";
   if (days > 0) {
@@ -66,9 +66,9 @@ function updateCoreDetails(coresInfo) {
 
 function toggleCellDetails(detailsId) {
 
-  $("#"+detailsId).toggle();
+  $("#" + detailsId).toggle();
 
-  var spanId = $("#"+detailsId+"-btn");
+  var spanId = $("#" + detailsId + "-btn");
   if (spanId.hasClass("caret-downward")) {
     spanId.addClass("caret-upward");
     spanId.removeClass("caret-downward");
@@ -82,7 +82,7 @@ function toggleCellDetails(detailsId) {
 
 function toggleRowAddOnDetails(detailsId) {
 
-  var expRowBtn = $("#"+detailsId+"-expandrow-btn");
+  var expRowBtn = $("#" + detailsId + "-expandrow-btn");
 
   if (expRowBtn.hasClass('row-caret-downward')) {
     expRowBtn.removeClass('row-caret-downward');
