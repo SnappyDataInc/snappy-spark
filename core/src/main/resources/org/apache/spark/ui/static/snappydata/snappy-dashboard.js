@@ -9,11 +9,21 @@ function setClusterStartDate() {
 
   var clusterStartTime = $("#hiddenData").data("clusterstarttime");
   var dt = new Date(clusterStartTime);
+
   var dd = dt.getDate();
   if ( dd < 10 ) { dd = '0' + dd; }
 
+  var hh = dt.getHours();
+  if ( hh < 10 ) { hh = '0' + hh; }
+
+  var mm = dt.getMinutes();
+  if ( mm < 10 ) { mm = '0' + mm; }
+
+  var ss = dt.getSeconds();
+  if ( ss < 10 ) { ss = '0' + ss; }
+
   var displayDateStr = months[dt.getMonth()] + ' ' + dd + ', ' + dt.getFullYear()
-                     + ' ' + dt.getHours() + ':' + dt.getMinutes() + ':' + dt.getSeconds();
+                     + ' ' + hh + ':' + mm + ':' + ss;
 
   $("#clusterStartDate").html(displayDateStr);
   updateClusterUptime();
