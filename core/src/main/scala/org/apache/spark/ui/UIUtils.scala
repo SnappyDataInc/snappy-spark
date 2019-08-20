@@ -612,7 +612,7 @@ private[spark] object UIUtils extends Logging {
               <p>
                 For assistance, get started at: <br />
                 <a href="https://www.tibco.com/" target="_blank">https://www.tibco.com/</a> <br />
-                <a href={"https://tibco-computedb.readthedocs.io/en/docv" +
+                <a href={"https://tibco-computedb.readthedocs.io/en/enterprise_docv" +
                     snappyVersionDetails.getOrElse("productVersion", "") + "/"}
                    target="_blank">
                   Product Documentation
