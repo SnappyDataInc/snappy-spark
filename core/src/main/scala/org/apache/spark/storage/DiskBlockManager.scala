@@ -177,7 +177,7 @@ private[spark] class DiskBlockManager(conf: SparkConf, deleteFilesOnStop: Boolea
     doStop()
   }
 
-  private def doStop(): Unit = {
+  private def doStop(): Unit = synchronized {
     if (deleteFilesOnStop) {
       localDirs.foreach { localDir =>
         if (localDir.isDirectory() && localDir.exists()) {
