@@ -57,9 +57,10 @@ case class CatalogStorageFormat(
   // Mask access key and secret access key in case of S3 URL
   def getMaskedLocUri: Option[String] = {
     var locUri = locationUri.getOrElse("")
-    locUri = if (locUri.toLowerCase().startsWith("s3a://")
-        || locUri.toLowerCase().startsWith("s3://")
-        || locUri.toLowerCase().startsWith("s3n://")) {
+    val uri = locUri.toLowerCase()
+    locUri = if ((uri.startsWith("s3a://")
+        || uri.startsWith("s3://")
+        || uri.startsWith("s3n://")) && uri.contains("@")) {
       locUri.replace(locUri.slice(locUri.indexOf("//") + 2, locUri.indexOf("@")), "****:****")
     } else locUri
     Some(locUri)
