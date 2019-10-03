@@ -31,6 +31,7 @@ import org.apache.hadoop.hive.serde2.`lazy`.LazySimpleSerDe
 import org.apache.spark.{SparkConf, SparkContext}
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{SparkSession, SQLContext}
+import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis._
 import org.apache.spark.sql.catalyst.analysis.FunctionRegistry.FunctionBuilder
 import org.apache.spark.sql.catalyst.expressions.ExpressionInfo
@@ -38,7 +39,8 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.QueryExecution
 import org.apache.spark.sql.execution.command.CacheTableCommand
 import org.apache.spark.sql.hive._
-import org.apache.spark.sql.internal.{SharedState, SQLConf}
+import org.apache.spark.sql.hive.client.HiveClient
+import org.apache.spark.sql.internal.{SessionState, SharedState, SQLConf}
 import org.apache.spark.sql.internal.StaticSQLConf.CATALOG_IMPLEMENTATION
 import org.apache.spark.util.{ShutdownHookManager, Utils}
 
@@ -77,14 +79,14 @@ class TestHiveContext(
    * when running in the JVM, i.e. it needs to be false when calling from Python.
    */
   def this(sc: SparkContext, loadTestTables: Boolean = true) {
-    this(new TestHiveSparkSession(HiveUtils.withHiveExternalCatalog(sc), loadTestTables))
+    this(TestHiveContext.newSparkSession(HiveUtils.withHiveExternalCatalog(sc), loadTestTables))
   }
 
   override def newSession(): TestHiveContext = {
-    new TestHiveContext(sparkSession.newSession())
+    new TestHiveContext(sparkSession.newSession().asInstanceOf[TestHiveSparkSession])
   }
 
-  override def sessionState: TestHiveSessionState = sparkSession.sessionState
+  override def sessionState: SessionState = sparkSession.sessionState
 
   def setCacheTables(c: Boolean): Unit = {
     sparkSession.setCacheTables(c)
@@ -112,18 +114,21 @@ class TestHiveContext(
  * @param loadTestTables if true, load the test tables. They can only be loaded when running
  *                       in the JVM, i.e when calling from Python this flag has to be false.
  */
-private[hive] class TestHiveSparkSession(
-    @transient private val sc: SparkContext,
-    @transient private val existingSharedState: Option[SharedState],
-    private val loadTestTables: Boolean)
-  extends SparkSession(sc) with Logging { self =>
+trait TestHiveSparkSession extends SparkSession with Logging { self =>
 
-  def this(sc: SparkContext, loadTestTables: Boolean) {
-    this(
-      sc,
-      existingSharedState = None,
-      loadTestTables)
-  }
+  protected def sc: SparkContext
+
+  protected def existingSharedState: Option[SharedState]
+
+  protected def loadTestTables: Boolean
+
+  def hiveDefaultTableFilePath(name: TableIdentifier): String
+
+  def getCachedDataSourceTable(table: TableIdentifier): LogicalPlan
+
+  def metadataHive: HiveClient
+
+  def reset(): Unit
 
   { // set the metastore temporary configuration
     val metastoreTempConf = HiveUtils.newTemporaryConfiguration(useInMemoryDerby = false) ++ Map(
@@ -142,16 +147,6 @@ private[hive] class TestHiveSparkSession(
   @transient
   override lazy val sharedState: SharedState = {
     existingSharedState.getOrElse(new SharedState(sc))
-  }
-
-  // TODO: Let's remove TestHiveSessionState. Otherwise, we are not really testing the reflection
-  // logic based on the setting of CATALOG_IMPLEMENTATION.
-  @transient
-  override lazy val sessionState: TestHiveSessionState =
-    new TestHiveSessionState(self)
-
-  override def newSession(): TestHiveSparkSession = {
-    new TestHiveSparkSession(sc, Some(sharedState), loadTestTables)
   }
 
   private var cacheTables: Boolean = false
@@ -391,7 +386,7 @@ private[hive] class TestHiveSparkSession(
     hiveQTestUtilTables.foreach(registerTestTable)
   }
 
-  private val loadedTables = new collection.mutable.HashSet[String]
+  protected val loadedTables = new collection.mutable.HashSet[String]
 
   def loadTestTable(name: String) {
     if (!(loadedTables contains name)) {
@@ -413,6 +408,38 @@ private[hive] class TestHiveSparkSession(
    * tests.
    */
   protected val originalUDFs: JavaSet[String] = FunctionRegistry.getFunctionNames
+}
+
+private[hive] class TestHiveSparkSessionImpl(
+    @transient protected val sc: SparkContext,
+    @transient protected val existingSharedState: Option[SharedState],
+    protected val loadTestTables: Boolean)
+    extends SparkSession(sc) with TestHiveSparkSession {
+
+  def this(sc: SparkContext, loadTestTables: Boolean) {
+    this(
+      sc,
+      existingSharedState = None,
+      loadTestTables)
+  }
+
+  // TODO: Let's remove TestHiveSessionState. Otherwise, we are not really testing the reflection
+  // logic based on the setting of CATALOG_IMPLEMENTATION.
+  @transient
+  override lazy val sessionState: TestHiveSessionState =
+    new TestHiveSessionState(this)
+
+  override def hiveDefaultTableFilePath(name: TableIdentifier): String =
+    sessionState.catalog.hiveDefaultTableFilePath(name)
+
+  override def getCachedDataSourceTable(table: TableIdentifier): LogicalPlan =
+    sessionState.catalog.getCachedDataSourceTable(table)
+
+  override def metadataHive: HiveClient = sessionState.metadataHive
+
+  override def newSession(): TestHiveSparkSession = {
+    new TestHiveSparkSessionImpl(sc, Some(sharedState), loadTestTables)
+  }
 
   /**
    * Resets the test instance by deleting any tables that have been created.
@@ -428,6 +455,7 @@ private[hive] class TestHiveSparkSession(
         }
       }
 
+      val sessionState = this.sessionState.asInstanceOf[TestHiveSessionState]
       sharedState.cacheManager.clearCache()
       loadedTables.clear()
       sessionState.catalog.clearTempTables()
@@ -513,7 +541,7 @@ private[hive] class TestHiveSessionState(
 }
 
 
-private[hive] object TestHiveContext {
+object TestHiveContext {
 
   /**
    * A map used to store all confs that need to be overridden in sql/hive unit tests.
@@ -523,6 +551,18 @@ private[hive] object TestHiveContext {
       // Fewer shuffle partitions to speed up testing.
       SQLConf.SHUFFLE_PARTITIONS.key -> "5"
     )
+
+  private def newSparkSession(sparkContext: SparkContext,
+      loadTestTables: Boolean): TestHiveSparkSession = {
+    val sc = HiveUtils.withHiveExternalCatalog(sparkContext)
+    try {
+      Utils.classForName("org.apache.spark.sql.hive.TestHiveSnappySession")
+          .getConstructor(classOf[SparkContext], classOf[Boolean])
+          .newInstance(sc, Boolean.box(loadTestTables)).asInstanceOf[TestHiveSparkSession]
+    } catch {
+      case _: Exception => new TestHiveSparkSessionImpl(sc, loadTestTables)
+    }
+  }
 
   def makeWarehouseDir(): File = {
     val warehouseDir = Utils.createTempDir(namePrefix = "warehouse")

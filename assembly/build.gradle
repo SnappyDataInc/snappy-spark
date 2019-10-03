@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 SnappyData, Inc. All rights reserved.
+ * Copyright (c) 2017-2019 TIBCO Software Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License. You
@@ -46,6 +46,7 @@ clean.doLast {
   cleanProduct()
 }
 
+
 task sparkProduct(type: Zip) {
   def examplesProject = project(subprojectBase + 'snappy-spark-examples_' + scalaBinaryVersion)
   String yarnShuffleProject = subprojectBase + 'snappy-spark-network-yarn_' + scalaBinaryVersion
@@ -87,13 +88,6 @@ task sparkProduct(type: Zip) {
         include 'examples/src/**'
       }
       into snappyProductDir
-    }
-    def sparkR = 'sparkProjectRootDir/R/lib/SparkR'
-    if (file(sparkR).exists()) {
-      copy {
-        from sparkR
-        into "${snappyProductDir}/R/lib"
-      }
     }
 
     // copy yarn shuffle shadow jar

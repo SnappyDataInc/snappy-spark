@@ -4,15 +4,81 @@ var isAutoUpdateTurnedON = true;
 var isMemberCellExpanded = {};
 var isMemberRowExpanded = {};
 
+function setClusterStartDate() {
+  var months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN' , 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+  var clusterStartTime = $("#hiddenData").data("clusterstarttime");
+  var dt = new Date(clusterStartTime);
+
+  var dd = dt.getDate();
+  if ( dd < 10 ) { dd = '0' + dd; }
+
+  var hh = dt.getHours();
+  if ( hh < 10 ) { hh = '0' + hh; }
+
+  var mm = dt.getMinutes();
+  if ( mm < 10 ) { mm = '0' + mm; }
+
+  var ss = dt.getSeconds();
+  if ( ss < 10 ) { ss = '0' + ss; }
+
+  var displayDateStr = months[dt.getMonth()] + ' ' + dd + ', ' + dt.getFullYear()
+                     + ' ' + hh + ':' + mm + ':' + ss;
+
+  $("#clusterStartDate").html(displayDateStr);
+  updateClusterUptime();
+}
+
+function updateClusterUptime() {
+  var clusterStartTime = $("#hiddenData").data("clusterstarttime");
+  var start_date = new Date(clusterStartTime);
+  var now_date = new Date();
+
+  var seconds = Math.floor((now_date - start_date) / 1000);
+  var minutes = Math.floor(seconds / 60);
+  var hours = Math.floor(minutes / 60);
+  var days = Math.floor(hours / 24);
+
+  hours = hours - (days * 24);
+  minutes = minutes - (days * 24 * 60) - (hours * 60);
+  seconds = seconds - (days * 24 * 60 * 60) - (hours * 60 * 60) - (minutes * 60);
+
+  var displayDateStr = "";
+  if (days > 0) {
+    if (days < 2) {
+      displayDateStr += days + ' Day ';
+    } else {
+      displayDateStr += days + ' Days ';
+    }
+  }
+  if (hours > 0) {
+    if (hours < 2) {
+      displayDateStr += hours + ' Hr ';
+    } else {
+      displayDateStr += hours + ' Hrs ';
+    }
+  }
+  if (minutes > 0) {
+    if (minutes > 0 && minutes < 2) {
+      displayDateStr += minutes + ' Min ';
+    } else {
+      displayDateStr += minutes + ' Mins ';
+    }
+  }
+  displayDateStr += seconds + ' Secs';
+
+  $("#clusterUptime").html(displayDateStr);
+}
+
 function updateCoreDetails(coresInfo) {
   $("#totalCores").html(coresInfo.totalCores);
 }
 
 function toggleCellDetails(detailsId) {
 
-  $("#"+detailsId).toggle();
+  $("#" + detailsId).toggle();
 
-  var spanId = $("#"+detailsId+"-btn");
+  var spanId = $("#" + detailsId + "-btn");
   if (spanId.hasClass("caret-downward")) {
     spanId.addClass("caret-upward");
     spanId.removeClass("caret-downward");
@@ -26,7 +92,7 @@ function toggleCellDetails(detailsId) {
 
 function toggleRowAddOnDetails(detailsId) {
 
-  var expRowBtn = $("#"+detailsId+"-expandrow-btn");
+  var expRowBtn = $("#" + detailsId + "-expandrow-btn");
 
   if (expRowBtn.hasClass('row-caret-downward')) {
     expRowBtn.removeClass('row-caret-downward');
@@ -72,14 +138,14 @@ function toggleAllRowsAddOnDetails() {
 
   for (memIndex in memberStatsGridData) {
     if (expandAction) { // expand row
-      if ($('#' + memberStatsGridData[memIndex].userDir
+      if ($('#' + memberStatsGridData[memIndex].diskStoreUUID
            + '-expandrow-btn').hasClass('row-caret-downward')) {
-        toggleRowAddOnDetails(memberStatsGridData[memIndex].userDir);
+        toggleRowAddOnDetails(memberStatsGridData[memIndex].diskStoreUUID);
       }
     } else { // collapse row
-      if ($('#' + memberStatsGridData[memIndex].userDir
+      if ($('#' + memberStatsGridData[memIndex].diskStoreUUID
            + '-expandrow-btn').hasClass('row-caret-upward')) {
-        toggleRowAddOnDetails(memberStatsGridData[memIndex].userDir);
+        toggleRowAddOnDetails(memberStatsGridData[memIndex].diskStoreUUID);
       }
     }
   }
@@ -124,7 +190,7 @@ function getDetailsCellExpansionProps(key){
 
 function generateDescriptionCellHtml(row) {
   var cellDisplayState = 'display:none;';
-  if (isMemberRowExpanded[row.userDir]) {
+  if (isMemberRowExpanded[row.diskStoreUUID]) {
     cellDisplayState = 'display:block;';
   }
 
@@ -134,7 +200,7 @@ function generateDescriptionCellHtml(row) {
           + '<a href="/dashboard/memberDetails/?memId=' + row.id + '">'
           + descText + '</a>'
         + '</div>'
-        + '<div class="cellDetailsBox" id="' + row.userDir + '" '
+        + '<div class="cellDetailsBox" id="' + row.diskStoreUUID + '" '
           + 'style="'+ cellDisplayState + '">'
           + '<span>'
             + '<strong>Host:</strong>' + row.host
@@ -148,7 +214,7 @@ function generateDescriptionCellHtml(row) {
 // Content to be displayed in heap memory cell in Members Stats Grid
 function generateHeapCellHtml(row){
   var cellDisplayState = 'display:none;';
-  if (isMemberRowExpanded[row.userDir]) {
+  if (isMemberRowExpanded[row.diskStoreUUID]) {
     cellDisplayState = 'display:block;';
   }
 
@@ -179,7 +245,7 @@ function generateHeapCellHtml(row){
           '<div style="width: 95%; float: left; padding-right:10px;'
            + 'text-align:right;">' + heapHtml
         + '</div>'
-        + '<div class="cellDetailsBox" id="'+ row.userDir + '-heap" '
+        + '<div class="cellDetailsBox" id="'+ row.diskStoreUUID + '-heap" '
            + 'style="width: 90%; ' + cellDisplayState + '">'
            + '<span><strong>JVM Heap:</strong>'
            + '<br>' + jvmHeapHtml
@@ -195,7 +261,7 @@ function generateHeapCellHtml(row){
 // Content to be displayed in off-heap memory cell in Members Stats Grid
 function generateOffHeapCellHtml(row){
   var cellDisplayState = 'display:none;';
-  if (isMemberRowExpanded[row.userDir]) {
+  if (isMemberRowExpanded[row.diskStoreUUID]) {
     cellDisplayState = 'display:block;';
   }
 
@@ -222,7 +288,7 @@ function generateOffHeapCellHtml(row){
           '<div style="width: 95%; float: left; padding-right:10px;'
            + 'text-align:right;">' + offHeapHtml
         + '</div>'
-        + '<div class="cellDetailsBox" id="'+ row.userDir + '-offheap" '
+        + '<div class="cellDetailsBox" id="'+ row.diskStoreUUID + '-offheap" '
            + 'style="width: 90%; ' + cellDisplayState + '">'
            + '<span><strong>Storage Memory:</strong>'
            + '<br>' + offHeapStorageHtml
@@ -243,12 +309,12 @@ function getMemberStatsGridConf() {
       { // Expand/Collapse Button
         data: function(row, type) {
               var expandRowClass = 'row-caret-downward';
-              if (isMemberRowExpanded[row.userDir]) {
+              if (isMemberRowExpanded[row.diskStoreUUID]) {
                 expandRowClass = 'row-caret-upward';
               }
               return '<div style="padding: 0 5px; text-align: center; cursor: pointer;" ' +
-                     'onclick="toggleRowAddOnDetails(\'' + row.userDir + '\');">' +
-                     '<span id="' + row.userDir + '-expandrow-btn" ' +
+                     'onclick="toggleRowAddOnDetails(\'' + row.diskStoreUUID + '\');">' +
+                     '<span id="' + row.diskStoreUUID + '-expandrow-btn" ' +
                      'class="' + expandRowClass + '"></span></div>';
         },
         "orderable": false
@@ -297,15 +363,15 @@ function getMemberStatsGridConf() {
       { // CPU Usage
         data: function(row, type) {
                 var displayStatus = "display:none;";
-                if ($('#'+ row.userDir + '-expandrow-btn').hasClass('row-caret-upward') ) {
+                if ($('#'+ row.diskStoreUUID + '-expandrow-btn').hasClass('row-caret-upward') ) {
                   displayStatus =  "display:block;";
                 }
                 var progBarHtml = generateProgressBarHtml(row.cpuActive);
-                var sparklineHtml = '<div id="cpuUsageSLDiv-' + row.userDir + '" '
+                var sparklineHtml = '<div id="cpuUsageSLDiv-' + row.diskStoreUUID + '" '
                                   + 'class="cellDetailsBox" style="' + displayStatus + '">'
                                   + '<div style="text-align: right; font-size: 12px; color: #0A8CAE;">'
                                   + 'Values in %, Last 15 mins</div>'
-                                  + '<span id="cpuUsageSparklines-' + row.userDir + '"></span></div>';
+                                  + '<span id="cpuUsageSparklines-' + row.diskStoreUUID + '"></span></div>';
                 return progBarHtml + sparklineHtml;
               }
       },
@@ -318,15 +384,15 @@ function getMemberStatsGridConf() {
                   memoryUsage = 0;
                 }
                 var displayStatus = "display:none;";
-                if ($('#'+ row.userDir + '-expandrow-btn').hasClass('row-caret-upward') ) {
+                if ($('#'+ row.diskStoreUUID + '-expandrow-btn').hasClass('row-caret-upward') ) {
                   displayStatus =  "display:block;";
                 }
                 var progBarHtml = generateProgressBarHtml(memoryUsage);
-                var sparklineHtml = '<div id="memoryUsageSLDiv-' + row.userDir + '" '
+                var sparklineHtml = '<div id="memoryUsageSLDiv-' + row.diskStoreUUID + '" '
                                   + 'class="cellDetailsBox" style="' + displayStatus + '">'
                                   + '<div style="text-align: right; font-size: 12px; color: #0A8CAE;">'
                                   + 'Values in GB, Last 15 mins</div>'
-                                  + '<span id="memoryUsageSparklines-' + row.userDir + '"></span></div>';
+                                  + '<span id="memoryUsageSparklines-' + row.diskStoreUUID + '"></span></div>';
                 return  progBarHtml + sparklineHtml;
               }
       },
@@ -383,7 +449,7 @@ function getTableStatsGridConf() {
       { // Row Count
         data: function(row, type) {
                 var rcHtml = '<div style="padding-right:10px; text-align:right;">'
-                             + row.rowCount
+                             + row.rowCount.toLocaleString(navigator.language)
                            + '</div>';
                 return rcHtml;
               }
@@ -408,9 +474,52 @@ function getTableStatsGridConf() {
       },
       { // Bucket Count
         data: function(row, type) {
-                var bcHtml = '<div style="padding-right:10px; text-align:right;">'
-                             + row.bucketCount
+                var bcHtml = '';
+                if (row.isAnyBucketLost) {
+                  bcHtml = '<div style="padding-right:10px; text-align:right; color:#ea4335;">'
+                           + row.bucketCount
+                         + '</div>';
+                } else {
+                  bcHtml = '<div style="padding-right:10px; text-align:right;">'
+                           + row.bucketCount
+                         + '</div>';
+                }
+                return bcHtml;
+              }
+      },
+      { // Redundancy
+        data: function(row, type) {
+                var bcHtml = '';
+                if (row.distributionType == "REPLICATE") {
+                  bcHtml = '<div style="padding-right:10px; text-align:right;">'
+                           + 'NA'
+                         + '</div>';
+                } else {
+                  bcHtml = '<div style="padding-right:10px; text-align:right;">'
+                           + row.redundancy
+                         + '</div>';
+                }
+                return bcHtml;
+              }
+      },
+      { // Redundancy Status
+        data: function(row, type) {
+                var bcHtml = '';
+                if (row.redundancy == 0) {
+                  bcHtml = '<div style="padding-right:10px; text-align:right;">'
+                           + 'NA'
+                         + '</div>';
+                } else {
+                  if (row.redundancyImpaired) {
+                    bcHtml = '<div style="padding-right:10px; text-align:right; color:#ea4335;">'
+                             + 'BROKEN'
                            + '</div>';
+                  } else {
+                    bcHtml = '<div style="padding-right:10px; text-align:right; color:#34a853;">'
+                             + 'SATISFIED'
+                           + '</div>';
+                  }
+                }
                 return bcHtml;
               }
       }
@@ -486,11 +595,11 @@ var globalSparklineOptions = {
 function updateSparklines(memberStatsGridData) {
 
   for (var i=0; i < memberStatsGridData.length; i++) {
-    var cpuSL = $('#cpuUsageSparklines-' + memberStatsGridData[i].userDir);
+    var cpuSL = $('#cpuUsageSparklines-' + memberStatsGridData[i].diskStoreUUID);
     if (cpuSL.length != 0) {
       cpuSL.sparkline(memberStatsGridData[i].cpuUsageTrend, globalSparklineOptions);
     }
-    var memSL = $('#memoryUsageSparklines-' + memberStatsGridData[i].userDir);
+    var memSL = $('#memoryUsageSparklines-' + memberStatsGridData[i].diskStoreUUID);
     if (memSL.length != 0) {
       memSL.sparkline(memberStatsGridData[i].aggrMemoryUsageTrend, globalSparklineOptions);
     }
@@ -689,6 +798,7 @@ function loadClusterInfo() {
       }
 
       updateCoreDetails(clusterInfo.coresInfo);
+      updateClusterUptime();
 
     },
     error: ajaxRequestErrorHandler
@@ -714,6 +824,8 @@ $(document).ready(function() {
   $.ajaxSetup({
       cache : false
     });
+
+  setClusterStartDate();
 
   $("#myonoffswitch").on( 'change', toggleAutoUpdateSwitch );
 

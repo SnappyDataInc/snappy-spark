@@ -14,6 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for TIBCO Project SnappyData data platform.
+ *
+ * Portions Copyright (c) 2017-2019 TIBCO Software Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark.executor
 
@@ -34,7 +52,7 @@ import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rpc.RpcTimeout
-import org.apache.spark.scheduler.{DirectTaskResult, IndirectTaskResult, Task}
+import org.apache.spark.scheduler.{DirectTaskResult, IndirectTaskResult, Task, TaskSchedulerImpl}
 import org.apache.spark.shuffle.FetchFailedException
 import org.apache.spark.storage.{StorageLevel, TaskResultBlockId}
 import org.apache.spark.util._
@@ -109,8 +127,8 @@ private[spark] class Executor(
 
   // Create our ClassLoader
   // do this after SparkEnv creation so can access the SecurityManager
-  protected val urlClassLoader = createClassLoader()
-  protected val replClassLoader = addReplClassLoaderIfNeeded(urlClassLoader)
+  protected var urlClassLoader = createClassLoader()
+  protected var replClassLoader = addReplClassLoaderIfNeeded(urlClassLoader)
 
   // Set the classloader for serializer
   env.serializer.setDefaultClassLoader(replClassLoader)
@@ -289,11 +307,14 @@ private[spark] class Executor(
       var taskStart: Long = 0
       var taskStartCpu: Long = 0
       startGCTime = computeTotalGcTime()
+      var hasNonDefaultCpusPerTask = false
 
       try {
         val (taskFiles, taskJars, taskProps, taskBytes) =
           Task.deserializeWithDependencies(serializedTask)
 
+        hasNonDefaultCpusPerTask = taskProps.containsKey(TaskSchedulerImpl.CPUS_PER_TASK)
+        if (hasNonDefaultCpusPerTask) handleNonDefaultCpusPerTask(init = true)
         // Must be set before updateDependencies() is called, in case fetching dependencies
         // requires access to properties contained within (e.g. for access control).
         Executor.taskDeserializationProps.set(taskProps)
@@ -473,9 +494,25 @@ private[spark] class Executor(
 
           val accUpdates = accums.map(acc => acc.toInfo(Some(acc.value), None))
 
+          // wrap the OOM error in LowMemoryException if
+          // it is a non fatal OOM error thrown from Spark layer
+          val fatalError = isFatalError(t)
+          val ex: Throwable = t match {
+            case oom: OutOfMemoryError if !fatalError =>
+              try {
+                val clazz = Utils.classForName("com.gemstone.gemfire.cache.LowMemoryException")
+                val e = clazz.getConstructor(classOf[java.lang.Throwable]).newInstance(t)
+                e.asInstanceOf[Throwable]
+              } catch {
+                // return OOM error as it is if LowMemoryException class is not found
+                case _: ClassNotFoundException | _: Error => t
+              }
+            case _ => t
+          }
+
           val serializedTaskEndReason = {
             try {
-              ser.serialize(new ExceptionFailure(t, accUpdates).withAccums(accums))
+              ser.serialize(new ExceptionFailure(ex, accUpdates).withAccums(accums))
             } catch {
               case _: NotSerializableException =>
                 // t is not serializable so just send the stacktrace
@@ -487,7 +524,7 @@ private[spark] class Executor(
 
           // Don't forcibly exit unless the exception was inherently fatal, to avoid
           // stopping other tasks unnecessarily.
-          if (isFatalError(t)) {
+          if (fatalError) {
             if (!isLocal) {
               Thread.getDefaultUncaughtExceptionHandler.
                   uncaughtException(Thread.currentThread(), t)
@@ -498,6 +535,7 @@ private[spark] class Executor(
 
       } finally {
         runningTasks.remove(taskId)
+        if (hasNonDefaultCpusPerTask) handleNonDefaultCpusPerTask(init = false)
       }
     }
   }
@@ -730,9 +768,21 @@ private[spark] class Executor(
         logWarning("Issue communicating with driver in heartbeater", e)
         heartbeatFailures += 1
         if (heartbeatFailures >= HEARTBEAT_MAX_FAILURES) {
-          logError(s"Exit as unable to send heartbeats to driver " +
+          logError(s"System failure as unable to send heartbeats to driver " +
             s"more than $HEARTBEAT_MAX_FAILURES times")
-          System.exit(ExecutorExitCode.HEARTBEAT_FAILURE)
+          val uncaughtHandler = Thread.getDefaultUncaughtExceptionHandler
+          if (uncaughtHandler ne null) {
+            uncaughtHandler.uncaughtException(Thread.currentThread(), e)
+          } else {
+            System.exit(ExecutorExitCode.HEARTBEAT_FAILURE)
+          }
+        }
+      case t: Throwable =>
+        val uncaughtHandler = Thread.getDefaultUncaughtExceptionHandler
+        if (uncaughtHandler ne null) {
+          uncaughtHandler.uncaughtException(Thread.currentThread(), t)
+        } else {
+          throw t
         }
     }
   }
@@ -753,13 +803,15 @@ private[spark] class Executor(
   }
 
   // Pluggable Throwable handlers for a task related to underlying store
-  protected  def isStoreCloseException(t: Throwable) : Boolean = false
+  protected def isStoreCloseException(t: Throwable): Boolean = false
 
-  protected  def isStoreException(t: Throwable) : Boolean = false
+  protected def isStoreException(t: Throwable): Boolean = false
 
-  protected  def isFatalError(t: Throwable) : Boolean = {
+  protected def isFatalError(t: Throwable): Boolean = {
     Utils.isFatalError(t)
   }
+
+  protected def handleNonDefaultCpusPerTask(init: Boolean): Unit = {}
 }
 
 private[spark] object Executor {

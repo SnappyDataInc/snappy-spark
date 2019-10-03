@@ -14,6 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for TIBCO Project SnappyData data platform.
+ *
+ * Portions Copyright (c) 2017-2019 TIBCO Software Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark.unsafe;
 
@@ -139,7 +157,15 @@ public final class Platform {
   }
 
   public static long allocateMemory(long size) {
-    return _UNSAFE.allocateMemory(size);
+    try {
+      return _UNSAFE.allocateMemory(size);
+    } catch (OutOfMemoryError oome) {
+      if (oome.getMessage().contains("Direct buffer")) {
+        throw oome;
+      } else {
+        throw new OutOfMemoryError("Direct buffer allocation of size = " + size + " failed");
+      }
+    }
   }
 
   public static void freeMemory(long address) {
@@ -147,7 +173,7 @@ public final class Platform {
   }
 
   public static long reallocateMemory(long address, long oldSize, long newSize) {
-    long newMemory = _UNSAFE.allocateMemory(newSize);
+    long newMemory = allocateMemory(newSize);
     copyMemory(null, address, null, newMemory, oldSize);
     freeMemory(address);
     return newMemory;

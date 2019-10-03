@@ -1965,7 +1965,9 @@ class Analyzer(
         commonNaturalJoinProcessing(left, right, joinType, usingCols, None)
       case j @ Join(left, right, NaturalJoin(joinType), condition) if j.resolvedExceptNatural =>
         // find common column names from both sides
-        val joinNames = left.output.map(_.name).intersect(right.output.map(_.name))
+        val joinNames = left.output.collect {
+          case l if right.output.exists(r => resolver(l.name, r.name)) => l.name
+        }
         commonNaturalJoinProcessing(left, right, joinType, joinNames, condition)
     }
   }

@@ -45,7 +45,9 @@ class DDLSourceLoadSuite extends DataSourceTest with SharedSQLContext {
     val e = intercept[AnalysisException] {
       spark.read.format("orc").load()
     }
-    assert(e.message.contains("The ORC data source must be used with Hive support enabled"))
+    assert(e.message.contains("The ORC data source must be used with Hive support enabled") ||
+        // SnappySession is always hive-enabled so throws a different exception
+        e.message.contains("Unable to infer schema for ORC"))
   }
 }
 

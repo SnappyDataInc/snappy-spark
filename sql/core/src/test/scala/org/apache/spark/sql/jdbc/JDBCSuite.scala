@@ -241,7 +241,10 @@ class JDBCSuite extends SparkFunSuite
 
   test("SELECT * WHERE (simple predicates)") {
     def checkPushdown(df: DataFrame): DataFrame = {
-      val parentPlan = df.queryExecution.executedPlan
+      val parentPlan = df.queryExecution.executedPlan match {
+        case p: org.apache.spark.sql.execution.WholeStageCodegenExec => p
+        case p => p.children.head
+      }
       // Check if SparkPlan Filter is removed in a physical plan and
       // the plan only has PhysicalRDD to scan JDBCRelation.
       assert(parentPlan.isInstanceOf[org.apache.spark.sql.execution.WholeStageCodegenExec])
@@ -280,7 +283,10 @@ class JDBCSuite extends SparkFunSuite
     assert(df2.collect.toSet === Set(Row("mary", 2)))
 
     def checkNotPushdown(df: DataFrame): DataFrame = {
-      val parentPlan = df.queryExecution.executedPlan
+      val parentPlan = df.queryExecution.executedPlan match {
+        case p: org.apache.spark.sql.execution.WholeStageCodegenExec => p
+        case p => p.children.head
+      }
       // Check if SparkPlan Filter is not removed in a physical plan because JDBCRDD
       // cannot compile given predicates.
       assert(parentPlan.isInstanceOf[org.apache.spark.sql.execution.WholeStageCodegenExec])

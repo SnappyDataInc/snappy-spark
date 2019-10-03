@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 SnappyData, Inc. All rights reserved.
+ * Copyright (c) 2017-2019 TIBCO Software Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License. You
@@ -122,7 +122,6 @@ dependencies {
   compile group: 'org.glassfish.jersey.core', name: 'jersey-server', version: jerseyVersion
   compile group: 'org.glassfish.jersey.containers', name: 'jersey-container-servlet', version: jerseyVersion
   compile group: 'org.glassfish.jersey.containers', name: 'jersey-container-servlet-core', version: jerseyVersion
-  compile group: 'org.glassfish.jersey.inject', name: 'jersey-hk2', version: jerseyVersion
   compile group: 'io.netty', name: 'netty-all', version: nettyAllVersion
   compile(group: 'com.clearspring.analytics', name: 'stream', version: streamVersion) {
     exclude(group: 'it.unimi.dsi', module: 'fastutil')

@@ -163,7 +163,8 @@
 
 #CPUCoresContainer {
   position: absolute;
-  width: 100%;
+  width: 20%;
+  right: -20px;
 }
 
 #CPUCoresDetails {
@@ -229,7 +230,7 @@
 }
 
 #autorefreshswitch-holder {
-  width: 170px;
+  width: 172px;
   position: relative;
   margin: 5px 50px 5px auto;
   padding: 0px 5px;
@@ -311,6 +312,41 @@
 }
 .onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-switch {
   right: 0px;
+}
+
+#dateContainer {
+  position: absolute;
+  width: 60%;
+  right: -20px;
+}
+#clusterDateDetails {
+  width: 50%;
+  max-height: 60px;
+  position: relative;
+  padding: 5px 5px;
+  overflow: auto;
+  margin-top: 5px;
+  color: #5C5C5C;
+}
+.startedonlabel {
+  width: 80px;
+  float: left;
+  font-weight: bold;
+  padding-right: 2px;
+}
+.uptimelabel {
+  idth: 60px;
+  float: left;
+  font-weight: bold;
+  padding-right: 2px;
+}
+#clusterStartDate {
+  width: 155px;
+  float: left;
+}
+#clusterUptime {
+  width: 220px;
+  float: left;
 }
 
 /* Table Stats Grids */

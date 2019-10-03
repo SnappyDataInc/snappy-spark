@@ -162,7 +162,7 @@ public final class UnsafeInMemorySorter {
    * Free the memory used by pointer array.
    */
   public void free() {
-    if (consumer != null) {
+    if (consumer != null && array != null) {
       consumer.freeArray(array);
       array = null;
     }
@@ -171,6 +171,7 @@ public final class UnsafeInMemorySorter {
   public void reset() {
     if (consumer != null) {
       consumer.freeArray(array);
+      array = null;
       array = consumer.allocateArray(initialSize);
       usableCapacity = getUsableCapacity();
     }
@@ -193,7 +194,7 @@ public final class UnsafeInMemorySorter {
   }
 
   public long getMemoryUsage() {
-    return array.size() * 8;
+    return (array == null) ? 0 : array.size() * 8;
   }
 
   public boolean hasSpaceForAnotherRecord() {

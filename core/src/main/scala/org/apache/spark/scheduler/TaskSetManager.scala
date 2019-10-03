@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 /*
- * Changes for SnappyData data platform.
+ * Changes for TIBCO Project SnappyData data platform.
  *
- * Portions Copyright (c) 2018 SnappyData, Inc. All rights reserved.
+ * Portions Copyright (c) 2017-2019 TIBCO Software Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License. You
@@ -89,6 +89,24 @@ private[spark] class TaskSetManager(
   val copiesRunning = new Array[Int](numTasks)
   val successful = new Array[Boolean](numTasks)
   private val numFailures = new Array[Int](numTasks)
+
+  import TaskSchedulerImpl.CPUS_PER_TASK
+
+  // dynamic spark.task.cpus only supported by SnappyCoarseGrainedSchedulerBackend
+  private[this] val supportsDynamicCpusPerTask =
+    sched.backend.getClass.getName.contains("SnappyCoarseGrainedSchedulerBackend")
+
+  // keep the configured value for spark.task.cpus preferring local job setting if present
+  val confCpusPerTask: Int = taskSet.properties.getProperty(CPUS_PER_TASK) match {
+    case s if (s ne null) && supportsDynamicCpusPerTask => max(s.toInt, sched.CPUS_PER_TASK)
+    case _ => sched.CPUS_PER_TASK
+  }
+  // tracks the max of spark.task.cpus across all tasks in this task set
+  // when they are dynamically incremented for OOME/LME failures
+  private[spark] var maxCpusPerTask: Int = confCpusPerTask
+  // true when spark.task.cpus was incremented dynamically for any task
+  // in this task set for an OOME/LME failure
+  private[spark] var hasDynamicCpusPerTask: Boolean = false
 
   val taskAttempts = Array.fill[List[TaskInfo]](numTasks)(Nil)
   var tasksSuccessful = 0
@@ -170,6 +188,7 @@ private[spark] class TaskSetManager(
   logDebug("Epoch for " + taskSet + ": " + epoch)
   for (t <- tasks) {
     t.epoch = epoch
+    t.cpusPerTask = confCpusPerTask
   }
 
   // Add all our tasks to the pending lists. We do this in reverse order
@@ -450,6 +469,20 @@ private[spark] class TaskSetManager(
       dequeueTask(execId, host, allowedLocality).map { case ((index, taskLocality, speculative)) =>
         // Found a task; do some bookkeeping and return a task description
         val task = tasks(index)
+        // increase the cpusPerTask of this task so that this has less failures when scheduled
+        if (hasDynamicCpusPerTask) {
+          var sumCpusPerTask = 0.0
+          var countCpusPerTask = 0
+          for (t <- tasks if (t ne task) && t.cpusPerTask > confCpusPerTask) {
+            sumCpusPerTask += t.cpusPerTask
+            countCpusPerTask += 1
+          }
+          if (countCpusPerTask > 0) {
+            // use midway between average and max because both can be skewed
+            task.cpusPerTask = math.min(maxCpusPerTask, math.max(task.cpusPerTask,
+              math.ceil((sumCpusPerTask / countCpusPerTask + maxCpusPerTask) / 2.0).toInt))
+          }
+        }
         val taskId = sched.newTaskId()
         // Do various bookkeeping
         copiesRunning(index) += 1
@@ -494,7 +527,7 @@ private[spark] class TaskSetManager(
 
         sched.dagScheduler.taskStarted(task, info)
         new TaskDescription(_taskId = taskId, _attemptNumber = attemptNum, execId,
-          taskName, index, serializedTask, task.taskData)
+          taskName, index, serializedTask, task.taskData, task.cpusPerTask)
       }
     } else {
       None
@@ -733,6 +766,7 @@ private[spark] class TaskSetManager(
     }
     removeRunningTask(tid)
     info.markFinished(state)
+    var maxTaskFailures = this.maxTaskFailures
     val index = info.index
     copiesRunning(index) -= 1
     var accumUpdates: Seq[AccumulatorV2[_, _]] = Seq.empty
@@ -783,6 +817,37 @@ private[spark] class TaskSetManager(
             s"Lost task ${info.id} in stage ${taskSet.id} (TID $tid) on ${info.host}, executor" +
               s" ${info.executorId}: ${ef.className} (${ef.description}) [duplicate $dupCount]")
         }
+
+        // for next round increase cpusPerTask for OOME/LME
+        if (supportsDynamicCpusPerTask && !isZombie && hasMemoryError(ef)) {
+          hasDynamicCpusPerTask = true
+          val task = tasks(index)
+          // apply a reasonable upper limit on dynamic cpusPerTask
+          if (task.cpusPerTask < min(confCpusPerTask + 4, sched.maxAvailableCpus / 2)) {
+            task.cpusPerTask += 1
+            // update maxCpusPerTask tracked in the TaskSetManager which is
+            // required for the check in TaskSchedulerImpl.resourceOfferSingleTaskSet
+            if (task.cpusPerTask > maxCpusPerTask) {
+              maxCpusPerTask = task.cpusPerTask
+            }
+          }
+          // set in properties, if required, for Executor to allow taking any required actions
+          // for OOME/LME (mostly to avoid catastrophic node failure as far as possible)
+          if (!task.localProperties.containsKey(CPUS_PER_TASK)) {
+            task.localProperties.setProperty(CPUS_PER_TASK, task.cpusPerTask.toString)
+          }
+          if (printFull) {
+            logWarning("Retrying failed task %s in stage %s (TID %d) increasing %s to %d [dup=%d]"
+                .format(info.id, taskSet.id, tid, CPUS_PER_TASK, task.cpusPerTask, dupCount))
+          } else {
+            logInfo("Retrying failed task %s in stage %s (TID %d) increasing %s to %d"
+                .format(info.id, taskSet.id, tid, CPUS_PER_TASK, task.cpusPerTask))
+          }
+          // increase the max retries for such tasks since repeated failures would be common
+          // before system stabilizes
+          maxTaskFailures += 10
+        }
+
         ef.exception
 
       case e: ExecutorLostFailure if !e.exitCausedByApp =>
@@ -821,6 +886,20 @@ private[spark] class TaskSetManager(
       }
     }
     maybeFinishTaskSet()
+  }
+
+  private def hasMemoryError(ef: ExceptionFailure): Boolean = {
+    if (ef.className.contains("OutOfMemory") ||
+        ef.className.contains("LowMemoryException")) {
+      return true
+    }
+    for (st <- ef.stackTrace) {
+      if (st.getClassName.contains("OutOfMemory") ||
+          st.getClassName.contains("LowMemoryException")) {
+        return true
+      }
+    }
+    false
   }
 
   def abort(message: String, exception: Option[Throwable] = None): Unit = sched.synchronized {

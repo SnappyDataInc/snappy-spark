@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 SnappyData, Inc. All rights reserved.
+ * Copyright (c) 2017-2019 TIBCO Software Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License. You
@@ -52,15 +52,15 @@ allprojects {
 
   group = 'io.snappydata'
   version = snappySparkVersion
+  productName = productName
 
   ext {
-    productName = 'SnappyData'
-    vendorName = 'SnappyData, Inc.'
+    vendorName = 'TIBCO Software Inc.'
     scalaBinaryVersion = '2.11'
     scalaVersion = scalaBinaryVersion + '.8'
     hadoopVersion = '2.7.7'
     protobufVersion = '3.6.1'
-    jerseyVersion = '2.27'
+    jerseyVersion = '2.22.2'
     sunJerseyVersion = '1.19.4'
     jettyVersion = '9.2.26.v20180806'
     jettyOldVersion = '6.1.26'
@@ -104,7 +104,7 @@ allprojects {
     jsr305Version = '3.0.2'
     jlineVersion = '2.14.6'
     xbeanAsm5Version = '4.5'
-    breezeVersion = '0.13.1'
+    breezeVersion = '0.13.2'
     pmmlVersion = '1.2.17'
     classutilVersion = '1.4.0'
     scoptVersion = '3.7.1'
@@ -134,7 +134,7 @@ allprojects {
     datanucleusRdbmsVersion = '3.2.13'
     calciteVersion = '1.4.0-incubating'
     jodaTimeVersion = '2.10.1'
-    joddVersion = '5.0.6'
+    joddVersion = '3.9.1'
     univocityVersion = '2.7.6'
     h2Version = '1.3.176'
     jettyJspVersion = '2.2.0.v201112011158'
@@ -355,7 +355,7 @@ gradle.taskGraph.whenReady { graph ->
         onlyIf { ! Boolean.getBoolean('skip.tests') }
 
         jvmArgs '-ea', '-XX:+HeapDumpOnOutOfMemoryError','-XX:+UseConcMarkSweepGC',
-                '-XX:+UseParNewGC', '-XX:+CMSClassUnloadingEnabled', '-XX:MaxPermSize=512m'
+                '-XX:+UseParNewGC', '-XX:+CMSClassUnloadingEnabled'
         minHeapSize '4g'
         maxHeapSize '4g'
         // disable assertions for hive tests as in Spark's pom.xml because HiveCompatibilitySuite currently fails (SPARK-4814)

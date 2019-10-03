@@ -17,7 +17,7 @@
 /*
  * Changes for SnappyData data platform.
  *
- * Portions Copyright (c) 2018 SnappyData, Inc. All rights reserved.
+ * Portions Copyright (c) 2017-2019 TIBCO Software Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License. You
@@ -177,7 +177,10 @@ private[spark] class DiskBlockManager(conf: SparkConf, deleteFilesOnStop: Boolea
     doStop()
   }
 
-  private def doStop(): Unit = {
+  // The synchronized keywork can be removed while merging latest spark version as with latest
+  // spark version deletion of directory is done by linux native `rm` command and hence it
+  // doesn't log the misleading exception to handle which this method was made synchronized.
+  private def doStop(): Unit = synchronized {
     if (deleteFilesOnStop) {
       localDirs.foreach { localDir =>
         if (localDir.isDirectory() && localDir.exists()) {
