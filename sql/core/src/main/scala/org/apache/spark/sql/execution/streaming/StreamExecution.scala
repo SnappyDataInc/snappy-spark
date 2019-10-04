@@ -190,6 +190,13 @@ abstract class StreamExecution(
         // To fix call site like "run at <unknown>:0", we bridge the call site from the caller
         // thread to this micro batch thread
         sparkSession.sparkContext.setCallSite(callSite)
+
+        // set custom pool defined by `spark.scheduler.pool` for streaming thread
+        val pool = sparkSession.conf.get("spark.scheduler.pool", null)
+        if (pool ne null) {
+          sparkSession.sparkContext.setLocalProperty("spark.scheduler.pool", pool)
+        }
+
         runStream()
       }
     }
