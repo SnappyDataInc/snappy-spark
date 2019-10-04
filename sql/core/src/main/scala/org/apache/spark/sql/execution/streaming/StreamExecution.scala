@@ -190,8 +190,10 @@ class StreamExecution(
         sparkSession.sparkContext.setCallSite(callSite)
 
         // setting custom pool defined by `snappydata.scheduler.pool` for streaming thread
-        val pool = sparkSession.conf.get("snappydata.scheduler.pool")
-        sparkSession.sparkContext.setLocalProperty("spark.scheduler.pool", pool)
+        if (sparkSession.conf.contains("snappydata.scheduler.pool")) {
+          val pool = sparkSession.conf.get("snappydata.scheduler.pool")
+          sparkSession.sparkContext.setLocalProperty("spark.scheduler.pool", pool)
+        }
 
         runBatches()
       }
