@@ -17,6 +17,7 @@
 
 package org.apache.spark.sql.streaming
 
+import java.lang.reflect.Field
 import java.util.UUID
 
 import scala.collection.mutable
@@ -35,7 +36,7 @@ import org.apache.spark.sql.{Encoder, SparkSession}
 import org.apache.spark.sql.execution.streaming._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.streaming.StreamingQueryListener._
-import org.apache.spark.util.JsonProtocol
+import org.apache.spark.util.{JsonProtocol, Utils}
 
 class StreamingQueryListenerSuite extends StreamTest with BeforeAndAfter {
 
@@ -399,11 +400,17 @@ class StreamingQueryListenerSuite extends StreamTest with BeforeAndAfter {
     }
   }
 
+  private lazy val getListenerBusField = {
+    val clazz = Utils.classForName("org.apache.spark.sql.streaming.StreamingQueryManager")
+    val listenerBus = clazz.getDeclaredField("listenerBus")
+    listenerBus.setAccessible(true)
+    listenerBus
+  }
+
   private def addedListeners(session: SparkSession = spark): Array[StreamingQueryListener] = {
-    val listenerBusMethod =
-      PrivateMethod[StreamingQueryListenerBus]('listenerBus)
-    val listenerBus = session.streams invokePrivate listenerBusMethod()
-    listenerBus.listeners.toArray.map(_.asInstanceOf[StreamingQueryListener])
+    val listenerBus: Field = getListenerBusField
+    listenerBus.get(session.streams).asInstanceOf[StreamingQueryListenerBus].listeners
+        .toArray.map(_.asInstanceOf[StreamingQueryListener])
   }
 
   /** Collects events from the StreamingQueryListener for testing */
