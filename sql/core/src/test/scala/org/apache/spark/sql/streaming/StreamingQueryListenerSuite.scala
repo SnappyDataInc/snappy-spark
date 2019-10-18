@@ -17,7 +17,6 @@
 
 package org.apache.spark.sql.streaming
 
-import java.lang.reflect.Field
 import java.util.UUID
 
 import scala.collection.mutable
@@ -28,7 +27,6 @@ import org.scalatest.concurrent.AsyncAssertions.Waiter
 import org.scalatest.concurrent.Eventually._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.BeforeAndAfter
-import org.scalatest.PrivateMethodTester._
 
 import org.apache.spark.SparkException
 import org.apache.spark.scheduler._
@@ -408,8 +406,7 @@ class StreamingQueryListenerSuite extends StreamTest with BeforeAndAfter {
   }
 
   private def addedListeners(session: SparkSession = spark): Array[StreamingQueryListener] = {
-    val listenerBus: Field = getListenerBusField
-    listenerBus.get(session.streams).asInstanceOf[StreamingQueryListenerBus].listeners
+    getListenerBusField.get(session.streams).asInstanceOf[StreamingQueryListenerBus].listeners
         .toArray.map(_.asInstanceOf[StreamingQueryListener])
   }
 
