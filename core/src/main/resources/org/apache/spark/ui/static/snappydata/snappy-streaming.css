@@ -1,0 +1,95 @@
+.main-container {
+  width: 98%; height: auto;
+  top: 158px;
+  bottom: 0;
+  position: absolute;
+  overflow: auto;
+  /*border: solid #DDD 1px;
+  background-color: #F1F1F1;*/
+}
+
+.left-navigation-panel {
+  float: left;
+  width: 15%;
+  min-width: 250px;
+  height: 100%;
+  border: solid #B1B1B1 1px;
+  background-color: #F1F1F1;
+}
+
+.right-details-panel {
+  width: 84%;
+  height: 100%;
+  float: right;
+  padding-left: 10px;
+  border: solid #B1B1B1 1px;
+  background-color: #F1F1F1;
+}
+
+.vertical-menu-heading {
+  width: 100%;
+}
+
+.vertical-menu-heading div {
+  padding: 12px;
+  font-weight: bold;
+  font-size: large;
+  text-align: center;
+  background: #A0A0A0;
+}
+
+.vertical-menu {
+  width: 100%;
+}
+
+.vertical-menu a {
+  background-color: #EEE;
+  color: black;
+  display: block;
+  padding: 12px;
+  text-decoration: none;
+}
+
+.vertical-menu a:hover {
+  background-color: #E5E5E5;
+}
+
+.vertical-menu a.active {
+  background-color: #CCC;
+  color: black;
+}
+
+.details-section {
+  text-align: center;
+  padding-left: 5px;
+  padding-right: 5px;
+}
+
+.basic-details {
+  width: 48%;
+  min-width: 250px;
+  height: 100px;
+  float: left;
+  margin: 10px;
+  border: solid 2px darkgray;
+  border-radius: 10px;
+}
+
+.stats-block {
+  min-width: 200px;
+  height: 100px;
+  display: inline-block;
+  margin: 10px;
+  border: solid 2px darkgray;
+  border-radius: 10px;
+}
+
+.graph-container {
+  min-width: 250px;
+  width: 23%;
+  height: 200px;
+  display: inline-block;
+  margin: 10px;
+  border: solid 1px darkgray;
+  /*box-shadow: 5px 5px 5px grey;*/
+}
