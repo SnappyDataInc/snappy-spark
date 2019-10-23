@@ -29,7 +29,6 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config._
 import org.apache.spark.network.util.ByteUnit
 import org.apache.spark.sql.catalyst.analysis.Resolver
-import org.apache.spark.sql.internal.SQLConf.buildConf
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // This file defines the configuration options for Spark SQL.
@@ -176,14 +175,14 @@ object SQLConf {
     .booleanConf
     .createWithDefault(false)
 
-    val CONSTRAINT_PROPAGATION_ENABLED = SQLConfigBuilder("spark.sql.constraintPropagation.enabled")
-        .internal()
-        .doc("When true, the query optimizer will infer and propagate data constraints in the query " +
-            "plan to optimize them. Constraint propagation can sometimes be computationally expensive" +
-            "for certain kinds of query plans (such as those with a large number of predicates and " +
-            "aliases) which might negatively impact overall runtime.")
-        .booleanConf
-        .createWithDefault(true)
+  val CONSTRAINT_PROPAGATION_ENABLED = SQLConfigBuilder("spark.sql.constraintPropagation.enabled")
+      .internal()
+      .doc("When true, the query optimizer will infer and propagate data constraints in the" +
+          " query plan to optimize them. Constraint propagation can sometimes be computationally" +
+          " expensive for certain kinds of query plans (such as those with a large number of" +
+          " predicates and aliases) which might negatively impact overall runtime.")
+      .booleanConf
+      .createWithDefault(true)
 
   val PARQUET_SCHEMA_MERGING_ENABLED = SQLConfigBuilder("spark.sql.parquet.mergeSchema")
     .doc("When true, the Parquet data source merges schemas collected from all data files, " +
