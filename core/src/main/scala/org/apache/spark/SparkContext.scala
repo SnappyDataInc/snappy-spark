@@ -1573,6 +1573,10 @@ class SparkContext(config: SparkConf) extends Logging {
     }
   }
 
+  def removeFile(path: String): Unit = {
+    env.rpcEnv.fileServer.removeFile(path)
+  }
+
   /**
    * :: DeveloperApi ::
    * Register a listener to receive up-calls from events that happen during execution.
