@@ -66,9 +66,8 @@
 }
 
 .basic-details {
-  width: 48%;
+  width: 98%;
   min-width: 250px;
-  height: 100px;
   float: left;
   margin: 10px;
   border: solid 2px darkgray;
