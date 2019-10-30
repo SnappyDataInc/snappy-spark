@@ -72,15 +72,52 @@
   margin: 10px;
   border: solid 2px darkgray;
   border-radius: 10px;
+  line-height: 25px;
+}
+
+.basic-details-title {
+  float: left;
+  padding: 10px;
+  width: 30%;
+  font-size: medium;
+  font-weight: bold;
+}
+
+.basic-details > div {
+  text-align: left;
+  width: 33%;
+  float: left;
+}
+
+.basic-details-value {
+  padding: 10px;
+  width: 70%;
 }
 
 .stats-block {
   min-width: 200px;
+  width: 15%;
   height: 100px;
   display: inline-block;
   margin: 10px;
   border: solid 2px darkgray;
   border-radius: 10px;
+}
+
+.stats-block > div {
+  margin: 10px;
+  width: auto;
+  height: 80%;
+}
+
+.stats-block-title {
+  height: 50px;
+  font-size: large;
+  font-weight: bold;
+}
+
+.stats-block-value {
+  font-size: 20px;
 }
 
 .graph-container {
@@ -91,4 +128,12 @@
   margin: 10px;
   border: solid 1px darkgray;
   /*box-shadow: 5px 5px 5px grey;*/
+}
+
+#selectedQueryName {
+  margin: 10px;
+  padding: 10px;
+  font-size: 18px;
+  font-weight: bold;
+  text-align: left;
 }
