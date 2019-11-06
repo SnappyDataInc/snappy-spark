@@ -1,6 +1,6 @@
 .main-container {
   width: 98%; height: auto;
-  top: 158px;
+  top: 130px;
   bottom: 0;
   position: absolute;
   overflow: auto;
@@ -130,10 +130,20 @@
   /*box-shadow: 5px 5px 5px grey;*/
 }
 
-#selectedQueryName {
+#selectedQueryTitle {
+  float: left;
   margin: 10px;
   padding: 10px;
   font-size: 18px;
   font-weight: bold;
+  text-align: left;
+}
+
+#selectedQueryName {
+  float: left;
+  margin: 10px;
+  padding: 10px;
+  font-size: 18px;
+  /*font-weight: bold;*/
   text-align: left;
 }

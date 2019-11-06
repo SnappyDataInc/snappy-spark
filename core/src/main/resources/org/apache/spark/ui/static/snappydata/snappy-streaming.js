@@ -13,18 +13,41 @@ function displayQueryStatistics(queryId) {
   $("#startDateTime").html(queryStats.queryStartTimeText);
   $("#uptime").html(queryStats.queryUptimeText);
   $("#numBatchesProcessed").html(queryStats.numBatchesProcessed);
-  var statusText = queryStats.isActive ? "Active" : "Inactive"
+  var statusText = "";
+  if (queryStats.isActive) {
+    statusText = '<span style="color: green;">Active</span>';
+  } else {
+    statusText = '<span style="color: red;">Inactive</span>';
+  }
   $("#status").html(statusText);
-  $("#totalInputRows").html(queryStats.totalInputRows);
-  $("#totalInputRowsPerSec").html(queryStats.avgInputRowsPerSec);
-  $("#totalProcessedRowsPerSec").html(queryStats.avgProcessedRowsPerSec);
-  $("#totalProcessingTime").html(queryStats.totalProcessingTime);
-  $("#avgProcessingTime").html(queryStats.avgProcessingTime);
+
+  $("#totalInputRows").html(queryStats.totalInputRows.toLocaleString(navigator.language));
+  $("#totalInputRowsPerSec").html(Math.round(queryStats.avgInputRowsPerSec).toLocaleString(navigator.language));
+  $("#totalProcessedRowsPerSec").html(Math.round(queryStats.avgProcessedRowsPerSec).toLocaleString(navigator.language));
+  $("#totalProcessingTime").html(queryStats.totalProcessingTime.toLocaleString(navigator.language) + ' ms');
+  $("#avgProcessingTime").html(queryStats.avgProcessingTime.toLocaleString(navigator.language) + ' ms');
 
   updateCharts(queryStats);
 
-  $("#sourcesDetailsContainer").html(queryStats.sources );
-  $("#sinkDetailsContainer").html(queryStats.sink );
+  $("#sourcesDetailsContainer").html(generateSourcesStats(queryStats.sources));
+  $("#sinkDetailsContainer").html(generateSinkStats(queryStats.sink));
+}
+
+function generateSourcesStats(sources) {
+  selectedQuerySourcesGridData = sources;
+  selectedQuerySourcesGrid.clear().rows.add(selectedQuerySourcesGridData).draw();
+}
+
+function generateSinkStats(sink) {
+  var sinkHTML = '<div style="width:100%;">'
+                 + '<div style="padding: 0px 5px; float: left; font-weight: bold;">'
+                   + 'Description:'
+                 + '</div>'
+                 + '<div style="float: left; padding: 0px 5px; text-align: left;"> '
+                   + sink.description
+                 + '</div>'
+               + '</div>';
+  return sinkHTML;
 }
 
 function updateCharts(queryStats) {
@@ -48,11 +71,18 @@ function updateCharts(queryStats) {
   processingTimeChartData.addColumn('datetime', 'Time of Day');
   processingTimeChartData.addColumn('number', 'Processing Time');
 
+  var stateOperatorsStatsChartData = new google.visualization.DataTable();
+  stateOperatorsStatsChartData.addColumn('datetime', 'Time of Day');
+  stateOperatorsStatsChartData.addColumn('number', 'Total Records');
+  stateOperatorsStatsChartData.addColumn('number', 'Records Updated');
+
   var timeLine = queryStats.timeLine;
   var numInputRowsTrend = queryStats.numInputRowsTrend;
   var inputRowsPerSecondTrend = queryStats.inputRowsPerSecondTrend;
   var processedRowsPerSecondTrend = queryStats.processedRowsPerSecondTrend;
   var processingTimeTrend = queryStats.processingTimeTrend;
+  var stateOpNumRowsTotalTrend = queryStats.stateOpNumRowsTotalTrend;
+  var stateOpNumRowsUpdatedTrend = queryStats.stateOpNumRowsUpdatedTrend;
 
   for(var i=0 ; i < timeLine.length ; i++) {
     var timeX = new Date(timeLine[i]);
@@ -69,11 +99,16 @@ function updateCharts(queryStats) {
      processingTimeChartData.addRow([
         timeX,
         processingTimeTrend[i]]);
+
+     stateOperatorsStatsChartData.addRow([
+        timeX,
+        stateOpNumRowsTotalTrend[i],
+        stateOpNumRowsUpdatedTrend[i]]);
   }
 
   numInputRowsChartOptions = {
     title: 'Input Records',
-    curveType: 'function',
+    // curveType: 'function',
     legend: { position: 'bottom' },
     colors:['#2139EC'],
     crosshair: { trigger: 'focus' },
@@ -83,8 +118,8 @@ function updateCharts(queryStats) {
   };
 
   inputVsProcessedRowsChartOptions = {
-    title: 'Input vs Processed Records per Sec',
-    curveType: 'function',
+    title: 'Input Rate vs Processing Rate',
+    // curveType: 'function',
     legend: { position: 'bottom' },
     colors:['#2139EC', '#E67E22'],
     crosshair: { trigger: 'focus' },
@@ -95,9 +130,20 @@ function updateCharts(queryStats) {
 
   processingTimeChartOptions = {
     title: 'Processing Time',
-    curveType: 'function',
+    // curveType: 'function',
     legend: { position: 'bottom' },
     colors:['#2139EC'],
+    crosshair: { trigger: 'focus' },
+    hAxis: {
+      format: 'HH:mm'
+    }
+  };
+
+  stateOperatorsStatsChartOptions = {
+    title: 'Aggregation States',
+    // curveType: 'function',
+    legend: { position: 'bottom' },
+    colors:['#2139EC', '#E67E22'],
     crosshair: { trigger: 'focus' },
     hAxis: {
       format: 'HH:mm'
@@ -119,6 +165,75 @@ function updateCharts(queryStats) {
   processingTimeChart.draw(processingTimeChartData,
         processingTimeChartOptions);
 
+  var stateOperatorsStatsChart = new google.visualization.LineChart(
+          document.getElementById('stateOperatorContainer'));
+  stateOperatorsStatsChart.draw(stateOperatorsStatsChartData,
+          stateOperatorsStatsChartOptions);
+}
+
+function getQuerySourcesGridConf() {
+  // Streaming Queries Grid Data Table Configurations
+  var querySourcesGridConf = {
+    data: selectedQuerySourcesGridData,
+    "dom": '',
+    "columns": [
+      { // Source description
+        data: function(row, type) {
+                var descHtml = '<div style="width:100%; padding-left:10px;">'
+                              + row.description
+                              + '</div>';
+                return descHtml;
+              },
+        "orderable": true
+      },
+      { // Input Rows
+        data: function(row, type) {
+                var irValue = "";
+                if (isNaN(row.numInputRows)) {
+                  irValue = "NA";
+                } else{
+                  irValue = row.numInputRows.toLocaleString(navigator.language);
+                }
+                var irHtml = '<div style="width:100%; padding-left:10px;">'
+                              + irValue
+                              + '</div>';
+                return irHtml;
+              },
+        "orderable": false
+      },
+      { // Input Rows Per Second
+        data: function(row, type) {
+                var irpsValue = "";
+                if (isNaN(row.inputRowsPerSecond)) {
+                  irpsValue = "NA";
+                } else{
+                  irpsValue = Math.round(row.inputRowsPerSecond).toLocaleString(navigator.language);
+                }
+                var irpsHtml = '<div style="width:100%; padding-left:10px;">'
+                              + irpsValue
+                              + '</div>';
+                return irpsHtml;
+              },
+        "orderable": false
+      },
+      { // Processed Rows Per Second
+        data: function(row, type) {
+                var prpsValue = "";
+                if (isNaN(row.processedRowsPerSecond)) {
+                  prpsValue = "NA";
+                } else{
+                  prpsValue = Math.round(row.processedRowsPerSecond).toLocaleString(navigator.language);
+                }
+                var prpsHtml = '<div style="width:100%; padding-left:10px;">'
+                              + prpsValue
+                              + '</div>';
+                return prpsHtml;
+              },
+        "orderable": false
+      }
+    ]
+  }
+  return querySourcesGridConf;
 }
 
 function getStreamingQueriesGridConf() {
@@ -192,6 +307,8 @@ function googleChartsLoaded() {
 var streamingQueriesGrid;
 var streamingQueriesGridData = [];
 var selectedQueryUUID = "";
+var selectedQuerySourcesGrid;
+var selectedQuerySourcesGridData = [];
 
 $(document).ready(function() {
 
@@ -203,6 +320,8 @@ $(document).ready(function() {
 
   // Members Grid Data Table
   streamingQueriesGrid = $('#streamingQueriesGrid').DataTable( getStreamingQueriesGridConf() );
+
+  selectedQuerySourcesGrid = $('#querySourcesGrid').DataTable( getQuerySourcesGridConf() );
 
   var streamingStatsUpdateInterval = setInterval(function() {
     loadStreamingStatsInfo();
