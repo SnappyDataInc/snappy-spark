@@ -31,10 +31,22 @@ function displayQueryStatistics(queryId) {
   $("#status").html(statusText);
 
   $("#totalInputRows").html(queryStats.totalInputRows.toLocaleString(navigator.language));
-  $("#totalInputRowsPerSec").html(Math.round(queryStats.avgInputRowsPerSec).toLocaleString(navigator.language));
-  $("#totalProcessedRowsPerSec").html(Math.round(queryStats.avgProcessedRowsPerSec).toLocaleString(navigator.language));
-  $("#totalProcessingTime").html(queryStats.totalProcessingTime.toLocaleString(navigator.language) + ' ms');
-  $("#avgProcessingTime").html(queryStats.avgProcessingTime.toLocaleString(navigator.language) + ' ms');
+
+  var qIRPSTrend = queryStats.inputRowsPerSecondTrend;
+  $("#currInputRowsPerSec").html(
+      qIRPSTrend[qIRPSTrend.length - 1].toLocaleString(navigator.language));
+
+  var qPRPSTrend = queryStats.processedRowsPerSecondTrend;
+  $("#currProcessedRowsPerSec").html(
+      qPRPSTrend[qPRPSTrend.length - 1].toLocaleString(navigator.language));
+
+  var qTPT = queryStats.totalProcessingTime;
+  $("#totalProcessingTime").html(
+      formatDurationVerbose(qTPT).toLocaleString(navigator.language));
+
+  var qAPT = queryStats.avgProcessingTime;
+  $("#avgProcessingTime").html(
+      formatDurationVerbose(qAPT).toLocaleString(navigator.language));
 
   updateCharts(queryStats);
 
