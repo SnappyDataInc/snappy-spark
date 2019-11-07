@@ -6,8 +6,17 @@ function displayQueryStatistics(queryId) {
   } else {
     queryStats = streamingQueriesGridData.find(obj => obj.queryUUID == queryId);
   }
-  // set current selected
+  // set current selected query and highlight it in query navigation panel
   selectedQueryUUID = queryStats.queryUUID;
+
+  var divList = $('#streamingQueriesGrid tbody tr td div');
+  for (var i=0 ; i< divList.length ; i++) {
+    if (divList[i].innerText == selectedQueryUUID) {
+      var tr = divList[i].parentNode.parentNode;
+      $(tr).toggleClass('queryselected');
+      break;
+    }
+  }
 
   $("#selectedQueryName").html(queryStats.queryName);
   $("#startDateTime").html(queryStats.queryStartTimeText);
@@ -244,7 +253,8 @@ function getStreamingQueriesGridConf() {
     "columns": [
       { // Query Names
         data: function(row, type) {
-                var qNameHtml = '<div style="width:100%; padding-left:10px;"'
+                var qNameHtml = '<div style="display:none;">' + row.queryUUID + '</div>'
+                              + '<div style="width:100%; padding-left:10px;"'
                               + ' onclick="displayQueryStatistics(\''+ row.queryUUID +'\')">'
                               + row.queryName
                               + '</div>';
@@ -255,6 +265,13 @@ function getStreamingQueriesGridConf() {
     ]
   }
   return streamingQueriesGridConf;
+}
+
+function addDataTableSingleRowSelectionHandler(tableId) {
+  $('#' + tableId + ' tbody').on( 'click', 'tr', function () {
+    $('#' + tableId + ' tbody').children('.queryselected').toggleClass('queryselected');
+    $(this).toggleClass('queryselected');
+  } );
 }
 
 function loadStreamingStatsInfo() {
@@ -320,6 +337,7 @@ $(document).ready(function() {
 
   // Members Grid Data Table
   streamingQueriesGrid = $('#streamingQueriesGrid').DataTable( getStreamingQueriesGridConf() );
+  addDataTableSingleRowSelectionHandler('streamingQueriesGrid');
 
   selectedQuerySourcesGrid = $('#querySourcesGrid').DataTable( getQuerySourcesGridConf() );
 

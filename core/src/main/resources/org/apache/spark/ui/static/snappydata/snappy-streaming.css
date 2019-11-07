@@ -147,3 +147,8 @@
   /*font-weight: bold;*/
   text-align: left;
 }
+
+/* datatable row selection */
+table.dataTable tbody tr.queryselected {
+    background-color: #c6ccd7;
+}
