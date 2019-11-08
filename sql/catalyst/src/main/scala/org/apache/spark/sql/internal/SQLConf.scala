@@ -514,7 +514,8 @@ object SQLConf {
     .intConf
     .createWithDefault(100)
 
-  val MAX_BATCHES_TO_RETAIN_IN_MEMORY = buildConf("spark.sql.streaming.maxBatchesToRetainInMemory")
+  val MAX_BATCHES_TO_RETAIN_IN_MEMORY =
+    SQLConfigBuilder("spark.sql.streaming.maxBatchesToRetainInMemory")
     .internal()
     .doc("The maximum number of batches which will be retained in memory to avoid " +
       "loading from files. The value adjusts a trade-off between memory usage vs cache miss: " +

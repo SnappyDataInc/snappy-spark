@@ -376,13 +376,13 @@ class StateStoreSuite extends SparkFunSuite with BeforeAndAfter with PrivateMeth
 
   test("maintenance") {
     val conf = new SparkConf()
-        .setMaster("local")
-        .setAppName("test")
-        // Make maintenance thread do snapshots and cleanups very fast
-        .set(StateStore.MAINTENANCE_INTERVAL_CONFIG, "10ms")
-        // Make sure that when SparkContext stops, the StateStore maintenance thread 'quickly'
-        // fails to talk to the StateStoreCoordinator and unloads all the StateStores
-        .set("spark.rpc.numRetries", "1")
+      .setMaster("local")
+      .setAppName("test")
+      // Make maintenance thread do snapshots and cleanups very fast
+      .set(StateStore.MAINTENANCE_INTERVAL_CONFIG, "10ms")
+      // Make sure that when SparkContext stops, the StateStore maintenance thread 'quickly'
+      // fails to talk to the StateStoreCoordinator and unloads all the StateStores
+      .set("spark.rpc.numRetries", "1")
     val opId = 0
     val dir = Utils.createDirectory(tempDir, Random.nextString(5)).toString
     val storeId = StateStoreId(dir, opId, 0)
@@ -696,8 +696,8 @@ class StateStoreSuite extends SparkFunSuite with BeforeAndAfter with PrivateMeth
   }
 
   def getDataFromFiles(
-      provider: HDFSBackedStateStoreProvider,
-      version: Int = -1): Set[(String, Int)] = {
+    provider: HDFSBackedStateStoreProvider,
+    version: Int = -1): Set[(String, Int)] = {
     val reloadedProvider = new HDFSBackedStateStoreProvider(
       provider.id, keySchema, valueSchema, StateStoreConf.empty, new Configuration)
     if (version < 0) {
@@ -739,9 +739,9 @@ class StateStoreSuite extends SparkFunSuite with BeforeAndAfter with PrivateMeth
   }
 
   def corruptFile(
-      provider: HDFSBackedStateStoreProvider,
-      version: Long,
-      isSnapshot: Boolean): Unit = {
+    provider: HDFSBackedStateStoreProvider,
+    version: Long,
+    isSnapshot: Boolean): Unit = {
     val method = PrivateMethod[Path]('baseDir)
     val basePath = provider invokePrivate method()
     val fileName = if (isSnapshot) s"$version.snapshot" else s"$version.delta"

@@ -79,7 +79,7 @@ private[state] class HDFSBackedStateStoreProvider(
 
   /** Implementation of [[StateStore]] API which is backed by a HDFS-compatible file system */
   class HDFSBackedStateStore(val version: Long, mapToUpdate: MapType)
-      extends StateStore {
+    extends StateStore {
 
     /** Trait and classes representing the internal state of the store */
     trait STATE
@@ -341,18 +341,6 @@ private[state] class HDFSBackedStateStoreProvider(
     }
   }
 
-  def rowToString(row: UnsafeRow): String = {
-    row.getUTF8String(0).toString
-  }
-
-  def rowToInt(row: UnsafeRow): Int = {
-    row.getInt(0)
-  }
-
-  def readableMap(newMap : MapType) {
-    newMap.asScala.map { entry => rowToString(entry._1) -> rowToInt(entry._2) }.toMap
-  }
-
   /** Load the required version of the map data from the backing files */
   private def loadMap(version: Long): MapType = {
     if (version <= 0) return new MapType
@@ -561,7 +549,7 @@ private[state] class HDFSBackedStateStoreProvider(
             fs.delete(f.path, true)
           }
           logInfo(s"Deleted files older than ${earliestFileToRetain.version} for $this: " +
-              filesToDelete.mkString(", "))
+            filesToDelete.mkString(", "))
         }
       }
     } catch {
@@ -576,9 +564,9 @@ private[state] class HDFSBackedStateStoreProvider(
     require(allFiles.exists(_.version == version))
 
     val latestSnapshotFileBeforeVersion = allFiles
-        .filter(_.isSnapshot == true)
-        .takeWhile(_.version <= version)
-        .lastOption
+      .filter(_.isSnapshot == true)
+      .takeWhile(_.version <= version)
+      .lastOption
     val deltaBatchFiles = latestSnapshotFileBeforeVersion match {
       case Some(snapshotFile) =>
 
