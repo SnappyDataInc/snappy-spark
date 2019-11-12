@@ -1,11 +1,30 @@
-.main-container {
-  width: 98%; height: auto;
-  top: 130px;
-  bottom: 0;
+/* Snappy streaming CSS */
+
+#AutoUpdateErrorMsgContainer {
   position: absolute;
+  width: 100%;
+  margin-top: -60px;
+}
+
+#AutoUpdateErrorMsg {
+  width: 30%;
+  max-height: 60px;
+  background-color: #F8DFDF;
+  border: 2px solid red;
+  border-radius: 10px;
+  z-index: 2;
+  position: relative;
+  margin: 5px auto;
+  padding: 0px 10px;
   overflow: auto;
-  /*border: solid #DDD 1px;
-  background-color: #F1F1F1;*/
+  display: none;
+  text-align: center;
+  font-weight: bold;
+}
+
+.main-container {
+  width: 100%;
+  margin-top: 15px;
 }
 
 .left-navigation-panel {

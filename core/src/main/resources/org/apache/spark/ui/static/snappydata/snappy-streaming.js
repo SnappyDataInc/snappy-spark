@@ -303,7 +303,8 @@ function loadStreamingStatsInfo() {
     dataType: 'json',
     // timeout: 5000,
     success: function (response, status, jqXHR) {
-      // on success handler
+      // Hide error message, if displayed
+      $("#AutoUpdateErrorMsg").hide();
 
       streamingQueriesGridData = response[0].allQueries;
       streamingQueriesGrid.clear().rows.add(streamingQueriesGridData).draw();
@@ -333,6 +334,7 @@ function googleChartsLoaded() {
   loadStreamingStatsInfo();
 }
 
+var isGoogleChartLoaded = false;
 var streamingQueriesGrid;
 var streamingQueriesGridData = [];
 var selectedQueryUUID = "";
