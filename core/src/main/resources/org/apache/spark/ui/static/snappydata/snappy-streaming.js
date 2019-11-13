@@ -6,6 +6,12 @@ function displayQueryStatistics(queryId) {
   } else {
     queryStats = streamingQueriesGridData.find(obj => obj.queryUUID == queryId);
   }
+
+  // return if data is not present
+  if(queryStats == undefined) {
+    return;
+  }
+
   // set current selected query and highlight it in query navigation panel
   selectedQueryUUID = queryStats.queryUUID;
 
@@ -95,7 +101,6 @@ function updateCharts(queryStats) {
   var stateOperatorsStatsChartData = new google.visualization.DataTable();
   stateOperatorsStatsChartData.addColumn('datetime', 'Time of Day');
   stateOperatorsStatsChartData.addColumn('number', 'Total Records');
-  stateOperatorsStatsChartData.addColumn('number', 'Records Updated');
 
   var timeLine = queryStats.timeLine;
   var numInputRowsTrend = queryStats.numInputRowsTrend;
@@ -103,7 +108,6 @@ function updateCharts(queryStats) {
   var processedRowsPerSecondTrend = queryStats.processedRowsPerSecondTrend;
   var processingTimeTrend = queryStats.processingTimeTrend;
   var stateOpNumRowsTotalTrend = queryStats.stateOpNumRowsTotalTrend;
-  var stateOpNumRowsUpdatedTrend = queryStats.stateOpNumRowsUpdatedTrend;
 
   for(var i=0 ; i < timeLine.length ; i++) {
     var timeX = new Date(timeLine[i]);
@@ -123,8 +127,7 @@ function updateCharts(queryStats) {
 
      stateOperatorsStatsChartData.addRow([
         timeX,
-        stateOpNumRowsTotalTrend[i],
-        stateOpNumRowsUpdatedTrend[i]]);
+        stateOpNumRowsTotalTrend[i]]);
   }
 
   numInputRowsChartOptions = {
@@ -164,12 +167,30 @@ function updateCharts(queryStats) {
     title: 'Aggregation States',
     // curveType: 'function',
     legend: { position: 'bottom' },
-    colors:['#2139EC', '#E67E22'],
+    colors:['#2139EC'],
     crosshair: { trigger: 'focus' },
     hAxis: {
       format: 'HH:mm'
     }
   };
+
+  // display state operator chart and other charts resizing accordingly
+  if(stateOpNumRowsTotalTrend.length == 0) {
+    $('#stateOperatorContainer').css("display", "none");
+    $('#inputTrendsContainer').css("width", "31%");
+    $('#processingTrendContainer').css("width", "31%");
+    $('#processingTimeContainer').css("width", "31%");
+  } else {
+    $('#inputTrendsContainer').css("width", "23%");
+    $('#processingTrendContainer').css("width", "23%");
+    $('#processingTimeContainer').css("width", "23%");
+    $('#stateOperatorContainer').css("display", "");
+    $('#stateOperatorContainer').css("width", "23%");
+    var stateOperatorsStatsChart = new google.visualization.LineChart(
+          document.getElementById('stateOperatorContainer'));
+    stateOperatorsStatsChart.draw(stateOperatorsStatsChartData,
+          stateOperatorsStatsChartOptions);
+  }
 
   var numInputRowsChart = new google.visualization.LineChart(
         document.getElementById('inputTrendsContainer'));
@@ -186,10 +207,6 @@ function updateCharts(queryStats) {
   processingTimeChart.draw(processingTimeChartData,
         processingTimeChartOptions);
 
-  var stateOperatorsStatsChart = new google.visualization.LineChart(
-          document.getElementById('stateOperatorContainer'));
-  stateOperatorsStatsChart.draw(stateOperatorsStatsChartData,
-          stateOperatorsStatsChartOptions);
 }
 
 function getQuerySourcesGridConf() {
@@ -266,7 +283,7 @@ function getStreamingQueriesGridConf() {
       { // Query Names
         data: function(row, type) {
                 var qNameHtml = '<div style="display:none;">' + row.queryUUID + '</div>'
-                              + '<div style="width:100%; padding-left:10px;"'
+                              + '<div style="width:100%; padding-left:10px; cursor: pointer;"'
                               + ' onclick="displayQueryStatistics(\''+ row.queryUUID +'\')">'
                               + row.queryName
                               + '</div>';
@@ -282,7 +299,8 @@ function getStreamingQueriesGridConf() {
 function addDataTableSingleRowSelectionHandler(tableId) {
   $('#' + tableId + ' tbody').on( 'click', 'tr', function () {
     $('#' + tableId + ' tbody').children('.queryselected').toggleClass('queryselected');
-    $(this).toggleClass('queryselected');
+    // $(this).toggleClass('queryselected');
+    displayQueryStatistics($(this).children().children().first().text());
   } );
 }
 
