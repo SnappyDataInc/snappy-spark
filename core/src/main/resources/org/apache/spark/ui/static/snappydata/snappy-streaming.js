@@ -57,7 +57,9 @@ function displayQueryStatistics(queryId) {
   updateCharts(queryStats);
 
   $("#sourcesDetailsContainer").html(generateSourcesStats(queryStats.sources));
-  $("#sinkDetailsContainer").html(generateSinkStats(queryStats.sink));
+  // $("#sinkDetailsContainer").html(generateSinkStats(queryStats.sink));
+  generateSinkStats(queryStats.sink);
+
 }
 
 function generateSourcesStats(sources) {
@@ -65,16 +67,53 @@ function generateSourcesStats(sources) {
   selectedQuerySourcesGrid.clear().rows.add(selectedQuerySourcesGridData).draw();
 }
 
+const SINKTYPE_CONSOLE        = "CONSOLESINK";
+const SINKTYPE_MEMORY         = "MEMORYSINK";
+const SINKTYPE_FOREACH        = "FOREACHSINK";
+const SINKTYPE_FILESTREAM     = "FILESTREAMSINK";
+const SINKTYPE_SNAPPYSTORE    = "SNAPPYSTORESINK";
+const SINKTYPE_KAFKA          = "KAFKASINK";
+const SINKTYPE_CSV            = "CSVSINK";
+const SINKTYPE_JMX            = "JMXSINK";
+const SINKTYPE_SLF4J          = "SLF4JSINK";
+const SINKTYPE_METRICSSERVLET = "METRICSSERVLET";
+const SINKTYPE_GRAPHITE       = "GRAPHITESINK";
+const SINKTYPE_GANGLIA        = "GANGLIASINK";
+
+
 function generateSinkStats(sink) {
-  var sinkHTML = '<div style="width:100%;">'
-                 + '<div style="padding: 0px 5px; float: left; font-weight: bold;">'
-                   + 'Description:'
-                 + '</div>'
-                 + '<div style="float: left; padding: 0px 5px; text-align: left;"> '
-                   + sink.description
-                 + '</div>'
-               + '</div>';
-  return sinkHTML;
+  var sinkType = "";
+  var sinkDesc = sink.description;
+
+  if (sinkDesc.toUpperCase().includes(SINKTYPE_CONSOLE)) {
+    sinkType = "Console";
+  } else if (sinkDesc.toUpperCase().includes(SINKTYPE_MEMORY)) {
+    sinkType = "Memory";
+  } else if (sinkDesc.toUpperCase().includes(SINKTYPE_FOREACH)) {
+    sinkType = "ForEach";
+  } else if (sinkDesc.toUpperCase().includes(SINKTYPE_FILESTREAM)) {
+    sinkType = "FileStream";
+  } else if (sinkDesc.toUpperCase().includes(SINKTYPE_SNAPPYSTORE)) {
+     sinkType = "SnappyStore";
+  } else if (sinkDesc.toUpperCase().includes(SINKTYPE_KAFKA)) {
+    sinkType = "KAFKA";
+  } else if (sinkDesc.toUpperCase().includes(SINKTYPE_CSV)) {
+    sinkType = "CSV";
+  } else if (sinkDesc.toUpperCase().includes(SINKTYPE_JMX)) {
+    sinkType = "JMX";
+  } else if (sinkDesc.toUpperCase().includes(SINKTYPE_SLF4J)) {
+    sinkType = "SLF4J";
+  } else if (sinkDesc.toUpperCase().includes(SINKTYPE_METRICSSERVLET)) {
+    sinkType = "MetricsServlet";
+  } else if (sinkDesc.toUpperCase().includes(SINKTYPE_GRAPHITE)) {
+    sinkType = "Graphite";
+  } else if (sinkDesc.toUpperCase().includes(SINKTYPE_GANGLIA)) {
+    sinkType = "Ganglia";
+  }
+
+  $("#sinkType").html(sinkType);
+  $("#sinkDescription").html(sinkDesc);
+
 }
 
 function updateCharts(queryStats) {
