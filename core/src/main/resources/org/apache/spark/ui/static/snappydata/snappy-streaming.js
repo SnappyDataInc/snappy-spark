@@ -57,8 +57,7 @@ function displayQueryStatistics(queryId) {
   updateCharts(queryStats);
 
   $("#sourcesDetailsContainer").html(generateSourcesStats(queryStats.sources));
-  // $("#sinkDetailsContainer").html(generateSinkStats(queryStats.sink));
-  generateSinkStats(queryStats.sink);
+  $("#sinkDetailsContainer").html(generateSinkStats(queryStats.sink));
 
 }
 
@@ -67,6 +66,21 @@ function generateSourcesStats(sources) {
   selectedQuerySourcesGrid.clear().rows.add(selectedQuerySourcesGridData).draw();
 }
 
+function generateSinkStats(sink) {
+  selectedQuerySinkGridData = [sink];
+  selectedQuerySinkGrid.clear().rows.add(selectedQuerySinkGridData).draw();
+}
+
+// Streaming Sources
+const SOURCETYPE_JVM          = "JVMSOURCE";
+const SOURCETYPE_JDBC         = "JDBCSOURCE";
+const SOURCETYPE_FILESTREAM   = "FILESTREAMSOURCE";
+const SOURCETYPE_TEXTSOCKET   = "TEXTSOCKETSOURCE";
+const SOURCETYPE_MEMORY       = "MEMORYSTREAM";
+const SOURCETYPE_STREAMING    = "STREAMINGSOURCE";
+const SOURCETYPE_KAFKA        = "KAFKASOURCE";
+
+// Streaming Sinks
 const SINKTYPE_CONSOLE        = "CONSOLESINK";
 const SINKTYPE_MEMORY         = "MEMORYSINK";
 const SINKTYPE_FOREACH        = "FOREACHSINK";
@@ -80,11 +94,28 @@ const SINKTYPE_METRICSSERVLET = "METRICSSERVLET";
 const SINKTYPE_GRAPHITE       = "GRAPHITESINK";
 const SINKTYPE_GANGLIA        = "GANGLIASINK";
 
+function getStreamingSourceType(srcDesc) {
+  var srcType = "";
+  if (srcDesc.toUpperCase().includes(SOURCETYPE_JVM)) {
+    srcType = "JVM";
+  } else if (srcDesc.toUpperCase().includes(SOURCETYPE_JDBC)) {
+    srcType = "JDBC";
+  } else if (srcDesc.toUpperCase().includes(SOURCETYPE_FILESTREAM)) {
+    srcType = "File Stream";
+  } else if (srcDesc.toUpperCase().includes(SOURCETYPE_TEXTSOCKET)) {
+    srcType = "Text Socket";
+  } else if (srcDesc.toUpperCase().includes(SOURCETYPE_MEMORY)) {
+     srcType = "Memory";
+  } else if (srcDesc.toUpperCase().includes(SOURCETYPE_STREAMING)) {
+    srcType = "Streaming";
+  } else if (srcDesc.toUpperCase().includes(SOURCETYPE_KAFKA)) {
+    srcType = "KAFKA";
+  }
+  return srcType;
+}
 
-function generateSinkStats(sink) {
+function getStreamingSinkType(sinkDesc) {
   var sinkType = "";
-  var sinkDesc = sink.description;
-
   if (sinkDesc.toUpperCase().includes(SINKTYPE_CONSOLE)) {
     sinkType = "Console";
   } else if (sinkDesc.toUpperCase().includes(SINKTYPE_MEMORY)) {
@@ -92,9 +123,9 @@ function generateSinkStats(sink) {
   } else if (sinkDesc.toUpperCase().includes(SINKTYPE_FOREACH)) {
     sinkType = "ForEach";
   } else if (sinkDesc.toUpperCase().includes(SINKTYPE_FILESTREAM)) {
-    sinkType = "FileStream";
+    sinkType = "File Stream";
   } else if (sinkDesc.toUpperCase().includes(SINKTYPE_SNAPPYSTORE)) {
-     sinkType = "SnappyStore";
+     sinkType = "Snappy Store";
   } else if (sinkDesc.toUpperCase().includes(SINKTYPE_KAFKA)) {
     sinkType = "KAFKA";
   } else if (sinkDesc.toUpperCase().includes(SINKTYPE_CSV)) {
@@ -104,16 +135,13 @@ function generateSinkStats(sink) {
   } else if (sinkDesc.toUpperCase().includes(SINKTYPE_SLF4J)) {
     sinkType = "SLF4J";
   } else if (sinkDesc.toUpperCase().includes(SINKTYPE_METRICSSERVLET)) {
-    sinkType = "MetricsServlet";
+    sinkType = "Metrics Servlet";
   } else if (sinkDesc.toUpperCase().includes(SINKTYPE_GRAPHITE)) {
     sinkType = "Graphite";
   } else if (sinkDesc.toUpperCase().includes(SINKTYPE_GANGLIA)) {
     sinkType = "Ganglia";
   }
-
-  $("#sinkType").html(sinkType);
-  $("#sinkDescription").html(sinkDesc);
-
+  return sinkType;
 }
 
 function updateCharts(queryStats) {
@@ -249,11 +277,20 @@ function updateCharts(queryStats) {
 }
 
 function getQuerySourcesGridConf() {
-  // Streaming Queries Grid Data Table Configurations
+  // Streaming Queries Source Grid Data Table Configurations
   var querySourcesGridConf = {
     data: selectedQuerySourcesGridData,
     "dom": '',
     "columns": [
+      { // Source type
+        data: function(row, type) {
+                var descHtml = '<div style="width:100%; padding-left:10px;">'
+                              + getStreamingSourceType(row.description)
+                              + '</div>';
+                return descHtml;
+              },
+        "orderable": true
+      },
       { // Source description
         data: function(row, type) {
                 var descHtml = '<div style="width:100%; padding-left:10px;">'
@@ -311,6 +348,35 @@ function getQuerySourcesGridConf() {
     ]
   }
   return querySourcesGridConf;
+}
+
+function getQuerySinkGridConf() {
+  // Streaming Queries Sink Grid Data Table Configurations
+  var querySinkGridConf = {
+    data: selectedQuerySinkGridData,
+    "dom": '',
+    "columns": [
+      { // Sink type
+        data: function(row, type) {
+                var descHtml = '<div style="width:100%; padding-left:10px;">'
+                              + getStreamingSinkType(row.description)
+                              + '</div>';
+                return descHtml;
+              },
+        "orderable": true
+      },
+      { // Sink description
+        data: function(row, type) {
+                var descHtml = '<div style="width:100%; padding-left:10px;">'
+                              + row.description
+                              + '</div>';
+                return descHtml;
+              },
+        "orderable": true
+      }
+    ]
+  }
+  return querySinkGridConf;
 }
 
 function getStreamingQueriesGridConf() {
@@ -397,6 +463,8 @@ var streamingQueriesGridData = [];
 var selectedQueryUUID = "";
 var selectedQuerySourcesGrid;
 var selectedQuerySourcesGridData = [];
+var selectedQuerySinkGrid;
+var selectedQuerySinkGridData = [];
 
 $(document).ready(function() {
 
@@ -411,6 +479,7 @@ $(document).ready(function() {
   addDataTableSingleRowSelectionHandler('streamingQueriesGrid');
 
   selectedQuerySourcesGrid = $('#querySourcesGrid').DataTable( getQuerySourcesGridConf() );
+  selectedQuerySinkGrid = $('#querySinkGrid').DataTable( getQuerySinkGridConf() );
 
   var streamingStatsUpdateInterval = setInterval(function() {
     loadStreamingStatsInfo();
