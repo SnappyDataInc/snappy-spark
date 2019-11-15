@@ -28,17 +28,11 @@ import org.apache.commons.collections.buffer.CircularFifoBuffer
 
 import org.apache.spark.ui.UIUtils
 
-// scalastyle:off
-
 class StreamingRepository {
 
   val allQueries = HashMap.empty[UUID, StreamingQueryStatistics]
   val activeQueries = HashMap.empty[UUID, String]
   val inactiveQueries = HashMap.empty[UUID, String]
-
-  // def getAllQueries: mutable.HashMap[UUID, StreamingQueryStatistics] = allQueries
-  // def getActiveQueries: mutable.HashMap[UUID, String] = activeQueries
-  // def getInactiveQueries: mutable.HashMap[UUID, String] = inactiveQueries
 
 }
 
@@ -112,15 +106,21 @@ class StreamingQueryStatistics (qId: UUID, qName: String, runId: UUID, startTime
 
     this.timeLine.add(currDateTime.getTime)
 
-    val tmpNumInpRows = { if (progress.numInputRows.isNaN) 0 else progress.numInputRows }
+    val tmpNumInpRows = {
+      if (progress.numInputRows.isNaN) 0 else progress.numInputRows
+    }
     this.numInputRowsTrend.add(tmpNumInpRows)
     this.totalInputRows = this.totalInputRows + tmpNumInpRows
 
-    val tmpInputRowsPerSec = { if (progress.inputRowsPerSecond.isNaN) 0.0 else progress.inputRowsPerSecond }
+    val tmpInputRowsPerSec = {
+      if (progress.inputRowsPerSecond.isNaN) 0.0 else progress.inputRowsPerSecond
+    }
     this.inputRowsPerSecondTrend.add(tmpInputRowsPerSec)
     this.avgInputRowsPerSec = calcAvgOfGivenTrend(this.inputRowsPerSecondTrend)
 
-    val tmpProcessedRowsPerSec = { if (progress.processedRowsPerSecond.isNaN) 0.0 else progress.processedRowsPerSecond }
+    val tmpProcessedRowsPerSec = {
+      if (progress.processedRowsPerSecond.isNaN) 0.0 else progress.processedRowsPerSecond
+    }
     this.processedRowsPerSecondTrend.add(tmpProcessedRowsPerSec)
     this.avgProcessedRowsPerSec = calcAvgOfGivenTrend(this.processedRowsPerSecondTrend)
 
@@ -169,15 +169,8 @@ class StreamingQueryStatistics (qId: UUID, qName: String, runId: UUID, startTime
     avgValue
   }
 
-  def setStatus (status: Boolean) = {
+  def setStatus (status: Boolean): Unit = {
     this.isActive = status
   }
 
 }
-
-class StreamingSourceStatistics (queriUUID: UUID, description: String) {
-  var numInputRows: Int = 0
-  var processedRowsPerSecond: Int = 0
-}
-
-class StreamingSinkStatistics (queriUUID: UUID, description: String)

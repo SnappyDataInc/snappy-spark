@@ -714,14 +714,11 @@ class SparkSession private(
   }
 
   private def updateUI() = {
-    // scalastyle:off
-
     val ssqListener = new SnappyStreamingQueryListener(sparkContext)
     this.streams.addListener(ssqListener)
 
     if (sparkContext.ui.isDefined) {
-      logInfo("Updating Web UI [for Snappy Session : this.id]")
-      println("Updating Web UI [for Snappy Session : this.id]")
+      logInfo("Updating Web UI to add structure streaming tab.")
       sparkContext.ui.foreach(ui => {
         var structStreamTabPresent: Boolean = false
         val tabsList = ui.getTabs
@@ -731,27 +728,22 @@ class SparkSession private(
           if (tab.prefix.equalsIgnoreCase("structurestreaming")) {
             structStreamTabPresent = true
             logInfo("Structure Streaming UI Tab is already present.")
-            println(("Structure Streaming UI Tab is already present."))
           }
         })
         // Add Structure Streaming Tab, iff not present
         if (!structStreamTabPresent) {
-          logInfo(("Creating Structure Streaming UI Tab"))
-          println("Creating Structure Streaming UI Tab")
-
+          logInfo("Creating Structure Streaming UI Tab")
           // Streaming web service
           ui.attachHandler(SnappyStreamingApiRootResource.getServletHandler(ui))
           // Streaming tab
           new SnappyStreamingTab(ui, ssqListener)
         }
       })
-      logInfo("Updating Web UI [for Snappy Session : this.id] is Done.")
-      println("Updating Web UI [for Snappy Session : this.id] is Done.")
+      logInfo("Updating Web UI to add structure streaming tab is Done.")
     }
-    // scalastyle:on
   }
 
-  updateUI()
+  updateUI();
 
 }
 

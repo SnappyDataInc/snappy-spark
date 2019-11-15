@@ -26,8 +26,6 @@ import scala.xml.Node
 
 import org.apache.spark.internal.Logging
 
-// scalastyle:off
-
 private[ui] class SnappyStructuredStreamingPage(parent: SnappyStreamingTab)
     extends WebUIPage("") with Logging {
 
@@ -81,7 +79,9 @@ private[ui] class SnappyStructuredStreamingPage(parent: SnappyStreamingTab)
             <tr>
               <th class="table-th-col-heading" style="font-size: medium;">
                 <span data-toggle="tooltip" title=""
-                      data-original-title={SnappyStructuredStreamingPage.tooltips("leftNavPanelTitle")}>
+                      data-original-title={
+                        SnappyStructuredStreamingPage.tooltips("leftNavPanelTitle")
+                      }>
                   { SnappyStructuredStreamingPage.leftNavPanelTitle }
                 </span>
               </th>
@@ -95,7 +95,7 @@ private[ui] class SnappyStructuredStreamingPage(parent: SnappyStreamingTab)
   private def createSourcesTable: Seq[Node] = {
     <div style="width:100%;">
       <table id="querySourcesGrid" class="table table-bordered table-condensed"
-             style="background-color: #DDD; /*margin: 0px !important;*/">
+             style="background-color: #DDD;">
         <thead>
           <tr>
             <th class="table-th-col-heading" style="font-size: medium; width: 200px;">
@@ -124,7 +124,9 @@ private[ui] class SnappyStructuredStreamingPage(parent: SnappyStreamingTab)
             </th>
             <th class="table-th-col-heading" style="font-size: medium; width: 200px;">
               <span data-toggle="tooltip" title=""
-                    data-original-title={SnappyStructuredStreamingPage.tooltips("srcProcessingRate")}>
+                    data-original-title={
+                      SnappyStructuredStreamingPage.tooltips("srcProcessingRate")
+                    }>
                 { SnappyStructuredStreamingPage.streamingStats("srcProcessingRate") }
               </span>
             </th>
@@ -137,7 +139,7 @@ private[ui] class SnappyStructuredStreamingPage(parent: SnappyStreamingTab)
   private def createSinkTable: Seq[Node] = {
     <div style="width:100%;">
       <table id="querySinkGrid" class="table table-bordered table-condensed"
-             style="background-color: #DDD; /*margin: 0px !important;*/">
+             style="background-color: #DDD;">
         <thead>
           <tr>
             <th class="table-th-col-heading" style="font-size: medium; width: 200px;">
@@ -165,7 +167,6 @@ private[ui] class SnappyStructuredStreamingPage(parent: SnappyStreamingTab)
   }
 
   private def createQueryDetailsEntry (): Seq[Node] = {
-
     <div id="querydetails">
       <div class="container-fluid details-section">
         <div id="selectedQueryTitle" data-toggle="tooltip" title=""
@@ -221,7 +222,9 @@ private[ui] class SnappyStructuredStreamingPage(parent: SnappyStreamingTab)
         <div class="stats-block">
           <div>
             <div class="stats-block-title" data-toggle="tooltip" title=""
-                 data-original-title={SnappyStructuredStreamingPage.tooltips("currInputRowsPerSec")}>
+                 data-original-title={
+                   SnappyStructuredStreamingPage.tooltips("currInputRowsPerSec")
+                 }>
               { SnappyStructuredStreamingPage.streamingStats("currInputRowsPerSec") }
             </div>
             <div id="currInputRowsPerSec" class="stats-block-value">&nbsp;</div>
@@ -230,7 +233,9 @@ private[ui] class SnappyStructuredStreamingPage(parent: SnappyStreamingTab)
         <div class="stats-block">
           <div>
             <div class="stats-block-title" data-toggle="tooltip" title=""
-                 data-original-title={SnappyStructuredStreamingPage.tooltips("currProcessedRowsPerSec")}>
+                 data-original-title={
+                   SnappyStructuredStreamingPage.tooltips("currProcessedRowsPerSec")
+                 }>
               { SnappyStructuredStreamingPage.streamingStats("currProcessedRowsPerSec") }
             </div>
             <div id="currProcessedRowsPerSec" class="stats-block-value">&nbsp;</div>
@@ -239,7 +244,9 @@ private[ui] class SnappyStructuredStreamingPage(parent: SnappyStreamingTab)
         <div class="stats-block">
           <div>
             <div class="stats-block-title" data-toggle="tooltip" title=""
-                 data-original-title={SnappyStructuredStreamingPage.tooltips("totalProcessingTime")}>
+                 data-original-title={
+                   SnappyStructuredStreamingPage.tooltips("totalProcessingTime")
+                 }>
               { SnappyStructuredStreamingPage.streamingStats("totalProcessingTime") }
             </div>
             <div id="totalProcessingTime" class="stats-block-value">&nbsp;</div>
@@ -275,7 +282,8 @@ private[ui] class SnappyStructuredStreamingPage(parent: SnappyStreamingTab)
       </div>
       <div class="container-fluid details-section">
         <div style="width: 5%;display: inline-block;border: 1px #8e8e8e solid;"></div>
-        <div style="width: 10%;display: inline-block;font-size: 20px;font-weight: bold;" data-toggle="tooltip" title=""
+        <div style="width: 10%;display: inline-block;font-size: 20px;font-weight: bold;"
+             data-toggle="tooltip" title=""
              data-original-title={SnappyStructuredStreamingPage.tooltips("sources")}>
           { SnappyStructuredStreamingPage.sourcesTitle }
         </div>
@@ -287,7 +295,8 @@ private[ui] class SnappyStructuredStreamingPage(parent: SnappyStreamingTab)
       </div>
       <div class="container-fluid details-section">
         <div style="width: 5%;display: inline-block;border: 1px #8e8e8e solid;"></div>
-        <div style="width: 10%;display: inline-block;font-size: 20px;font-weight: bold;" data-toggle="tooltip" title=""
+        <div style="width: 10%;display: inline-block;font-size: 20px;font-weight: bold;"
+             data-toggle="tooltip" title=""
              data-original-title={SnappyStructuredStreamingPage.tooltips("sink")}>
           { SnappyStructuredStreamingPage.sinkTitle }
         </div>
@@ -332,14 +341,17 @@ object SnappyStructuredStreamingPage {
   tooltips += ("status" -> "Streaming query status (Active / Inactive)")
   tooltips += ("totalInputRows" -> "Total number of input records received since execution started")
   tooltips += ("currInputRowsPerSec" -> "Records / second received in current trigger interval")
-  tooltips += ("currProcessedRowsPerSec" -> "Records processed / second in current trigger interval")
-  tooltips += ("totalProcessingTime" -> "Total processing time of all batches received since execution is started")
+  tooltips += ("currProcessedRowsPerSec" ->
+                  "Records processed / second in current trigger interval")
+  tooltips += ("totalProcessingTime" ->
+                  "Total processing time of all batches received since execution is started")
   tooltips += ("avgProcessingTime" -> "Average processing time per batch")
   tooltips += ("sources" -> "Streaming queries sources")
   tooltips += ("srcType" -> "Type of streaming query source")
   tooltips += ("srcDescription" -> "Description of streaming query source")
   tooltips += ("srcInputRecords" -> "Number of records received from source in current interval")
-  tooltips += ("srcInputRate" -> "Number of records / second received from source in current interval")
+  tooltips += ("srcInputRate" ->
+                  "Number of records / second received from source in current interval")
   tooltips += ("srcProcessingRate" -> "Number of records processed / second in current interval")
   tooltips += ("sink" -> "Streaming queries sink")
   tooltips += ("snkDescription" -> "Description of streaming query sink")

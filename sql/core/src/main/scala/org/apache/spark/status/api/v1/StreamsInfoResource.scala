@@ -25,8 +25,6 @@ import scala.collection.mutable.ListBuffer
 
 import org.apache.spark.sql.streaming.StreamingRepository
 
-// scalastyle:off
-
 @Produces(Array(MediaType.APPLICATION_JSON))
 private[v1] class StreamsInfoResource {
   @GET
