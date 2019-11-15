@@ -27,7 +27,6 @@ import org.scalatest.concurrent.AsyncAssertions.Waiter
 import org.scalatest.concurrent.Eventually._
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.BeforeAndAfter
-import org.scalatest.PrivateMethodTester._
 
 import org.apache.spark.SparkException
 import org.apache.spark.scheduler._
@@ -35,7 +34,7 @@ import org.apache.spark.sql.{Encoder, SparkSession}
 import org.apache.spark.sql.execution.streaming._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.streaming.StreamingQueryListener._
-import org.apache.spark.util.JsonProtocol
+import org.apache.spark.util.{JsonProtocol, Utils}
 
 class StreamingQueryListenerSuite extends StreamTest with BeforeAndAfter {
 
@@ -399,11 +398,16 @@ class StreamingQueryListenerSuite extends StreamTest with BeforeAndAfter {
     }
   }
 
+  private lazy val getListenerBusField = {
+    val clazz = Utils.classForName("org.apache.spark.sql.streaming.StreamingQueryManager")
+    val listenerBus = clazz.getDeclaredField("listenerBus")
+    listenerBus.setAccessible(true)
+    listenerBus
+  }
+
   private def addedListeners(session: SparkSession = spark): Array[StreamingQueryListener] = {
-    val listenerBusMethod =
-      PrivateMethod[StreamingQueryListenerBus]('listenerBus)
-    val listenerBus = session.streams invokePrivate listenerBusMethod()
-    listenerBus.listeners.toArray.map(_.asInstanceOf[StreamingQueryListener])
+    getListenerBusField.get(session.streams).asInstanceOf[StreamingQueryListenerBus].listeners
+        .toArray.map(_.asInstanceOf[StreamingQueryListener])
   }
 
   /** Collects events from the StreamingQueryListener for testing */

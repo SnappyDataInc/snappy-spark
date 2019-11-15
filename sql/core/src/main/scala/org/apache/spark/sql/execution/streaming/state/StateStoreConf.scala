@@ -27,6 +27,10 @@ private[streaming] class StateStoreConf(@transient private val conf: SQLConf) ex
   val minDeltasForSnapshot = conf.stateStoreMinDeltasForSnapshot
 
   val minVersionsToRetain = conf.minBatchesToRetain
+
+  /** Maximum count of versions a State Store implementation should retain in memory */
+  val maxVersionsToRetainInMemory: Int = conf.maxBatchesToRetainInMemory
+
 }
 
 private[streaming] object StateStoreConf {

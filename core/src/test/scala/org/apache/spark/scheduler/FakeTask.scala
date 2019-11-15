@@ -17,6 +17,8 @@
 
 package org.apache.spark.scheduler
 
+import java.util.Properties
+
 import org.apache.spark.TaskContext
 
 class FakeTask(
@@ -48,6 +50,6 @@ object FakeTask {
     val tasks = Array.tabulate[Task[_]](numTasks) { i =>
       new FakeTask(stageId, i, if (prefLocs.size != 0) prefLocs(i) else Nil)
     }
-    new TaskSet(tasks, stageId, stageAttemptId, priority = 0, null)
+    new TaskSet(tasks, stageId, stageAttemptId, priority = 0, new Properties())
   }
 }
