@@ -19,21 +19,11 @@
 
 package org.apache.spark.sql.streaming
 
-import java.util.UUID
-
-import scala.collection.mutable
-import scala.collection.mutable.HashMap
-
 import org.apache.spark.SparkContext
 
 class SnappyStreamingQueryListener(sparkContext: SparkContext) extends StreamingQueryListener {
 
   val streamingRepo = StreamingRepository.getInstance
-
-  val activeQueries = HashMap.empty[UUID, String]
-  val allQueriesBasicDetails = HashMap.empty[UUID, HashMap[String, Any]]
-  val activeQueryProgress = HashMap.empty[UUID, StreamingQueryProgress]
-  val stoppedQueries = HashMap.empty[UUID, String]
 
   override def onQueryStarted(event: StreamingQueryListener.QueryStartedEvent): Unit = {
     val queryName = {
@@ -44,25 +34,12 @@ class SnappyStreamingQueryListener(sparkContext: SparkContext) extends Streaming
       }
     }
 
-    activeQueries.put(event.id, event.name)
-    val qMap = mutable.HashMap[String, Any](
-      "name" -> queryName,
-      "startTime" -> System.currentTimeMillis(),
-      "isActive"-> true,
-      "uptime" -> 0,
-      "isRestarted" -> false,
-      "attemptCount" -> 0)
-    allQueriesBasicDetails.put(event.id, qMap)
-
-    streamingRepo.activeQueries.put(event.id, queryName)
     streamingRepo.allQueries.put(event.id,
       new StreamingQueryStatistics(event.id, queryName, event.runId, System.currentTimeMillis()))
   }
 
   override def onQueryProgress(event: StreamingQueryListener.QueryProgressEvent): Unit = {
     val pr = event.progress
-    activeQueryProgress.put(pr.id, pr)
-
     if (streamingRepo.allQueries.contains(pr.id)) {
       val sqs = streamingRepo.allQueries.get(pr.id).get
       sqs.updateQueryStatistics(event)
@@ -81,11 +58,6 @@ class SnappyStreamingQueryListener(sparkContext: SparkContext) extends Streaming
   }
 
   override def onQueryTerminated(event: StreamingQueryListener.QueryTerminatedEvent): Unit = {
-    activeQueries.remove(event.id)
-
-    val q = streamingRepo.activeQueries.remove(event.id).get
-    streamingRepo.inactiveQueries.put(event.id, q)
-
     streamingRepo.allQueries.get(event.id).get.setStatus(false)
   }
 

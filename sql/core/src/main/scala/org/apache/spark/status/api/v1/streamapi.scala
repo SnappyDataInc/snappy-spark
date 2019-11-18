@@ -18,15 +18,11 @@
  */
 package org.apache.spark.status.api.v1
 
-import java.util.UUID
-
-import scala.collection.mutable
-
 import org.apache.spark.sql.streaming.StreamingQueryStatistics
 
 
 class StreamsSummary private[spark](
-    val activeQueries: mutable.HashMap[UUID, String],
-    val inactiveQueries: mutable.HashMap[UUID, String],
+    // val activeQueries: mutable.HashMap[UUID, String],
+    // val inactiveQueries: mutable.HashMap[UUID, String],
     val allQueries: Seq[StreamingQueryStatistics]
 )

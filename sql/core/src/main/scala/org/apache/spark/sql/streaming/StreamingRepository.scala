@@ -31,8 +31,6 @@ import org.apache.spark.ui.UIUtils
 class StreamingRepository {
 
   val allQueries = HashMap.empty[UUID, StreamingQueryStatistics]
-  val activeQueries = HashMap.empty[UUID, String]
-  val inactiveQueries = HashMap.empty[UUID, String]
 
 }
 
@@ -42,7 +40,6 @@ object StreamingRepository {
 
   def getInstance: StreamingRepository = _instance
 }
-
 
 
 class StreamingQueryStatistics (qId: UUID, qName: String, runId: UUID, startTime: Long) {

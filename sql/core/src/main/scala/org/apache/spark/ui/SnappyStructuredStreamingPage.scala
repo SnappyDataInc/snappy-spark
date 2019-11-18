@@ -29,8 +29,6 @@ import org.apache.spark.internal.Logging
 private[ui] class SnappyStructuredStreamingPage(parent: SnappyStreamingTab)
     extends WebUIPage("") with Logging {
 
-  val activeQueries = parent.listener.activeQueries
-
   def commonHeaderNodesSnappy: Seq[Node] = {
     <link rel="stylesheet" type="text/css"
           href={UIUtils.prependBaseUri("/static/snappydata/snappy-streaming.css")}/>
@@ -45,17 +43,7 @@ private[ui] class SnappyStructuredStreamingPage(parent: SnappyStreamingTab)
 
     val pageHeaderText: String = SnappyStructuredStreamingPage.pageHeaderText
 
-    val mainContent = {
-      val connErrorMsgNode = {
-        <div id="AutoUpdateErrorMsgContainer">
-          <div id="AutoUpdateErrorMsg">
-          </div>
-        </div>
-      }
-      connErrorMsgNode ++ createMainContent
-    }
-
-    val pageContent = commonHeaderNodesSnappy ++ mainContent
+    val pageContent = commonHeaderNodesSnappy ++ createMainContent
 
     UIUtils.headerSparkPage(pageHeaderText, pageContent, parent, Some(500), useDataTables = true)
 
@@ -64,10 +52,20 @@ private[ui] class SnappyStructuredStreamingPage(parent: SnappyStreamingTab)
   private def createMainContent: Seq[Node] = {
     val navPanel = createNavigationPanel
     val detailsPanel = createQueryDetailsPanel
+    val connErrorMsgNode = {
+      <div id="AutoUpdateErrorMsgContainer">
+        <div id="AutoUpdateErrorMsg">
+        </div>
+      </div>
+    }
+    val mainPanel = {
+      <div class="main-container">
+        {navPanel ++ detailsPanel}
+      </div>
+    }
 
-    <div class="main-container">
-      {navPanel ++ detailsPanel}
-    </div>
+    connErrorMsgNode ++ mainPanel
+
   }
 
   private def createNavigationPanel: Seq[Node] = {
@@ -166,7 +164,7 @@ private[ui] class SnappyStructuredStreamingPage(parent: SnappyStreamingTab)
     </div>
   }
 
-  private def createQueryDetailsEntry (): Seq[Node] = {
+  private def createQueryDetailsEntry: Seq[Node] = {
     <div id="querydetails">
       <div class="container-fluid details-section">
         <div id="selectedQueryTitle" data-toggle="tooltip" title=""
