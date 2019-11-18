@@ -16,6 +16,8 @@
  */
 package org.apache.spark.sql.execution
 
+import scala.language.reflectiveCalls
+
 import org.apache.spark.sql.AnalysisException
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, OneRowRelation}
 import org.apache.spark.sql.test.SharedSQLContext
