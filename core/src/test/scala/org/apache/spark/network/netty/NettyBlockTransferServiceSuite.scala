@@ -29,7 +29,7 @@ import org.apache.spark.network.BlockDataManager
 class NettyBlockTransferServiceSuite
   extends SparkFunSuite
   with BeforeAndAfterEach
-  with ShouldMatchers {
+  with Matchers {
 
   private var service0: NettyBlockTransferService = _
   private var service1: NettyBlockTransferService = _

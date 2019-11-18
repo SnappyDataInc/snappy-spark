@@ -17,7 +17,7 @@
 
 package org.apache.spark.sql.catalyst.analysis
 
-import org.scalatest.ShouldMatchers
+import org.scalatest.Matchers
 
 import org.apache.spark.sql.catalyst.{SimpleCatalystConf, TableIdentifier}
 import org.apache.spark.sql.catalyst.dsl.expressions._
@@ -28,7 +28,7 @@ import org.apache.spark.sql.catalyst.plans.logical._
 import org.apache.spark.sql.types._
 
 
-class AnalysisSuite extends AnalysisTest with ShouldMatchers {
+class AnalysisSuite extends AnalysisTest with Matchers {
   import org.apache.spark.sql.catalyst.analysis.TestRelations._
 
   test("union project *") {
