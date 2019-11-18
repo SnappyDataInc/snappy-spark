@@ -133,7 +133,16 @@ private[spark] class MetricsSystem private (
 
     if (instance == "driver" || instance == "executor") {
       if (metricsNamespace.isDefined && executorId.isDefined) {
-        MetricRegistry.name(metricsNamespace.get, executorId.get, source.sourceName)
+        if (source.sourceName.contains("TIBCO ComputeDB") ||
+            source.sourceName.contains("SnappyData")) {
+          // If sourceName contains either TIBCO ComputeDB or SnappyData then
+          // ignoring <app ID>.<executor ID (or "driver")> instead of
+          // that added unique clusterId along with sourceName
+          MetricRegistry.name("", "", source.sourceName)
+        } else {
+          // for default spark metrics namespace
+          MetricRegistry.name(metricsNamespace.get, executorId.get, source.sourceName)
+        }
       } else {
         // Only Driver and Executor set spark.app.id and spark.executor.id.
         // Other instance types, e.g. Master and Worker, are not related to a specific application.
