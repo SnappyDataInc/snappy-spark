@@ -183,14 +183,21 @@ private[ui] class SnappyStructuredStreamingPage(parent: SnappyStreamingTab)
             <div id="startDateTime" class="basic-details-value">&nbsp;</div>
           </div>
           <div>
-            <div class="basic-details-title" data-toggle="tooltip" title=""
+            <div class="basic-details-title" style="width: 30%;" data-toggle="tooltip" title=""
                  data-original-title={SnappyStructuredStreamingPage.tooltips("uptime")}>
               { SnappyStructuredStreamingPage.streamingStats("uptime") }
             </div>
             <div id="uptime" class="basic-details-value">&nbsp;</div>
           </div>
           <div>
-            <div class="basic-details-title" style="width: 50%;" data-toggle="tooltip" title=""
+            <div class="basic-details-title" data-toggle="tooltip" title=""
+                 data-original-title={SnappyStructuredStreamingPage.tooltips("triggerInterval")}>
+              { SnappyStructuredStreamingPage.streamingStats("triggerInterval") }
+            </div>
+            <div id="triggerInterval" class="basic-details-value">&nbsp;</div>
+          </div>
+          <div>
+            <div class="basic-details-title" data-toggle="tooltip" title=""
                  data-original-title={SnappyStructuredStreamingPage.tooltips("batchesProcessed")}>
               { SnappyStructuredStreamingPage.streamingStats("batchesProcessed") }
             </div>
@@ -316,6 +323,7 @@ object SnappyStructuredStreamingPage {
   streamingStats += ("startDateTime" -> "Start Date & Time")
   streamingStats += ("uptime" -> "Uptime")
   streamingStats += ("status" -> "Status")
+  streamingStats += ("triggerInterval" -> "Trigger Interval")
   streamingStats += ("batchesProcessed" -> "Batches Processed")
   streamingStats += ("totalInputRows" -> "Total Input Records")
   streamingStats += ("currInputRowsPerSec" -> "Current Input Rate")
@@ -335,6 +343,7 @@ object SnappyStructuredStreamingPage {
   tooltips += ("queryName" -> "Streaming Query Name")
   tooltips += ("startDateTime" -> "Date & time when streaming query started its execution")
   tooltips += ("uptime" -> "Total time since streaming query started its execution")
+  tooltips += ("triggerInterval" -> "Configured triggering interval for batches")
   tooltips += ("batchesProcessed" -> "Number of batches processed since execution its started")
   tooltips += ("status" -> "Streaming query status (Active / Inactive)")
   tooltips += ("totalInputRows" -> "Total number of input records received since execution started")

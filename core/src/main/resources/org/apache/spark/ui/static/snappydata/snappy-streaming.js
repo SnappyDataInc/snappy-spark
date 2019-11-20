@@ -26,7 +26,10 @@ function displayQueryStatistics(queryId) {
 
   $("#selectedQueryName").html(queryStats.queryName);
   $("#startDateTime").html(queryStats.queryStartTimeText);
-  $("#uptime").html(queryStats.queryUptimeText);
+  $("#uptime").html(
+    formatDurationVerbose(queryStats.queryUptime).toLocaleString(navigator.language));
+  $("#triggerInterval").html(
+    formatDurationVerbose(queryStats.trendEventsInterval).toLocaleString(navigator.language));
   $("#numBatchesProcessed").html(queryStats.numBatchesProcessed);
   var statusText = "";
   if (queryStats.isActive) {
@@ -163,12 +166,14 @@ function updateCharts(queryStats) {
 
   var processingTimeChartData = new google.visualization.DataTable();
   processingTimeChartData.addColumn('datetime', 'Time of Day');
+  processingTimeChartData.addColumn('number', 'Processing Threshold');
   processingTimeChartData.addColumn('number', 'Processing Time');
 
   var stateOperatorsStatsChartData = new google.visualization.DataTable();
   stateOperatorsStatsChartData.addColumn('datetime', 'Time of Day');
   stateOperatorsStatsChartData.addColumn('number', 'Total Records');
 
+  var intervalValue = queryStats.trendEventsInterval;
   var timeLine = queryStats.timeLine;
   var numInputRowsTrend = queryStats.numInputRowsTrend;
   var inputRowsPerSecondTrend = queryStats.inputRowsPerSecondTrend;
@@ -190,6 +195,7 @@ function updateCharts(queryStats) {
 
      processingTimeChartData.addRow([
         timeX,
+        intervalValue,
         processingTimeTrend[i]]);
 
      stateOperatorsStatsChartData.addRow([
@@ -223,10 +229,17 @@ function updateCharts(queryStats) {
     title: 'Processing Time',
     // curveType: 'function',
     legend: { position: 'bottom' },
-    colors:['#2139EC'],
+    colors:['#ff0000', '#2139EC'],
     crosshair: { trigger: 'focus' },
     hAxis: {
       format: 'HH:mm'
+    },
+    series: {
+      0: {
+        lineWidth: 1,
+        visibleInLegend: false,
+        pointsVisible: false
+      }
     }
   };
 

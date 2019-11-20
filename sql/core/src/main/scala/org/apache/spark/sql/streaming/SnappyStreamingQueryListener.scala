@@ -35,7 +35,12 @@ class SnappyStreamingQueryListener(sparkContext: SparkContext) extends Streaming
     }
 
     streamingRepo.allQueries.put(event.id,
-      new StreamingQueryStatistics(event.id, queryName, event.runId, System.currentTimeMillis()))
+      new StreamingQueryStatistics(
+        event.id,
+        queryName,
+        event.runId,
+        System.currentTimeMillis(),
+        event.trigger))
   }
 
   override def onQueryProgress(event: StreamingQueryListener.QueryProgressEvent): Unit = {
@@ -51,7 +56,11 @@ class SnappyStreamingQueryListener(sparkContext: SparkContext) extends Streaming
           pr.name
         }
       }
-      val sqs = new StreamingQueryStatistics(pr.id, queryName, pr.runId, System.currentTimeMillis())
+      val sqs = new StreamingQueryStatistics(
+                  pr.id,
+                  queryName,
+                  pr.runId,
+                  System.currentTimeMillis())
       sqs.updateQueryStatistics(event)
       streamingRepo.allQueries.put(pr.id, sqs)
     }

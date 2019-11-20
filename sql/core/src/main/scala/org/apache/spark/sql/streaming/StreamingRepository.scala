@@ -42,7 +42,12 @@ object StreamingRepository {
 }
 
 
-class StreamingQueryStatistics (qId: UUID, qName: String, runId: UUID, startTime: Long) {
+class StreamingQueryStatistics (
+    qId: UUID,
+    qName: String,
+    runId: UUID,
+    startTime: Long,
+    trigger: Trigger = ProcessingTime(0L)) {
 
   private val MAX_SAMPLE_SIZE = 100
 
@@ -58,6 +63,7 @@ class StreamingQueryStatistics (qId: UUID, qName: String, runId: UUID, startTime
   var queryUptimeText: String = ""
 
   var runUUID: UUID = runId
+  val trendEventsInterval: Long = trigger.asInstanceOf[ProcessingTime].intervalMs
 
   var isActive: Boolean = true
 
@@ -65,8 +71,6 @@ class StreamingQueryStatistics (qId: UUID, qName: String, runId: UUID, startTime
 
   var sources = Array.empty[SourceProgress]
   var sink: SinkProgress = null
-
-  var trendInterval: Int = 0
 
   var totalInputRows: Long = 0L
   var avgInputRowsPerSec: Double = 0.0
