@@ -1,14 +1,16 @@
 
 function displayQueryStatistics(queryId) {
   var queryStats = {};
-  if(selectedQueryUUID == "") {
-    queryStats = streamingQueriesGridData[0];
-  } else {
-    queryStats = streamingQueriesGridData.find(obj => obj.queryUUID == queryId);
-  }
-
-  // return if data is not present
-  if(queryStats == undefined) {
+  if (streamingQueriesGridData.length > 0) {
+    if (selectedQueryUUID == "") {
+      queryStats = streamingQueriesGridData[0];
+    } else {
+      queryStats = streamingQueriesGridData.find(obj => obj.queryUUID == queryId);
+      if (queryStats == undefined) {
+        queryStats = streamingQueriesGridData[0];
+      }
+    }
+  } else { // return if data is not present
     return;
   }
 

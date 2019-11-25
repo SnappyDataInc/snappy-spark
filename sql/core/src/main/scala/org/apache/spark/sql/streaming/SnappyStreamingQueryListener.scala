@@ -34,7 +34,7 @@ class SnappyStreamingQueryListener(sparkContext: SparkContext) extends Streaming
       }
     }
 
-    streamingRepo.allQueries.put(event.id,
+    streamingRepo.addQuery(event.id,
       new StreamingQueryStatistics(
         event.id,
         queryName,
@@ -44,30 +44,11 @@ class SnappyStreamingQueryListener(sparkContext: SparkContext) extends Streaming
   }
 
   override def onQueryProgress(event: StreamingQueryListener.QueryProgressEvent): Unit = {
-    val pr = event.progress
-    if (streamingRepo.allQueries.contains(pr.id)) {
-      val sqs = streamingRepo.allQueries.get(pr.id).get
-      sqs.updateQueryStatistics(event)
-    } else {
-      val queryName = {
-        if (pr.name == null || pr.name.isEmpty) {
-          pr.id.toString
-        } else {
-          pr.name
-        }
-      }
-      val sqs = new StreamingQueryStatistics(
-                  pr.id,
-                  queryName,
-                  pr.runId,
-                  System.currentTimeMillis())
-      sqs.updateQueryStatistics(event)
-      streamingRepo.allQueries.put(pr.id, sqs)
-    }
+    streamingRepo.updateQuery(event.progress)
   }
 
   override def onQueryTerminated(event: StreamingQueryListener.QueryTerminatedEvent): Unit = {
-    streamingRepo.allQueries.get(event.id).get.setStatus(false)
+    streamingRepo.setQueryStatus(event.id, false)
   }
 
 }

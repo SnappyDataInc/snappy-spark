@@ -26,12 +26,62 @@ import scala.collection.mutable.HashMap
 
 import org.apache.commons.collections.buffer.CircularFifoBuffer
 
+import org.apache.spark.internal.Logging
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.ui.UIUtils
 
-class StreamingRepository {
+class StreamingRepository extends Logging {
 
-  val allQueries = HashMap.empty[UUID, StreamingQueryStatistics]
+  private lazy val MAX_RUNNING_QUERIES_TO_RETAIN =
+    SparkSession.getActiveSession.get.sqlContext.conf.streamingUIRunningQueriesDisplayLimit
 
+  private val allQueries = HashMap.empty[UUID, StreamingQueryStatistics]
+
+  def getAllQueries: HashMap[UUID, StreamingQueryStatistics] = this.allQueries
+
+  def addQuery(qid: UUID, sqs: StreamingQueryStatistics): Unit = {
+    if (allQueries.size < MAX_RUNNING_QUERIES_TO_RETAIN) {
+      this.allQueries.put(qid, sqs)
+    } else {
+      var qidToRemove: Option[UUID] = None
+      var queryStartTime: Option[Long] = None
+      val qidList = this.allQueries.keySet
+      qidList.foreach(qid => {
+        val sqs = this.allQueries.get(qid).get
+        if (!sqs.isActive) {
+          if (queryStartTime.isEmpty) {
+            queryStartTime = Some(sqs.queryStartTime)
+            qidToRemove = Some(sqs.queryUUID)
+          } else if (sqs.queryStartTime < queryStartTime.get) {
+            queryStartTime = Some(sqs.queryStartTime)
+            qidToRemove = Some(sqs.queryUUID)
+          }
+        }
+      })
+
+      if (qidToRemove.nonEmpty) {
+        this.allQueries.remove(qidToRemove.get)
+        this.allQueries.put(qid, sqs)
+      } else {
+        logWarning(s" Can not add new streaming queries as limit of " +
+            "running streaming queries to be displayed is reached to max limit" +
+            MAX_RUNNING_QUERIES_TO_RETAIN)
+      }
+    }
+  }
+
+  def updateQuery(sqp: StreamingQueryProgress): Unit = {
+    if (this.allQueries.contains(sqp.id)) {
+      val sqs = this.allQueries.get(sqp.id).get
+      sqs.updateQueryStatistics(sqp)
+    } else {
+      logWarning("Streaming query entry is not present in streaming queries repository object.")
+    }
+  }
+
+  def setQueryStatus(qid: UUID, status: Boolean): Unit = {
+    this.allQueries.get(qid).get.setStatus(status)
+  }
 }
 
 object StreamingRepository {
@@ -49,7 +99,8 @@ class StreamingQueryStatistics (
     startTime: Long,
     trigger: Trigger = ProcessingTime(0L)) {
 
-  private val MAX_SAMPLE_SIZE = 100
+  private val MAX_SAMPLE_SIZE =
+    SparkSession.getActiveSession.get.sqlContext.conf.streamingUITrendsMaxSampleSize
 
   private val simpleDateFormat = new SimpleDateFormat("dd-MMM-YYYY hh:mm:ss")
   private val timestampFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'") // ISO8601
@@ -91,10 +142,9 @@ class StreamingQueryStatistics (
   val stateOpNumRowsTotalTrend = new CircularFifoBuffer(MAX_SAMPLE_SIZE)
   val stateOpNumRowsUpdatedTrend = new CircularFifoBuffer(MAX_SAMPLE_SIZE)
 
-  def updateQueryStatistics(event: StreamingQueryListener.QueryProgressEvent): Unit = {
-    val progress = event.progress
+  def updateQueryStatistics(progress: StreamingQueryProgress): Unit = {
 
-    if(this.currentBatchId < progress.batchId){
+    if (this.currentBatchId < progress.batchId) {
       this.numBatchesProcessed = this.numBatchesProcessed + 1
     }
 
