@@ -110,6 +110,80 @@ function convertSizeToHumanReadable(value){
 }
 
 /*
+ * Utility function to format given long date value to human readable string representation.
+ *
+ * Eg. NOV 26, 2019 18:45:30
+ */
+function formatDate(dateMS) {
+  var months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN' , 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  var dt = new Date(dateMS);
+
+  var dd = dt.getDate();
+  if ( dd < 10 ) { dd = '0' + dd; }
+
+  var hh = dt.getHours();
+  if ( hh < 10 ) { hh = '0' + hh; }
+
+  var mm = dt.getMinutes();
+  if ( mm < 10 ) { mm = '0' + mm; }
+
+  var ss = dt.getSeconds();
+  if ( ss < 10 ) { ss = '0' + ss; }
+
+  var dateStr = months[dt.getMonth()] + ' ' + dd + ', ' + dt.getFullYear()
+              + ' ' + hh + ':' + mm + ':' + ss;
+  return dateStr;
+
+}
+
+/*
+ * Utility function to calculate duration from given long date value and convert that duration
+ * to human readable string representation.
+ *
+ * Eg. 2 Days 10 Hrs 12 Mins 25 Secs
+ */
+function getDurationInReadableForm(startDateTimeMS) {
+
+  var start_date = new Date(startDateTimeMS);
+  var now_date = new Date();
+
+  var seconds = Math.floor((now_date - start_date) / 1000);
+  var minutes = Math.floor(seconds / 60);
+  var hours = Math.floor(minutes / 60);
+  var days = Math.floor(hours / 24);
+
+  hours = hours - (days * 24);
+  minutes = minutes - (days * 24 * 60) - (hours * 60);
+  seconds = seconds - (days * 24 * 60 * 60) - (hours * 60 * 60) - (minutes * 60);
+
+  var durationStr = "";
+  if (days > 0) {
+    if (days < 2) {
+      durationStr += days + ' Day ';
+    } else {
+      durationStr += days + ' Days ';
+    }
+  }
+  if (hours > 0) {
+    if (hours < 2) {
+      durationStr += hours + ' Hr ';
+    } else {
+      durationStr += hours + ' Hrs ';
+    }
+  }
+  if (minutes > 0) {
+    if (minutes > 0 && minutes < 2) {
+      durationStr += minutes + ' Min ';
+    } else {
+      durationStr += minutes + ' Mins ';
+    }
+  }
+  durationStr += seconds + ' Secs';
+
+  return durationStr;
+}
+
+/*
  * An event handler function to handle error events occurred in AJAX request.
  *
  */
