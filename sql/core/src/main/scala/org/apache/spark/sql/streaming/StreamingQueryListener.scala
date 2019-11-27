@@ -88,7 +88,8 @@ object StreamingQueryListener {
   class QueryStartedEvent private[sql](
       val id: UUID,
       val runId: UUID,
-      val name: String) extends Event
+      val name: String,
+      val trigger: Trigger = ProcessingTime(0L)) extends Event
 
   /**
    * Event representing any progress updates in a query.

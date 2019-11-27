@@ -64,6 +64,73 @@ function applyNotApplicableCheck(value){
 }
 
 /*
+* Utility function to convert milliseconds value in human readable
+* form Eg "2 days 14 hrs 2 mins"
+*/
+function formatDurationVerbose(ms) {
+
+  function stringify(num, unit) {
+    if (num <= 0) {
+      return "";
+    } else if (num == 1) {
+      return  num + " "+ unit;
+    } else {
+      return num + " "+ unit+'s';
+    }
+  }
+
+  var second = 1000;
+  var minute = 60 * second;
+  var hour = 60 * minute;
+  var day = 24 * hour;
+  var week = 7 * day;
+  var year = 365 * day;
+
+  var msString = "";
+  if (ms >= second && ms % second == 0) {
+    msString = "";
+  } else {
+    msString = (ms % second) + " ms";
+  }
+
+  var secString = stringify(parseInt((ms % minute) / second), "sec");
+  var minString = stringify(parseInt((ms % hour) / minute), "min");
+  var hrString = stringify(parseInt((ms % day) / hour), "hr");
+  var dayString = stringify(parseInt((ms % week) / day), "day");
+  var wkString = stringify(parseInt((ms % year) / week), "wk");
+  var yrString = stringify(parseInt(ms / year), "yr");
+
+  var finalString = msString;
+
+  if(ms >= second ) {
+    finalString = secString + " " + finalString;
+  }
+
+  if(ms >= minute ) {
+    finalString = minString + " " + finalString;
+  }
+
+  if(ms >= hour ) {
+    finalString = hrString + " " + finalString;
+  }
+
+  if(ms >= day ) {
+    finalString = dayString + " " + hrString + " " + minString;
+  }
+
+  if(ms >= week ) {
+    finalString = wkString + " " + finalString;
+  }
+
+  if(ms >= year ) {
+    finalString = yrString  + " " + wkString + " " + hrString;
+  }
+
+  return finalString;
+
+}
+
+/*
  * Utility function to convert given value in Bytes to KB or MB or GB or TB
  *
  */

@@ -1085,6 +1085,22 @@ object SQLConf {
       .internal()
       .stringConf
 
+  // For SnappyData
+  val STREAMING_UI_RUNNING_QUERIES_DISPLAY_LIMIT =
+    buildConf("spark.sql.streaming.uiRunningQueriesDisplayLimit")
+        .doc("The number of running streaming queries to be displayed on UI." +
+            "Default value is 20")
+        .intConf
+        .createWithDefault(20)
+
+  // For SnappyData
+  val STREAMING_UI_TRENDS_MAX_SAMPLE_SIZE =
+    buildConf("spark.sql.streaming.uiTrendsMaxSampleSize")
+        .doc("The number of maximum historical data points to be displayed on UI." +
+            "Default value is 60 (i.e 60 data points)")
+        .intConf
+        .createWithDefault(60)
+
   val PARALLEL_FILE_LISTING_IN_STATS_COMPUTATION =
     buildConf("spark.sql.statistics.parallelFileListingInStatsComputation.enabled")
       .internal()
@@ -1660,6 +1676,11 @@ class SQLConf extends Serializable with Logging {
   def streamingMetricsEnabled: Boolean = getConf(STREAMING_METRICS_ENABLED)
 
   def streamingProgressRetention: Int = getConf(STREAMING_PROGRESS_RETENTION)
+
+  def streamingUIRunningQueriesDisplayLimit: Int =
+    getConf(STREAMING_UI_RUNNING_QUERIES_DISPLAY_LIMIT)
+
+  def streamingUITrendsMaxSampleSize: Int = getConf(STREAMING_UI_TRENDS_MAX_SAMPLE_SIZE)
 
   def filesMaxPartitionBytes: Long = getConf(FILES_MAX_PARTITION_BYTES)
 
