@@ -46,6 +46,8 @@ import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.streaming._
 import org.apache.spark.sql.types.{DataType, LongType, StructType}
 import org.apache.spark.sql.util.ExecutionListenerManager
+import org.apache.spark.status.api.v1.SnappyStreamingApiRootResource
+import org.apache.spark.ui.SnappyStreamingTab
 import org.apache.spark.util.Utils
 
 
@@ -710,6 +712,38 @@ class SparkSession private(
       AttributeReference(f.name, f.dataType, f.nullable)()
     }
   }
+
+  private def updateUI() = {
+    val ssqListener = new SnappyStreamingQueryListener(sparkContext)
+    this.streams.addListener(ssqListener)
+
+    if (sparkContext.ui.isDefined) {
+      logInfo("Updating Web UI to add structure streaming tab.")
+      sparkContext.ui.foreach(ui => {
+        var structStreamTabPresent: Boolean = false
+        val tabsList = ui.getTabs
+        // Add remaining tabs in tabs list
+        tabsList.foreach(tab => {
+          // Check if Structure Streaming Tab is present or not
+          if (tab.prefix.equalsIgnoreCase("structurestreaming")) {
+            structStreamTabPresent = true
+            logInfo("Structure Streaming UI Tab is already present.")
+          }
+        })
+        // Add Structure Streaming Tab, iff not present
+        if (!structStreamTabPresent) {
+          logInfo("Creating Structure Streaming UI Tab")
+          // Streaming web service
+          ui.attachHandler(SnappyStreamingApiRootResource.getServletHandler(ui))
+          // Streaming tab
+          new SnappyStreamingTab(ui, ssqListener)
+        }
+      })
+      logInfo("Updating Web UI to add structure streaming tab is Done.")
+    }
+  }
+
+  updateUI();
 
 }
 
