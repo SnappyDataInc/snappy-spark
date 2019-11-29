@@ -713,7 +713,11 @@ class SparkSession private(
     }
   }
 
-  private def updateUI() = {
+  /**
+   * Adds or updates structured streaming UI tab.
+   * All session instances have their own SnappyStreamingQueryListener but shares same UI tab.
+   */
+  protected def updateUIWithStructuredStreamingTab() = {
     val ssqListener = new SnappyStreamingQueryListener(sparkContext)
     this.streams.addListener(ssqListener)
 
@@ -725,7 +729,7 @@ class SparkSession private(
         // Add remaining tabs in tabs list
         tabsList.foreach(tab => {
           // Check if Structure Streaming Tab is present or not
-          if (tab.prefix.equalsIgnoreCase("structurestreaming")) {
+          if (tab.prefix.equalsIgnoreCase("structuredstreaming")) {
             structStreamTabPresent = true
             logInfo("Structure Streaming UI Tab is already present.")
           }
@@ -742,8 +746,6 @@ class SparkSession private(
       logInfo("Updating Web UI to add structure streaming tab is Done.")
     }
   }
-
-  updateUI();
 
 }
 
