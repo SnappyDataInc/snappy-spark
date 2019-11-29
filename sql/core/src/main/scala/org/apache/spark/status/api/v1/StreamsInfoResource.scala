@@ -18,8 +18,8 @@
  */
 package org.apache.spark.status.api.v1
 
-import javax.ws.rs.core.MediaType
 import javax.ws.rs.{GET, Produces}
+import javax.ws.rs.core.MediaType
 
 import scala.collection.mutable.ListBuffer
 

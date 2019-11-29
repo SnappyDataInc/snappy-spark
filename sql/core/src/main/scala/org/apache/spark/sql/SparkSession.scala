@@ -729,7 +729,7 @@ class SparkSession private(
         // Add remaining tabs in tabs list
         tabsList.foreach(tab => {
           // Check if Structure Streaming Tab is present or not
-          if (tab.prefix.equalsIgnoreCase("structurestreaming")) {
+          if (tab.prefix.equalsIgnoreCase("structuredstreaming")) {
             structStreamTabPresent = true
             logInfo("Structure Streaming UI Tab is already present.")
           }

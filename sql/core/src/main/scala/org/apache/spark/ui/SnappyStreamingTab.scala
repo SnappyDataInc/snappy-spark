@@ -23,7 +23,7 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.sql.streaming.SnappyStreamingQueryListener
 
 class SnappyStreamingTab (sparkUI: SparkUI, streamingListener: SnappyStreamingQueryListener)
-    extends SparkUITab(sparkUI, "structurestreaming") with Logging {
+    extends SparkUITab(sparkUI, "structuredstreaming") with Logging {
 
   override val name = "Structured Streaming"
 
