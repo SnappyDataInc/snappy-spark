@@ -406,11 +406,11 @@ function getStreamingQueriesGridConf() {
     "columns": [
       { // Query Names
         data: function(row, type) {
-                var qNameHtml = '<div style="display:none;">' + row.queryUUID + '</div>'
-                              + '<div style="width:100%; padding-left:10px; cursor: pointer;"'
+                var qNameHtml = '<div style="width:100%; padding-left:10px; cursor: pointer;"'
                               + ' onclick="displayQueryStatistics(\''+ row.queryUUID +'\')">'
                               + row.queryName
-                              + '</div>';
+                              + '</div>'
+                              + '<div style="display:none;">' + row.queryUUID + '</div>';
                 return qNameHtml;
               },
         "orderable": true
@@ -424,7 +424,7 @@ function addDataTableSingleRowSelectionHandler(tableId) {
   $('#' + tableId + ' tbody').on( 'click', 'tr', function () {
     $('#' + tableId + ' tbody').children('.queryselected').toggleClass('queryselected');
     // $(this).toggleClass('queryselected');
-    displayQueryStatistics($(this).children().children().first().text());
+    displayQueryStatistics($(this).children().children()[1].first().text());
   } );
 }
 
