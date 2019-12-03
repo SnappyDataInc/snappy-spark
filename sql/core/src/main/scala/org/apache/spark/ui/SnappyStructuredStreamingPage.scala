@@ -308,7 +308,7 @@ private[ui] class SnappyStructuredStreamingPage(parent: SnappyStreamingTab)
         <div style="width: 84%;display: inline-block;border: 1px #8e8e8e solid;"></div>
       </div>
       <div id="sinkDetailsContainer" class="container-fluid details-section"
-           style="/*height: 100px;*/ border: 1px solid grey; padding: 10px; margin: 10px;">
+           style="margin: 10px;">
         { createSinkTable }
       </div>
     </div>

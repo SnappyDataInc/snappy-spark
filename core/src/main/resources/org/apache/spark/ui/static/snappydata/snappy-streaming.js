@@ -44,12 +44,16 @@ function displayQueryStatistics(queryId) {
   $("#totalInputRows").html(queryStats.totalInputRows.toLocaleString(navigator.language));
 
   var qIRPSTrend = queryStats.inputRowsPerSecondTrend;
-  $("#currInputRowsPerSec").html(
-      qIRPSTrend[qIRPSTrend.length - 1].toLocaleString(navigator.language));
+  if (qIRPSTrend.length > 0) {
+    $("#currInputRowsPerSec").html(
+        qIRPSTrend[qIRPSTrend.length - 1].toLocaleString(navigator.language));
+  }
 
   var qPRPSTrend = queryStats.processedRowsPerSecondTrend;
-  $("#currProcessedRowsPerSec").html(
-      qPRPSTrend[qPRPSTrend.length - 1].toLocaleString(navigator.language));
+  if (qPRPSTrend.length > 0) {
+    $("#currProcessedRowsPerSec").html(
+        qPRPSTrend[qPRPSTrend.length - 1].toLocaleString(navigator.language));
+  }
 
   var qTPT = queryStats.totalProcessingTime;
   $("#totalProcessingTime").html(
@@ -228,7 +232,7 @@ function updateCharts(queryStats) {
   };
 
   processingTimeChartOptions = {
-    title: 'Processing Time',
+    title: 'Processing Time (ms)',
     // curveType: 'function',
     legend: { position: 'bottom' },
     colors:['#ff0000', '#2139EC'],
