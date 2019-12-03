@@ -46,6 +46,14 @@ private[sql] class JSONOptions(
         defaultColumnNameOfCorruptRecord)
   }
 
+  // provided a constructor so that existing code of snappydata compatible with spark 2.1 continues
+  // to work
+  def this(
+    parameters: Map[String, String]) = {
+    this(
+      new CaseInsensitiveMap(parameters), "")
+  }
+
   val samplingRatio =
     parameters.get("samplingRatio").map(_.toDouble).getOrElse(1.0)
   val primitivesAsString =
