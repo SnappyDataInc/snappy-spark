@@ -26,8 +26,6 @@ import org.apache.hadoop.mapred.{JobConf, TextInputFormat}
 import org.apache.hadoop.mapreduce.{Job, RecordWriter, TaskAttemptContext}
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat
 import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat
-import org.apache.hadoop.mapreduce.{Job, TaskAttemptContext}
-
 
 import org.apache.spark.internal.Logging
 import org.apache.spark.sql.{Row, SparkSession}

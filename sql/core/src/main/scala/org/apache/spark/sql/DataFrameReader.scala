@@ -26,9 +26,6 @@ import org.apache.spark.internal.Logging
 import org.apache.spark.Partition
 import org.apache.spark.annotation.InterfaceStability
 import org.apache.spark.rdd.RDD
-
-import org.apache.spark.sql.catalyst.json.{JacksonParser, JSONOptions}
-
 import org.apache.spark.sql.catalyst.json.{CreateJacksonParser, JacksonParser, JSONOptions}
 import org.apache.spark.sql.execution.LogicalRDD
 import org.apache.spark.sql.execution.datasources.DataSource
