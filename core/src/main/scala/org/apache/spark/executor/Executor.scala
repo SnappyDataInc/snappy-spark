@@ -120,7 +120,7 @@ private[spark] class Executor(
   }
 
   // Whether to load classes in user jars before those in Spark jars
-  private val userClassPathFirst = conf.getBoolean("spark.executor.userClassPathFirst", false)
+  protected val userClassPathFirst = conf.getBoolean("spark.executor.userClassPathFirst", false)
 
   // Whether to monitor killed / interrupted tasks
   private val taskReaperEnabled = conf.getBoolean("spark.task.reaper.enabled", false)
@@ -708,6 +708,7 @@ private[spark] class Executor(
    */
   protected def updateDependencies(newFiles: HashMap[String, Long],
       newJars: HashMap[String, Long]) {
+    logInfo(s"KN: update dependencies called and new files = ${newFiles} and new jars = ${newJars}"  )
     lazy val hadoopConf = SparkHadoopUtil.get.newConfiguration(conf)
     synchronized {
       // Fetch missing dependencies
