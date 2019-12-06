@@ -38,6 +38,8 @@ if os.environ.get("SPARK_EXECUTOR_URI"):
 
 SparkContext._ensure_initialized()
 
+conf = SparkConf()
+catalogImplementation = conf.get('spark.sql.catalogImplementation', 'hive').lower()
 try:
     spark = SparkSession._create_shell_session()
 except Exception:
@@ -48,12 +50,18 @@ except Exception:
     sys.exit(1)
 
 sc = spark.sparkContext
-snappy = SnappySession(sc)
-sql = snappy.sql
+if catalogImplementation == 'in-memory':
+    snappy = SnappySession(sc)
+    sql = snappy.sql
+else:
+    sql = spark.sql
 atexit.register(lambda: sc.stop())
 
 # for compatibility
-sqlContext = snappy._wrapped
+if catalogImplementation == 'in-memory':
+    sqlContext = snappy._wrapped
+else:
+    sqlContext = spark._wrapped
 sqlCtx = sqlContext
 
 print(r"""Welcome to
@@ -68,7 +76,8 @@ print("Using Python version %s (%s, %s)" % (
     platform.python_build()[0],
     platform.python_build()[1]))
 print("SparkSession available as 'spark'.")
-print("SnappySession available as 'snappy'.")
+if catalogImplementation == 'in-memory':
+    print("SnappySession available as 'snappy'.")
 
 # The ./bin/pyspark script stores the old PYTHONSTARTUP value in OLD_PYTHONSTARTUP,
 # which allows us to execute the user's PYTHONSTARTUP file:
