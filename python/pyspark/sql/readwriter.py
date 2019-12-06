@@ -158,11 +158,14 @@ class DataFrameReader(OptionUtils):
     def json(self, path, schema=None, primitivesAsString=None, prefersDecimal=None,
              allowComments=None, allowUnquotedFieldNames=None, allowSingleQuotes=None,
              allowNumericLeadingZero=None, allowBackslashEscapingAnyCharacter=None,
-             mode=None, columnNameOfCorruptRecord=None, dateFormat=None, timestampFormat=None):
+             mode=None, columnNameOfCorruptRecord=None, dateFormat=None, timestampFormat=None,
+             timeZone=None, wholeFile=None):
+
         """
-        Loads a JSON file (`JSON Lines text format or newline-delimited JSON
-        <http://jsonlines.org/>`_) or an RDD of Strings storing JSON objects (one object per
-        record) and returns the result as a :class`DataFrame`.
+        Loads a JSON file and returns the results as a :class:`DataFrame`.
+
+        Both JSON (one record per file) and `JSON Lines <http://jsonlines.org/>`_
+        (newline-delimited JSON) are supported and can be selected with the `wholeFile` parameter.
 
         If the ``schema`` parameter is not specified, this function goes
         through the input once to determine the input schema.
@@ -208,7 +211,12 @@ class DataFrameReader(OptionUtils):
         :param timestampFormat: sets the string that indicates a timestamp format. Custom date
                                 formats follow the formats at ``java.text.SimpleDateFormat``.
                                 This applies to timestamp type. If None is set, it uses the
-                                default value value, ``yyyy-MM-dd'T'HH:mm:ss.SSSZZ``.
+
+                                default value, ``yyyy-MM-dd'T'HH:mm:ss.SSSZZ``.
+        :param timeZone: sets the string that indicates a timezone to be used to parse timestamps.
+                         If None is set, it uses the default value, session local timezone.
+        :param wholeFile: parse one record, which may span multiple lines, per file. If None is
+                          set, it uses the default value, ``false``.
 
         >>> df1 = spark.read.json('python/test_support/sql/people.json')
         >>> df1.dtypes
@@ -225,7 +233,8 @@ class DataFrameReader(OptionUtils):
             allowSingleQuotes=allowSingleQuotes, allowNumericLeadingZero=allowNumericLeadingZero,
             allowBackslashEscapingAnyCharacter=allowBackslashEscapingAnyCharacter,
             mode=mode, columnNameOfCorruptRecord=columnNameOfCorruptRecord, dateFormat=dateFormat,
-            timestampFormat=timestampFormat)
+
+            timestampFormat=timestampFormat, timeZone=timeZone, wholeFile=wholeFile)
         if isinstance(path, basestring):
             path = [path]
         if type(path) == list:

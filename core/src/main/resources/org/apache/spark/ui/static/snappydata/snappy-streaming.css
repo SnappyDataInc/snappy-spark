@@ -30,7 +30,6 @@
 .left-navigation-panel {
   float: left;
   width: 15%;
-  min-width: 250px;
   height: 100%;
   border: solid #B1B1B1 1px;
   background-color: #F1F1F1;
@@ -40,7 +39,6 @@
   width: 84%;
   height: 100%;
   float: right;
-  padding-left: 10px;
   border: solid #B1B1B1 1px;
   background-color: #F1F1F1;
 }

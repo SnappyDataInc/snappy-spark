@@ -428,11 +428,14 @@ class DataStreamReader(OptionUtils):
     def json(self, path, schema=None, primitivesAsString=None, prefersDecimal=None,
              allowComments=None, allowUnquotedFieldNames=None, allowSingleQuotes=None,
              allowNumericLeadingZero=None, allowBackslashEscapingAnyCharacter=None,
-             mode=None, columnNameOfCorruptRecord=None, dateFormat=None,
-             timestampFormat=None):
+
+             mode=None, columnNameOfCorruptRecord=None, dateFormat=None, timestampFormat=None,
+             timeZone=None, wholeFile=None):
         """
-        Loads a JSON file stream (`JSON Lines text format or newline-delimited JSON
-        <http://jsonlines.org/>`_) and returns a :class`DataFrame`.
+        Loads a JSON file stream and returns the results as a :class:`DataFrame`.
+
+        Both JSON (one record per file) and `JSON Lines <http://jsonlines.org/>`_
+        (newline-delimited JSON) are supported and can be selected with the `wholeFile` parameter.
 
         If the ``schema`` parameter is not specified, this function goes
         through the input once to determine the input schema.
@@ -480,7 +483,13 @@ class DataStreamReader(OptionUtils):
         :param timestampFormat: sets the string that indicates a timestamp format. Custom date
                                 formats follow the formats at ``java.text.SimpleDateFormat``.
                                 This applies to timestamp type. If None is set, it uses the
-                                default value value, ``yyyy-MM-dd'T'HH:mm:ss.SSSZZ``.
+
+                                default value, ``yyyy-MM-dd'T'HH:mm:ss.SSSZZ``.
+        :param timeZone: sets the string that indicates a timezone to be used to parse timestamps.
+                         If None is set, it uses the default value, session local timezone.
+        :param wholeFile: parse one record, which may span multiple lines, per file. If None is
+                          set, it uses the default value, ``false``.
+
 
         >>> json_sdf = spark.readStream.json(tempfile.mkdtemp(), schema = sdf_schema)
         >>> json_sdf.isStreaming
@@ -494,7 +503,8 @@ class DataStreamReader(OptionUtils):
             allowSingleQuotes=allowSingleQuotes, allowNumericLeadingZero=allowNumericLeadingZero,
             allowBackslashEscapingAnyCharacter=allowBackslashEscapingAnyCharacter,
             mode=mode, columnNameOfCorruptRecord=columnNameOfCorruptRecord, dateFormat=dateFormat,
-            timestampFormat=timestampFormat)
+            timestampFormat=timestampFormat, timeZone=timeZone, wholeFile=wholeFile)
+
         if isinstance(path, basestring):
             return self._df(self._jreader.json(path))
         else:

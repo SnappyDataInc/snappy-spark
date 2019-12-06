@@ -44,12 +44,16 @@ function displayQueryStatistics(queryId) {
   $("#totalInputRows").html(queryStats.totalInputRows.toLocaleString(navigator.language));
 
   var qIRPSTrend = queryStats.inputRowsPerSecondTrend;
-  $("#currInputRowsPerSec").html(
-      qIRPSTrend[qIRPSTrend.length - 1].toLocaleString(navigator.language));
+  if (qIRPSTrend.length > 0) {
+    $("#currInputRowsPerSec").html(
+        qIRPSTrend[qIRPSTrend.length - 1].toLocaleString(navigator.language));
+  }
 
   var qPRPSTrend = queryStats.processedRowsPerSecondTrend;
-  $("#currProcessedRowsPerSec").html(
-      qPRPSTrend[qPRPSTrend.length - 1].toLocaleString(navigator.language));
+  if (qPRPSTrend.length > 0) {
+    $("#currProcessedRowsPerSec").html(
+        qPRPSTrend[qPRPSTrend.length - 1].toLocaleString(navigator.language));
+  }
 
   var qTPT = queryStats.totalProcessingTime;
   $("#totalProcessingTime").html(
@@ -228,7 +232,7 @@ function updateCharts(queryStats) {
   };
 
   processingTimeChartOptions = {
-    title: 'Processing Time',
+    title: 'Processing Time (ms)',
     // curveType: 'function',
     legend: { position: 'bottom' },
     colors:['#ff0000', '#2139EC'],
@@ -402,11 +406,11 @@ function getStreamingQueriesGridConf() {
     "columns": [
       { // Query Names
         data: function(row, type) {
-                var qNameHtml = '<div style="display:none;">' + row.queryUUID + '</div>'
-                              + '<div style="width:100%; padding-left:10px; cursor: pointer;"'
+                var qNameHtml = '<div style="width:100%; padding-left:10px; cursor: pointer;"'
                               + ' onclick="displayQueryStatistics(\''+ row.queryUUID +'\')">'
                               + row.queryName
-                              + '</div>';
+                              + '</div>'
+                              + '<div style="display:none;">' + row.queryUUID + '</div>';
                 return qNameHtml;
               },
         "orderable": true
@@ -420,7 +424,7 @@ function addDataTableSingleRowSelectionHandler(tableId) {
   $('#' + tableId + ' tbody').on( 'click', 'tr', function () {
     $('#' + tableId + ' tbody').children('.queryselected').toggleClass('queryselected');
     // $(this).toggleClass('queryselected');
-    displayQueryStatistics($(this).children().children().first().text());
+    displayQueryStatistics($(this).children().children()[1].first().text());
   } );
 }
 
