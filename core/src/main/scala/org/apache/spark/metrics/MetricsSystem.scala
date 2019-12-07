@@ -137,7 +137,7 @@ private[spark] class MetricsSystem private (
         // ignoring <app ID>.<executor ID (or "driver")> instead of
         // that added unique clusterId along with sourceName
         if (source.sourceName.contains("TIBCO ComputeDB")) {
-          MetricRegistry.name("", "", "TIBCO_ComputeDB.")
+          MetricRegistry.name("", "", source.sourceName.replace(" ", "_"))
         } else if (source.sourceName.contains("SnappyData")) {
           MetricRegistry.name("", "", source.sourceName)
         } else {
