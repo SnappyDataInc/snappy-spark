@@ -208,11 +208,11 @@ class StreamingQueryListenerSuite extends StreamTest with BeforeAndAfter {
       assert(newEvent.id === event.id)
       assert(newEvent.runId === event.runId)
       assert(newEvent.name === event.name)
-      assert(newEvent.trigger === event.trigger)
+      assert(newEvent.triggerInterval === event.triggerInterval)
     }
 
     testSerialization(new QueryStartedEvent(UUID.randomUUID, UUID.randomUUID, "name",
-      ProcessingTime("1 second")))
+      ProcessingTime("1 second").intervalMs))
     testSerialization(new QueryStartedEvent(UUID.randomUUID, UUID.randomUUID, null))
   }
 
