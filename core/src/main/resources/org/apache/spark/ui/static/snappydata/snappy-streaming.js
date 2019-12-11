@@ -424,7 +424,7 @@ function addDataTableSingleRowSelectionHandler(tableId) {
   $('#' + tableId + ' tbody').on( 'click', 'tr', function () {
     $('#' + tableId + ' tbody').children('.queryselected').toggleClass('queryselected');
     // $(this).toggleClass('queryselected');
-    displayQueryStatistics($(this).children().children()[1].first().text());
+    displayQueryStatistics($(this).children().children()[1].innerText);
   } );
 }
 

@@ -114,7 +114,7 @@ object TypeCoercion {
    * Find the tightest common type of a set of types by continuously applying
    * `findTightestCommonTypeOfTwo` on these types.
    */
-  private def findTightestCommonType(types: Seq[DataType]): Option[DataType] = {
+   def findTightestCommonType(types: Seq[DataType]): Option[DataType] = {
     types.foldLeft[Option[DataType]](Some(NullType))((r, c) => r match {
       case None => None
       case Some(d) => findTightestCommonTypeOfTwo(d, c)

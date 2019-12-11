@@ -68,7 +68,7 @@ class JsonSuite extends QueryTest with SharedSQLContext with TestJsonData {
 
       Utils.tryWithResource(factory.createParser(writer.toString)) { jsonParser =>
         jsonParser.nextToken()
-        val converter = parser.makeRootConverter(dataType.asInstanceOf[StructType])
+        val converter = parser.makeConverter(dataType)
         converter.apply(jsonParser)
       }
     }
@@ -1369,7 +1369,7 @@ class JsonSuite extends QueryTest with SharedSQLContext with TestJsonData {
 
     val emptySchema = InferSchema.infer(
       empty,
-      new JSONOptions(Map.empty[String, String], "GMT"),
+      new JSONOptions(Map.empty[String, String]/* , defaultTimeZoneId = "GMT" */),
       CreateJacksonParser.string)
     assert(StructType(Seq()) === emptySchema)
   }
@@ -1394,10 +1394,9 @@ class JsonSuite extends QueryTest with SharedSQLContext with TestJsonData {
   }
 
   test("SPARK-8093 Erase empty structs") {
-
     val emptySchema = InferSchema.infer(
       emptyRecords,
-      new JSONOptions(Map.empty[String, String], "GMT"),
+      new JSONOptions(Map.empty[String, String] /* , defaultTimeZoneId = "GMT" */),
       CreateJacksonParser.string)
     assert(StructType(Seq()) === emptySchema)
   }

@@ -47,6 +47,8 @@ import platform
 import py4j
 
 import pyspark
+
+from pyspark import SparkConf
 from pyspark.context import SparkContext
 from pyspark.sql import SparkSession, SQLContext
 from pyspark.sql.snappy import SnappySession
@@ -57,12 +59,17 @@ if os.environ.get("SPARK_EXECUTOR_URI"):
 
 SparkContext._ensure_initialized()
 
+conf = SparkConf()
+catalogImplementation = conf.get('spark.sql.catalogImplementation', 'hive').lower()
 try:
-    # Try to access HiveConf, it will raise exception if Hive is not added
-    SparkContext._jvm.org.apache.hadoop.hive.conf.HiveConf()
-    spark = SparkSession.builder\
-        .enableHiveSupport()\
-        .getOrCreate()
+    if catalogImplementation == 'hive':
+        # Try to access HiveConf, it will raise exception if Hive is not added
+        SparkContext._jvm.org.apache.hadoop.hive.conf.HiveConf()
+        spark = SparkSession.builder\
+            .enableHiveSupport()\
+            .getOrCreate()
+    else:
+        spark = SparkSession.builder.getOrCreate()
 except py4j.protocol.Py4JError:
     spark = SparkSession.builder.getOrCreate()
 except TypeError:
@@ -70,12 +77,18 @@ except TypeError:
 
 
 sc = spark.sparkContext
-snappy = SnappySession(sc)
-sql = snappy.sql
+if catalogImplementation == 'in-memory':
+    snappy = SnappySession(sc)
+    sql = snappy.sql
+else:
+    sql = spark.sql
 atexit.register(lambda: sc.stop())
 
 # for compatibility
-sqlContext = snappy._wrapped
+if catalogImplementation == 'in-memory':
+    sqlContext = snappy._wrapped
+else:
+    sqlContext = spark._wrapped
 sqlCtx = sqlContext
 
 print("""Welcome to
@@ -90,7 +103,8 @@ print("Using Python version %s (%s, %s)" % (
     platform.python_build()[0],
     platform.python_build()[1]))
 print("SparkSession available as 'spark'.")
-print("SnappySession available as 'snappy'.")
+if catalogImplementation == 'in-memory':
+    print("SnappySession available as 'snappy'.")
 
 # The ./bin/pyspark script stores the old PYTHONSTARTUP value in OLD_PYTHONSTARTUP,
 # which allows us to execute the user's PYTHONSTARTUP file:

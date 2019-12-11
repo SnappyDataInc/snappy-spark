@@ -39,7 +39,6 @@ private[sql] class JSONOptions(
 
   def this(
     parameters: Map[String, String],
-
     defaultColumnNameOfCorruptRecord: String = "") = {
       this(
         new CaseInsensitiveMap(parameters),
