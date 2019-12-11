@@ -246,7 +246,9 @@ class StreamExecution(
       }
 
       // `postEvent` does not throw non fatal exception.
-      postEvent(new QueryStartedEvent(id, runId, name, trigger))
+
+      postEvent(new QueryStartedEvent(id, runId, name,
+        trigger.asInstanceOf[ProcessingTime].intervalMs))
 
       // Unblock starting thread
       startLatch.countDown()

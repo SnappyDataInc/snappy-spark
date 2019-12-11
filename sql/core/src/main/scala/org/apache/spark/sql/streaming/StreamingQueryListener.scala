@@ -97,7 +97,7 @@ object StreamingQueryListener {
       val id: UUID,
       val runId: UUID,
       val name: String,
-      val trigger: Trigger = ProcessingTime(0L)) extends Event
+      val triggerInterval: Long = 0L) extends Event
 
   /**
    * :: Experimental ::

@@ -97,7 +97,7 @@ class StreamingQueryStatistics (
     qName: String,
     runId: UUID,
     startTime: Long,
-    trigger: Trigger = ProcessingTime(0L)) {
+    triggerInterval: Long) {
 
   private val MAX_SAMPLE_SIZE =
     SparkSession.getActiveSession.get.sqlContext.conf.streamingUITrendsMaxSampleSize
@@ -114,7 +114,7 @@ class StreamingQueryStatistics (
   var queryUptimeText: String = ""
 
   var runUUID: UUID = runId
-  val trendEventsInterval: Long = trigger.asInstanceOf[ProcessingTime].intervalMs
+  val trendEventsInterval: Long = triggerInterval
 
   var isActive: Boolean = true
 
