@@ -263,7 +263,12 @@ abstract class StreamExecution(
       }
 
       // `postEvent` does not throw non fatal exception.
-      postEvent(new QueryStartedEvent(id, runId, name, trigger))
+      val intervalMs = trigger match {
+        case ProcessingTime(millis) => millis
+        case continuous.ContinuousTrigger(millis) => millis
+        case _ => 0L
+      }
+      postEvent(new QueryStartedEvent(id, runId, name, intervalMs))
 
       // Unblock starting thread
       startLatch.countDown()

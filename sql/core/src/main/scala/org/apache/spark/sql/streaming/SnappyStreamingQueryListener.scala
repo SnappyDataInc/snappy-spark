@@ -56,7 +56,7 @@ class SnappyStreamingQueryListener(sparkContext: SparkContext) extends Streaming
         queryName,
         event.runId,
         System.currentTimeMillis(),
-        event.trigger))
+        event.triggerInterval))
   }
 
   override def onQueryProgress(event: StreamingQueryListener.QueryProgressEvent): Unit = {
