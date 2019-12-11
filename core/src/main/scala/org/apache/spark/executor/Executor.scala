@@ -708,7 +708,6 @@ private[spark] class Executor(
    */
   protected def updateDependencies(newFiles: HashMap[String, Long],
       newJars: HashMap[String, Long]) {
-    logInfo(s"KN: update dependencies called and new files = ${newFiles} and new jars = ${newJars}"  )
     lazy val hadoopConf = SparkHadoopUtil.get.newConfiguration(conf)
     synchronized {
       // Fetch missing dependencies
