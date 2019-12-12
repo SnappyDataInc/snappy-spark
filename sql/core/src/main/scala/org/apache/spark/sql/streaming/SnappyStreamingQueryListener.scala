@@ -19,11 +19,9 @@
 
 package org.apache.spark.sql.streaming
 
-import org.apache.spark.SparkContext
+class SnappyStreamingQueryListener extends StreamingQueryListener {
 
-class SnappyStreamingQueryListener(sparkContext: SparkContext) extends StreamingQueryListener {
-
-  val streamingRepo = StreamingRepository.getInstance
+  private val streamingRepo = StreamingRepository.getInstance
 
   override def onQueryStarted(event: StreamingQueryListener.QueryStartedEvent): Unit = {
     val queryName = {
