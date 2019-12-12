@@ -72,7 +72,6 @@ import org.apache.spark.util.Utils
  * }}}
  */
 @InterfaceStability.Stable
-@SuppressWarnings("unchecked")
 class SparkSession private(
     @transient val sparkContext: SparkContext,
     @transient private val existingSharedState: Option[SharedState])
