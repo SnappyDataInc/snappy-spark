@@ -72,12 +72,11 @@ import org.apache.spark.util.Utils
  * }}}
  */
 @InterfaceStability.Stable
+@SuppressWarnings("unchecked")
 class SparkSession private(
     @transient val sparkContext: SparkContext,
     @transient private val existingSharedState: Option[SharedState])
   extends Serializable with Closeable with Logging { self =>
-
-  private var ssqListener: SnappyStreamingQueryListener = null
 
   private[sql] def this(sc: SparkContext) {
     this(sc, None)
@@ -720,9 +719,9 @@ class SparkSession private(
    * All session instances have their own SnappyStreamingQueryListener but shares same UI tab.
    */
   protected def updateUIWithStructuredStreamingTab() = {
-    ssqListener = new SnappyStreamingQueryListener()
-    this.streams.addListener(ssqListener)
-
+    val listener = new SnappyStreamingQueryListener()
+    this.streams.addListener(listener)
+    sessionState.registerStreamingQueryListener(listener)
     if (sparkContext.ui.isDefined) {
       logInfo("Updating Web UI to add structure streaming tab.")
       sparkContext.ui.foreach(ui => {
@@ -742,23 +741,20 @@ class SparkSession private(
           // Streaming web service
           ui.attachHandler(SnappyStreamingApiRootResource.getServletHandler(ui))
           // Streaming tab
-          new SnappyStreamingTab(ui, ssqListener)
+          new SnappyStreamingTab(ui, listener)
         }
       })
       logInfo("Updating Web UI to add structure streaming tab is Done.")
     }
   }
 
-  // scalastyle:off
   // Doing this clean up in finalize method as lifecycle of the listener is aligned with session's
-  // lifecycle and can't think of any better place where this cleanup can be handled. After this
-  // the listener object will be eligible for GC in the next cycle.
+  // lifecycle. After this the listener object will be eligible for GC in the next cycle.
   // Also the memory footprint of the listener object is not much hence it should be ok if the
   // listener object is remain alive for one extra GC cycle as compared to the session.
   override def finalize(): Unit = {
-    sessionState.streamingQueryManager.removeListener(ssqListener)
+    sessionState.removeStreamingQueryListener()
   }
-  // scalastyle:on
 }
 
 
