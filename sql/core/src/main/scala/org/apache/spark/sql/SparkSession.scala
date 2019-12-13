@@ -71,6 +71,7 @@ import org.apache.spark.util.Utils
  *     .getOrCreate()
  * }}}
  */
+// scalastyle:off no.finalize
 @InterfaceStability.Stable
 class SparkSession private(
     @transient val sparkContext: SparkContext,
@@ -751,10 +752,9 @@ class SparkSession private(
   // lifecycle. After this the listener object will be eligible for GC in the next cycle.
   // Also the memory footprint of the listener object is not much hence it should be ok if the
   // listener object is remain alive for one extra GC cycle as compared to the session.
-  override def finalize(): Unit = {
-    sessionState.removeStreamingQueryListener()
-  }
+  override def finalize(): Unit = sessionState.removeStreamingQueryListener()
 }
+// scalastyle:on no.finalize
 
 
 @InterfaceStability.Stable
