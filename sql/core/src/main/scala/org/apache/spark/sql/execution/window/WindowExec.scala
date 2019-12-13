@@ -406,7 +406,8 @@ case class WindowExec(
             rowIndex += 1
 
             // Return the projection.
-            result(join)
+            // TO FIX bug SNAP-3267
+            result(join).copy()
           } else throw new NoSuchElementException
         }
       }
