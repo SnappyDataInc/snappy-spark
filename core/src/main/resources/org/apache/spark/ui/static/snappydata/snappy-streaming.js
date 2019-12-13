@@ -250,7 +250,7 @@ function updateCharts(queryStats) {
   };
 
   stateOperatorsStatsChartOptions = {
-    title: 'Aggregation States',
+    title: 'Aggregation State',
     // curveType: 'function',
     legend: { position: 'bottom' },
     colors:['#2139EC'],
@@ -299,6 +299,7 @@ function getQuerySourcesGridConf() {
   // Streaming Queries Source Grid Data Table Configurations
   var querySourcesGridConf = {
     data: selectedQuerySourcesGridData,
+    "pageLength": -1,
     "dom": '',
     "columns": [
       { // Source type
@@ -373,6 +374,7 @@ function getQuerySinkGridConf() {
   // Streaming Queries Sink Grid Data Table Configurations
   var querySinkGridConf = {
     data: selectedQuerySinkGridData,
+    "pageLength": -1,
     "dom": '',
     "columns": [
       { // Sink type
@@ -402,6 +404,7 @@ function getStreamingQueriesGridConf() {
   // Streaming Queries Grid Data Table Configurations
   var streamingQueriesGridConf = {
     data: streamingQueriesGridData,
+    "pageLength": -1,
     "dom": '',
     "columns": [
       { // Query Names
