@@ -45,6 +45,8 @@ class StreamingQueryListenerSuite extends StreamTest with BeforeAndAfter {
 
   after {
     spark.streams.active.foreach(_.stop())
+    // finalize method removes the StreamingQueryListener registered for structured streaming UI.
+    spark.finalize()
     assert(spark.streams.active.isEmpty)
     assert(addedListeners().isEmpty)
     // Make sure we don't leak any events to the next test
