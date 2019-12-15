@@ -21,6 +21,7 @@ import java.io.File
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
+
 import org.apache.spark.sql._
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{Analyzer, FunctionRegistry}
@@ -153,8 +154,8 @@ private[sql] class SessionState(sparkSession: SparkSession) {
   }
 
   /**
-    * Listener for streaming query UI
-    */
+   * Listener for streaming query UI
+   */
   private var streamingQueryListener: StreamingQueryListener = _
 
   def registerStreamingQueryListener(streamingQueryListener: StreamingQueryListener): Unit = {
