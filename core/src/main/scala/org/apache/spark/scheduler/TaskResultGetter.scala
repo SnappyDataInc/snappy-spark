@@ -22,11 +22,10 @@ import java.util.concurrent.{ExecutorService, RejectedExecutionException}
 
 import scala.language.existentials
 import scala.util.control.NonFatal
-
 import org.apache.spark._
 import org.apache.spark.TaskState.TaskState
 import org.apache.spark.internal.Logging
-import org.apache.spark.serializer.SerializerInstance
+import org.apache.spark.serializer.{JavaSerializerInstance, SerializerInstance}
 import org.apache.spark.util.{LongAccumulator, ThreadUtils, Utils}
 
 /**
@@ -44,14 +43,49 @@ private[spark] class TaskResultGetter(sparkEnv: SparkEnv, scheduler: TaskSchedul
   // Exposed for testing.
   protected val serializer = new ThreadLocal[SerializerInstance] {
     override def initialValue(): SerializerInstance = {
-      sparkEnv.closureSerializer.newInstance()
+      val ser = sparkEnv.closureSerializer.newInstance()
+      logInfo(s"KN: Returning instance closure serializer = ${ser} obj = ${System.identityHashCode(ser)}", new Exception)
+      ser
     }
   }
 
   protected val taskResultSerializer = new ThreadLocal[SerializerInstance] {
     override def initialValue(): SerializerInstance = {
-      sparkEnv.serializer.newInstance()
+      val serializer = sparkEnv.serializer
+      val inst = serializer.newInstance()
+      logInfo(s"KN: Returning instance taskResultSerializer = ${inst} obj = ${System.identityHashCode(inst)}", new Exception)
+      inst
     }
+  }
+
+  private def getSerializer(taskSetManager: TaskSetManager): SerializerInstance = {
+    val ser = sparkEnv.closureSerializer
+    val props = taskSetManager.taskSet.properties
+    val classLoader: ClassLoader = if (props != null && !props.isEmpty) {
+      scheduler.getIntpClassLoader(props)
+    } else null
+
+    logInfo(s"KN: Setting classloader = ${classLoader} and props = ${props}")
+    if (classLoader != null) {
+      Thread.currentThread().setContextClassLoader(classLoader)
+      ser.setDefaultClassLoader(classLoader)
+    }
+    ser.newInstance()
+  }
+
+  private def getTaskResultSerializer(taskSetManager: TaskSetManager): SerializerInstance = {
+    val ser = sparkEnv.serializer
+    val props = taskSetManager.taskSet.properties
+    val classLoader: ClassLoader = if (props != null && !props.isEmpty) {
+      scheduler.getIntpClassLoader(props)
+    } else null
+
+    logInfo(s"KN: TRS Setting classloader = ${classLoader} and props = ${props}")
+    if (classLoader != null) {
+      Thread.currentThread().setContextClassLoader(classLoader)
+      ser.setDefaultClassLoader(classLoader)
+    }
+    ser.newInstance()
   }
 
   def enqueueSuccessfulTask(
@@ -61,7 +95,9 @@ private[spark] class TaskResultGetter(sparkEnv: SparkEnv, scheduler: TaskSchedul
     getTaskResultExecutor.execute(new Runnable {
       override def run(): Unit = Utils.logUncaughtExceptions {
         try {
-          val resultSerializer = taskResultSerializer.get()
+          // val resultSerializer = taskResultSerializer.get()
+          val resultSerializer = getTaskResultSerializer(taskSetManager)
+          logInfo(s"KN: taskResultSerializer = ${resultSerializer} obj = ${System.identityHashCode(resultSerializer)}")
           val (result, size) = resultSerializer.deserialize[TaskResult[_]](serializedData) match {
             case directResult: DirectTaskResult[_] =>
               if (!taskSetManager.canFetchMoreResults(serializedData.limit())) {
@@ -134,7 +170,9 @@ private[spark] class TaskResultGetter(sparkEnv: SparkEnv, scheduler: TaskSchedul
           val loader = Utils.getContextOrSparkClassLoader
           try {
             if (serializedData != null && serializedData.limit() > 0) {
-              reason = serializer.get().deserialize[TaskFailedReason](
+//              reason = serializer.get().deserialize[TaskFailedReason](
+//                serializedData, loader)
+              reason = getSerializer(taskSetManager).deserialize[TaskFailedReason](
                 serializedData, loader)
             }
           } catch {

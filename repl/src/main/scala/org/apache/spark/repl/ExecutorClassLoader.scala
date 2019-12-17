@@ -157,6 +157,7 @@ class ExecutorClassLoader(
 
   def findClassLocally(name: String): Option[Class[_]] = {
     val pathInDirectory = name.replace('.', '/') + ".class"
+    logInfo(s"KN: findingClassLocally for name: $pathInDirectory")
     var inputStream: InputStream = null
     try {
       inputStream = fetchFn(pathInDirectory)

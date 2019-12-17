@@ -36,14 +36,13 @@
 package org.apache.spark.scheduler
 
 import java.nio.ByteBuffer
-import java.util.{Timer, TimerTask}
+import java.util.{Properties, Timer, TimerTask}
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 
 import scala.collection.Set
 import scala.collection.mutable.{ArrayBuffer, HashMap, HashSet}
 import scala.util.Random
-
 import org.apache.spark._
 import org.apache.spark.TaskState.TaskState
 import org.apache.spark.internal.Logging
@@ -51,6 +50,7 @@ import org.apache.spark.internal.config
 import org.apache.spark.scheduler.SchedulingMode.SchedulingMode
 import org.apache.spark.scheduler.TaskLocality.TaskLocality
 import org.apache.spark.scheduler.local.LocalSchedulerBackend
+import org.apache.spark.serializer.SerializerInstance
 import org.apache.spark.storage.BlockManagerId
 import org.apache.spark.util.{AccumulatorV2, ThreadUtils, Utils}
 
@@ -75,6 +75,7 @@ private[spark] class TaskSchedulerImpl(
     isLocal: Boolean = false)
   extends TaskScheduler with Logging
 {
+
   def this(sc: SparkContext) = this(sc, sc.conf.get(config.MAX_TASK_FAILURES))
 
   val conf = sc.conf
@@ -682,6 +683,7 @@ private[spark] class TaskSchedulerImpl(
     }
   }
 
+  def getIntpClassLoader(taskProps: Properties): ClassLoader = null
 }
 
 

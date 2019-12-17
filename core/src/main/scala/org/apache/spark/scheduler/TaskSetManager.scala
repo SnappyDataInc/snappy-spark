@@ -43,11 +43,11 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import scala.collection.mutable.{ArrayBuffer, HashMap, HashSet}
 import scala.math.{max, min}
 import scala.util.control.NonFatal
-
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.SchedulingMode._
 import org.apache.spark.TaskState.TaskState
+import org.apache.spark.serializer.SerializerInstance
 import org.apache.spark.util.{AccumulatorV2, Clock, SystemClock, Utils}
 
 /**
@@ -431,6 +431,21 @@ private[spark] class TaskSetManager(
       case (taskIndex, allowedLocality) => (taskIndex, allowedLocality, true)}
   }
 
+  private def getSerializer(task: Task[_]): SerializerInstance = {
+    val ser = env.closureSerializer
+    val props = task.localProperties
+    val classLoader: ClassLoader = if (props != null && !props.isEmpty) {
+      sched.getIntpClassLoader(props)
+    } else null
+
+    logInfo(s"KN: TSM Setting classloader = ${classLoader} and props = ${props}", new Exception)
+    if (classLoader != null) {
+      Thread.currentThread().setContextClassLoader(classLoader)
+      ser.setDefaultClassLoader(classLoader)
+    }
+    ser.newInstance()
+  }
+
   /**
    * Respond to an offer of a single executor from the scheduler by finding a task
    *
@@ -499,7 +514,8 @@ private[spark] class TaskSetManager(
         }
         // Serialize and return the task
         val serializedTask: ByteBuffer = try {
-          Task.serializeWithDependencies(task, sched.sc.addedFiles, sched.sc.addedJars, ser)
+          // Task.serializeWithDependencies(task, sched.sc.addedFiles, sched.sc.addedJars, ser)
+          Task.serializeWithDependencies(task, sched.sc.addedFiles, sched.sc.addedJars, getSerializer(task))
         } catch {
           // If the task cannot be serialized, then there's no point to re-attempt the task,
           // as it will always fail. So just abort the whole task-set.
@@ -509,6 +525,17 @@ private[spark] class TaskSetManager(
             abort(s"$msg Exception during serialization: $e")
             throw new TaskNotSerializableException(e)
         }
+        // Just for debugging
+        val dupSerialized = serializedTask.asReadOnlyBuffer()
+        val (map1, map2, prop, bb ) = Task.deserializeWithDependencies(dupSerialized)
+        logInfo(s"KN: map1 = ${map1} and map2 = ${map2} and prop = ${prop} and bb = ${bb}")
+        val taskTmp = getSerializer(task).deserialize[Task[Any]](bb, Thread.currentThread.getContextClassLoader)
+        logInfo(s"KN: taskTmp = ${taskTmp} and task = ${task} taskData = ${task.taskData} and " +
+          s" tmpTaskData = ${taskTmp.taskData}")
+        logInfo(s"KN: Task details compressed bytes = ${task.taskData.compressedBytes}" +
+          s" and reference = ${task.taskData.reference} and uclen = ${task.taskData.uncompressedLen}")
+        logInfo(s"KN: Tmp Task details compressed bytes = ${taskTmp.taskData.compressedBytes}" +
+          s" and reference = ${taskTmp.taskData.reference} and uclen = ${taskTmp.taskData.uncompressedLen}")
         if (serializedTask.limit > TaskSetManager.TASK_SIZE_TO_WARN_KB * 1024 &&
           !emittedTaskSizeWarning) {
           emittedTaskSizeWarning = true

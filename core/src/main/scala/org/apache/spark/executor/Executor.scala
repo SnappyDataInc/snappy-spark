@@ -41,18 +41,19 @@ import java.net.URL
 import java.nio.ByteBuffer
 import java.util.Properties
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
+
 import javax.annotation.concurrent.GuardedBy
 
 import scala.collection.JavaConverters._
 import scala.collection.mutable.{ArrayBuffer, HashMap}
 import scala.util.control.NonFatal
-
 import org.apache.spark._
 import org.apache.spark.deploy.SparkHadoopUtil
 import org.apache.spark.internal.Logging
 import org.apache.spark.memory.TaskMemoryManager
 import org.apache.spark.rpc.RpcTimeout
 import org.apache.spark.scheduler.{DirectTaskResult, IndirectTaskResult, Task, TaskSchedulerImpl}
+import org.apache.spark.serializer.SerializerInstance
 import org.apache.spark.shuffle.FetchFailedException
 import org.apache.spark.storage.{StorageLevel, TaskResultBlockId}
 import org.apache.spark.util._
@@ -301,14 +302,14 @@ private[spark] class Executor(
         threadMXBean.getCurrentThreadCpuTime
       } else 0L
       Thread.currentThread.setContextClassLoader(replClassLoader)
-      val ser = env.closureSerializer.newInstance()
+
       env.taskLogger.logInfo(s"Running $taskName (TID $taskId)")
       execBackend.statusUpdate(taskId, TaskState.RUNNING, EMPTY_BYTE_BUFFER)
       var taskStart: Long = 0
       var taskStartCpu: Long = 0
       startGCTime = computeTotalGcTime()
       var hasNonDefaultCpusPerTask = false
-
+      var ser: SerializerInstance = null
       try {
         val (taskFiles, taskJars, taskProps, taskBytes) =
           Task.deserializeWithDependencies(serializedTask)
@@ -320,6 +321,9 @@ private[spark] class Executor(
         Executor.taskDeserializationProps.set(taskProps)
 
         updateDependencies(taskFiles, taskJars)
+        val serializer = env.closureSerializer
+        serializer.setDefaultClassLoader(Thread.currentThread.getContextClassLoader)
+        ser = serializer.newInstance()
         task = ser.deserialize[Task[Any]](taskBytes, Thread.currentThread.getContextClassLoader)
         task.taskDataBytes = taskDataBytes
         task.localProperties = taskProps
