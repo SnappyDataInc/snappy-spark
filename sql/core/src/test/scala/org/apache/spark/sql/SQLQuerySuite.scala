@@ -1632,11 +1632,6 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
     assert(e.message.contains("The ORC data source must be used with Hive support enabled") ||
         e.message.contains("Path does not exist"))
 
-    e = intercept[AnalysisException] {
-      sql(s"select id from `com.databricks.spark.avro`.`file_path`")
-    }
-    assert(e.message.contains("Failed to find data source: com.databricks.spark.avro."))
-
     // data source type is case insensitive
     e = intercept[AnalysisException] {
       sql(s"select id from Avro.`file_path`")
