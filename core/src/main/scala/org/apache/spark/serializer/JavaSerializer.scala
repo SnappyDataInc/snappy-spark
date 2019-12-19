@@ -90,8 +90,7 @@ private object JavaDeserializationStream {
   )
 }
 
-// private[spark] class JavaSerializerInstance(
-class JavaSerializerInstance(
+private[spark] class JavaSerializerInstance(
     counterReset: Int, extraDebugInfo: Boolean, defaultClassLoader: ClassLoader)
   extends SerializerInstance {
 

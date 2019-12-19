@@ -41,9 +41,10 @@ import java.util.Properties
 
 import scala.collection.mutable
 import scala.collection.mutable.HashMap
+
 import com.esotericsoftware.kryo.Kryo
 import com.esotericsoftware.kryo.io.{Input, Output}
-import org.apache.log4j.Logger
+
 import org.apache.spark._
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.executor.TaskMetrics
@@ -426,7 +427,6 @@ private[spark] final class TaskData private(var compressedBytes: Array[Byte],
 
 private[spark] object TaskData {
 
-  val logger = Logger.getLogger("org.apache.spark.scheduler.TaskSchedulerImpl")
   private val NO_REF: Int = -1
   private val EMPTY_BYTES: Array[Byte] = Array.empty[Byte]
   private val FIRST: TaskData = new TaskData(EMPTY_BYTES, 0, 0)
@@ -439,7 +439,6 @@ private[spark] object TaskData {
   }
 
   def write(data: TaskData, output: Output): Unit = Utils.tryOrIOException {
-    logger.info(s"KN: TaskData reference = ${data.reference}")
     if (data.reference != NO_REF) {
       output.writeVarInt(data.reference, false)
     } else {
@@ -449,21 +448,16 @@ private[spark] object TaskData {
       output.writeVarInt(data.uncompressedLen, true)
       output.writeVarInt(bytes.length, true)
       output.writeBytes(bytes)
-      logger.info(s"KN: TaskData write ref = ${NO_REF} datauclen = ${data.uncompressedLen} bytelen = ${bytes.length}")
-      println(s"KN: TaskData write ref = ${NO_REF} datauclen = ${data.uncompressedLen} bytelen = ${bytes.length}")
     }
   }
 
   def read(input: Input): TaskData = Utils.tryOrIOException {
     val reference = input.readVarInt(false)
-    logger.info(s"KN: TaskData read ref = ${reference}")
     if (reference != NO_REF) {
       TaskData(reference)
     } else {
       val uncompressedLen = input.readVarInt(true)
       val bytesLen = input.readVarInt(true)
-      logger.info(s"KN: TaskData read ref = ${NO_REF} datauclen = ${uncompressedLen} bytelen = ${bytesLen}")
-      println(s"KN: TaskData read ref = ${NO_REF} datauclen = ${uncompressedLen} bytelen = ${bytesLen}")
       new TaskData(input.readBytes(bytesLen), uncompressedLen)
     }
   }
