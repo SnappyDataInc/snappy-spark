@@ -54,6 +54,33 @@ private[spark] class TaskResultGetter(sparkEnv: SparkEnv, scheduler: TaskSchedul
     }
   }
 
+  private def getSerializer(taskSetManager: TaskSetManager): SerializerInstance = {
+    val props = taskSetManager.taskSet.properties
+    val classLoader: ClassLoader = if (props != null && !props.isEmpty) {
+      scheduler.getInterpreterClassLoader(props)
+    } else null
+
+    if (classLoader == null) return serializer.get
+    val ser = sparkEnv.closureSerializer
+    Thread.currentThread().setContextClassLoader(classLoader)
+    ser.setDefaultClassLoader(classLoader)
+    ser.newInstance()
+  }
+
+  private def getTaskResultSerializer(taskSetManager: TaskSetManager): SerializerInstance = {
+
+    val props = taskSetManager.taskSet.properties
+    val classLoader: ClassLoader = if (props != null && !props.isEmpty) {
+      scheduler.getInterpreterClassLoader(props)
+    } else null
+
+    if (classLoader == null) return taskResultSerializer.get
+    val ser = sparkEnv.serializer
+    Thread.currentThread().setContextClassLoader(classLoader)
+    ser.setDefaultClassLoader(classLoader)
+    ser.newInstance()
+  }
+
   def enqueueSuccessfulTask(
       taskSetManager: TaskSetManager,
       tid: Long,
@@ -61,7 +88,8 @@ private[spark] class TaskResultGetter(sparkEnv: SparkEnv, scheduler: TaskSchedul
     getTaskResultExecutor.execute(new Runnable {
       override def run(): Unit = Utils.logUncaughtExceptions {
         try {
-          val resultSerializer = taskResultSerializer.get()
+          // val resultSerializer = taskResultSerializer.get()
+          val resultSerializer = getTaskResultSerializer(taskSetManager)
           val (result, size) = resultSerializer.deserialize[TaskResult[_]](serializedData) match {
             case directResult: DirectTaskResult[_] =>
               if (!taskSetManager.canFetchMoreResults(serializedData.limit())) {
@@ -140,7 +168,9 @@ private[spark] class TaskResultGetter(sparkEnv: SparkEnv, scheduler: TaskSchedul
           val loader = Utils.getContextOrSparkClassLoader
           try {
             if (serializedData != null && serializedData.limit() > 0) {
-              reason = serializer.get().deserialize[TaskFailedReason](
+              // reason = serializer.get().deserialize[TaskFailedReason](
+              // serializedData, loader)
+              reason = getSerializer(taskSetManager).deserialize[TaskFailedReason](
                 serializedData, loader)
             }
           } catch {

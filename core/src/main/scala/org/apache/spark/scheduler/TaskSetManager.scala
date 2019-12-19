@@ -47,6 +47,7 @@ import org.apache.spark._
 import org.apache.spark.TaskState.TaskState
 import org.apache.spark.internal.{config, Logging}
 import org.apache.spark.scheduler.SchedulingMode._
+import org.apache.spark.serializer.SerializerInstance
 import org.apache.spark.util.{AccumulatorV2, Clock, LongAccumulator, SystemClock, Utils}
 import org.apache.spark.util.collection.MedianHeap
 
@@ -87,8 +88,8 @@ private[spark] class TaskSetManager(
   val speculationEnabled = conf.getBoolean("spark.speculation", false)
 
   // Serializer for closures and tasks.
-  val env = SparkEnv.get
-  val ser = env.closureSerializer.newInstance()
+  private[this] val env = SparkEnv.get
+  private[this] lazy val ser = env.closureSerializer.newInstance()
 
   val tasks = taskSet.tasks
   private[scheduler] val partitionToIndex = tasks.zipWithIndex
@@ -468,6 +469,19 @@ private[spark] class TaskSetManager(
       case (taskIndex, allowedLocality) => (taskIndex, allowedLocality, true)}
   }
 
+  private def getSerializer(task: Task[_]): SerializerInstance = {
+    val props = task.localProperties
+    val classLoader: ClassLoader = if (props != null && !props.isEmpty) {
+      sched.getInterpreterClassLoader(props)
+    } else null
+
+    if (classLoader == null) return ser
+    val ser1 = env.closureSerializer
+    Thread.currentThread().setContextClassLoader(classLoader)
+    ser1.setDefaultClassLoader(classLoader)
+    ser1.newInstance()
+  }
+
   /**
    * Respond to an offer of a single executor from the scheduler by finding a task
    *
@@ -536,7 +550,7 @@ private[spark] class TaskSetManager(
         }
         // Serialize and return the task
         val serializedTask: ByteBuffer = try {
-          ser.serialize(task)
+          getSerializer(task).serialize(task)
         } catch {
           // If the task cannot be serialized, then there's no point to re-attempt the task,
           // as it will always fail. So just abort the whole task-set.

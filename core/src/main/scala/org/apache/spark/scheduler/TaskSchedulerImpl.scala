@@ -36,7 +36,7 @@
 package org.apache.spark.scheduler
 
 import java.nio.ByteBuffer
-import java.util.{Locale, Timer, TimerTask}
+import java.util.{Locale, Properties, Timer, TimerTask}
 import java.util.concurrent.{ConcurrentHashMap, TimeUnit}
 import java.util.concurrent.atomic.AtomicLong
 
@@ -232,7 +232,7 @@ private[spark] class TaskSchedulerImpl(
         getProperty(SNAPPY_WRITE_RETRY_PROP)
 
       logInfo("The maxRetryAttemptsForWrite is set to " + maxRetryAttemptsForWrite +
-        "maxTaskFailure " + maxTaskFailures)
+          ", maxTaskFailures is " + maxTaskFailures)
       val maxRetryAttempts = if (maxRetryAttemptsForWrite != null) {
         maxRetryAttemptsForWrite.toInt
       } else {
@@ -918,6 +918,7 @@ private[spark] class TaskSchedulerImpl(
     }
   }
 
+  def getInterpreterClassLoader(taskProps: Properties): ClassLoader = null
 }
 
 
