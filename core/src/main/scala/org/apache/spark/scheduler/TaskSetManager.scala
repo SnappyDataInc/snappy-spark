@@ -432,18 +432,16 @@ private[spark] class TaskSetManager(
   }
 
   private def getSerializer(task: Task[_]): SerializerInstance = {
-    val ser = env.closureSerializer
     val props = task.localProperties
     val classLoader: ClassLoader = if (props != null && !props.isEmpty) {
       sched.getIntpClassLoader(props)
     } else null
 
-    logInfo(s"KN: TSM Setting classloader = ${classLoader} and props = ${props}", new Exception)
-    if (classLoader != null) {
-      Thread.currentThread().setContextClassLoader(classLoader)
-      ser.setDefaultClassLoader(classLoader)
-    }
-    ser.newInstance()
+    if (classLoader == null) return ser
+    val ser1 = env.closureSerializer
+    Thread.currentThread().setContextClassLoader(classLoader)
+    ser1.setDefaultClassLoader(classLoader)
+    ser1.newInstance()
   }
 
   /**
@@ -525,17 +523,6 @@ private[spark] class TaskSetManager(
             abort(s"$msg Exception during serialization: $e")
             throw new TaskNotSerializableException(e)
         }
-        // Just for debugging
-        val dupSerialized = serializedTask.asReadOnlyBuffer()
-        val (map1, map2, prop, bb ) = Task.deserializeWithDependencies(dupSerialized)
-        logInfo(s"KN: map1 = ${map1} and map2 = ${map2} and prop = ${prop} and bb = ${bb}")
-        val taskTmp = getSerializer(task).deserialize[Task[Any]](bb, Thread.currentThread.getContextClassLoader)
-        logInfo(s"KN: taskTmp = ${taskTmp} and task = ${task} taskData = ${task.taskData} and " +
-          s" tmpTaskData = ${taskTmp.taskData}")
-        logInfo(s"KN: Task details compressed bytes = ${task.taskData.compressedBytes}" +
-          s" and reference = ${task.taskData.reference} and uclen = ${task.taskData.uncompressedLen}")
-        logInfo(s"KN: Tmp Task details compressed bytes = ${taskTmp.taskData.compressedBytes}" +
-          s" and reference = ${taskTmp.taskData.reference} and uclen = ${taskTmp.taskData.uncompressedLen}")
         if (serializedTask.limit > TaskSetManager.TASK_SIZE_TO_WARN_KB * 1024 &&
           !emittedTaskSizeWarning) {
           emittedTaskSizeWarning = true
