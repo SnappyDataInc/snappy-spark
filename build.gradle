@@ -88,7 +88,7 @@ allprojects {
     parquetVersion = '1.8.3'
     // hiveParquetVersion = '1.6.0'
     metricsVersion = '3.2.6'
-    janinoVersion = '3.0.8'
+    janinoVersion = '3.0.15'
     thriftVersion = '0.9.3'
     antlrVersion = '4.5.3'
     jpamVersion = '1.1'
