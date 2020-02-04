@@ -31,10 +31,27 @@ import org.apache.spark.sql.catalyst.util.{CaseInsensitiveMap, CompressionCodecs
  * Most of these map directly to Jackson's internal options, specified in [[JsonParser.Feature]].
  */
 private[sql] class JSONOptions(
-    @transient private val parameters: CaseInsensitiveMap)
+
+    @transient private val parameters: CaseInsensitiveMap,
+
+    defaultColumnNameOfCorruptRecord: String)
   extends Logging with Serializable  {
 
-  def this(parameters: Map[String, String]) = this(new CaseInsensitiveMap(parameters))
+  def this(
+    parameters: Map[String, String],
+    defaultColumnNameOfCorruptRecord: String = "") = {
+      this(
+        new CaseInsensitiveMap(parameters),
+        defaultColumnNameOfCorruptRecord)
+  }
+
+  // provided a constructor so that existing code of snappydata compatible with spark 2.1 continues
+  // to work
+  def this(
+    parameters: Map[String, String]) = {
+    this(
+      new CaseInsensitiveMap(parameters), "")
+  }
 
   val samplingRatio =
     parameters.get("samplingRatio").map(_.toDouble).getOrElse(1.0)
@@ -56,7 +73,8 @@ private[sql] class JSONOptions(
     parameters.get("allowBackslashEscapingAnyCharacter").map(_.toBoolean).getOrElse(false)
   val compressionCodec = parameters.get("compression").map(CompressionCodecs.getCodecClassName)
   private val parseMode = parameters.getOrElse("mode", "PERMISSIVE")
-  val columnNameOfCorruptRecord = parameters.get("columnNameOfCorruptRecord")
+  val columnNameOfCorruptRecord =
+    parameters.getOrElse("columnNameOfCorruptRecord", defaultColumnNameOfCorruptRecord)
 
   // Uses `FastDateFormat` which can be direct replacement for `SimpleDateFormat` and thread-safe.
   val dateFormat: FastDateFormat =
@@ -65,6 +83,8 @@ private[sql] class JSONOptions(
   val timestampFormat: FastDateFormat =
     FastDateFormat.getInstance(
       parameters.getOrElse("timestampFormat", "yyyy-MM-dd'T'HH:mm:ss.SSSZZ"), Locale.US)
+
+  val wholeFile = parameters.get("wholeFile").map(_.toBoolean).getOrElse(false)
 
   // Parse mode flags
   if (!ParseModes.isValidMode(parseMode)) {

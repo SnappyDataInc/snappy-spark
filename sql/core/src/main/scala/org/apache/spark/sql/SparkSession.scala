@@ -46,6 +46,8 @@ import org.apache.spark.sql.sources.BaseRelation
 import org.apache.spark.sql.streaming._
 import org.apache.spark.sql.types.{DataType, LongType, StructType}
 import org.apache.spark.sql.util.ExecutionListenerManager
+import org.apache.spark.status.api.v1.SnappyStreamingApiRootResource
+import org.apache.spark.ui.SnappyStreamingTab
 import org.apache.spark.util.Utils
 
 
@@ -69,6 +71,7 @@ import org.apache.spark.util.Utils
  *     .getOrCreate()
  * }}}
  */
+// scalastyle:off no.finalize
 @InterfaceStability.Stable
 class SparkSession private(
     @transient val sparkContext: SparkContext,
@@ -711,7 +714,47 @@ class SparkSession private(
     }
   }
 
+  /**
+   * Adds or updates structured streaming UI tab.
+   * All session instances have their own SnappyStreamingQueryListener but shares same UI tab.
+   */
+  protected def updateUIWithStructuredStreamingTab() = {
+    val listener = new SnappyStreamingQueryListener()
+    this.streams.addListener(listener)
+    sessionState.registerStreamingQueryListener(listener)
+    if (sparkContext.ui.isDefined) {
+      logInfo("Updating Web UI to add structure streaming tab.")
+      sparkContext.ui.foreach(ui => {
+        var structStreamTabPresent: Boolean = false
+        val tabsList = ui.getTabs
+        // Add remaining tabs in tabs list
+        tabsList.foreach(tab => {
+          // Check if Structure Streaming Tab is present or not
+          if (tab.prefix.equalsIgnoreCase("structuredstreaming")) {
+            structStreamTabPresent = true
+            logInfo("Structure Streaming UI Tab is already present.")
+          }
+        })
+        // Add Structure Streaming Tab, iff not present
+        if (!structStreamTabPresent) {
+          logInfo("Creating Structure Streaming UI Tab")
+          // Streaming web service
+          ui.attachHandler(SnappyStreamingApiRootResource.getServletHandler(ui))
+          // Streaming tab
+          new SnappyStreamingTab(ui, listener)
+        }
+      })
+      logInfo("Updating Web UI to add structure streaming tab is Done.")
+    }
+  }
+
+  // Doing this clean up in finalize method as lifecycle of the listener is aligned with session's
+  // lifecycle. After this the listener object will be eligible for GC in the next cycle.
+  // Also the memory footprint of the listener object is not much hence it should be ok if the
+  // listener object is remain alive for one extra GC cycle as compared to the session.
+  override def finalize(): Unit = sessionState.removeStreamingQueryListener()
 }
+// scalastyle:on no.finalize
 
 
 @InterfaceStability.Stable

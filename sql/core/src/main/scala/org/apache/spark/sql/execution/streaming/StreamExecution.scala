@@ -188,6 +188,13 @@ class StreamExecution(
         // To fix call site like "run at <unknown>:0", we bridge the call site from the caller
         // thread to this micro batch thread
         sparkSession.sparkContext.setCallSite(callSite)
+
+        // setting custom pool defined by `snappydata.scheduler.pool` for streaming thread
+        if (sparkSession.conf.contains("snappydata.scheduler.pool")) {
+          val pool = sparkSession.conf.get("snappydata.scheduler.pool")
+          sparkSession.sparkContext.setLocalProperty("spark.scheduler.pool", pool)
+        }
+
         runBatches()
       }
     }
@@ -239,7 +246,9 @@ class StreamExecution(
       }
 
       // `postEvent` does not throw non fatal exception.
-      postEvent(new QueryStartedEvent(id, runId, name))
+
+      postEvent(new QueryStartedEvent(id, runId, name,
+        trigger.asInstanceOf[ProcessingTime].intervalMs))
 
       // Unblock starting thread
       startLatch.countDown()

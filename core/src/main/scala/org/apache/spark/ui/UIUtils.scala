@@ -596,7 +596,7 @@ private[spark] object UIUtils extends Logging {
               <p>
                 <strong>TIBCO<sup>&reg;</sup> ComputeDB<sup>&trade;</sup>
                   - Enterprise Edition</strong> <br />
-                <br />&copy; 2017-2019 TIBCO<sup>&reg;</sup> Software Inc. All rights reserved.
+                <br />&copy; 2017-2020 TIBCO<sup>&reg;</sup> Software Inc. All rights reserved.
                 <br />This program is protected by copyright law.
               </p>
               <p>
@@ -621,7 +621,7 @@ private[spark] object UIUtils extends Logging {
             } else {
               <p>
                 <strong>Project SnappyData<sup>&trade;</sup> - Community Edition </strong> <br />
-                <br />&copy; 2017-2019 TIBCO<sup>&reg;</sup> Software Inc. All rights reserved.
+                <br />&copy; 2017-2020 TIBCO<sup>&reg;</sup> Software Inc. All rights reserved.
                 <br />This program is protected by copyright law.
               </p>
               <p>

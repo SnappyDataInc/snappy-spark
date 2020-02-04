@@ -32,7 +32,7 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution._
 import org.apache.spark.sql.execution.command.AnalyzeTableCommand
 import org.apache.spark.sql.execution.datasources._
-import org.apache.spark.sql.streaming.{StreamingQuery, StreamingQueryManager}
+import org.apache.spark.sql.streaming.{StreamingQuery, StreamingQueryListener, StreamingQueryManager}
 import org.apache.spark.sql.util.ExecutionListenerManager
 
 
@@ -151,6 +151,19 @@ private[sql] class SessionState(sparkSession: SparkSession) {
    */
   lazy val streamingQueryManager: StreamingQueryManager = {
     new StreamingQueryManager(sparkSession)
+  }
+
+  /**
+   * Listener for streaming query UI
+   */
+  private var streamingQueryListener: StreamingQueryListener = _
+
+  def registerStreamingQueryListener(streamingQueryListener: StreamingQueryListener): Unit = {
+    this.streamingQueryListener = streamingQueryListener
+  }
+
+  def removeStreamingQueryListener(): Unit = {
+    streamingQueryManager.removeListener(streamingQueryListener)
   }
 
   private val jarClassLoader: NonClosableMutableURLClassLoader =

@@ -1,73 +1,21 @@
 
 var isGoogleChartLoaded = false;
 var isAutoUpdateTurnedON = true;
+var isClusterStartDateInvalid = true;
 var isMemberCellExpanded = {};
 var isMemberRowExpanded = {};
 
-function setClusterStartDate() {
-  var months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN' , 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+function setClusterStartDate(startDateTime) {
+  if(!isClusterStartDateInvalid) {
+    return;
+  }
 
-  var clusterStartTime = $("#hiddenData").data("clusterstarttime");
-  var dt = new Date(clusterStartTime);
-
-  var dd = dt.getDate();
-  if ( dd < 10 ) { dd = '0' + dd; }
-
-  var hh = dt.getHours();
-  if ( hh < 10 ) { hh = '0' + hh; }
-
-  var mm = dt.getMinutes();
-  if ( mm < 10 ) { mm = '0' + mm; }
-
-  var ss = dt.getSeconds();
-  if ( ss < 10 ) { ss = '0' + ss; }
-
-  var displayDateStr = months[dt.getMonth()] + ' ' + dd + ', ' + dt.getFullYear()
-                     + ' ' + hh + ':' + mm + ':' + ss;
-
-  $("#clusterStartDate").html(displayDateStr);
-  updateClusterUptime();
+  $("#clusterStartDate").html(formatDate(startDateTime));
+  isClusterStartDateInvalid = false;
 }
 
-function updateClusterUptime() {
-  var clusterStartTime = $("#hiddenData").data("clusterstarttime");
-  var start_date = new Date(clusterStartTime);
-  var now_date = new Date();
-
-  var seconds = Math.floor((now_date - start_date) / 1000);
-  var minutes = Math.floor(seconds / 60);
-  var hours = Math.floor(minutes / 60);
-  var days = Math.floor(hours / 24);
-
-  hours = hours - (days * 24);
-  minutes = minutes - (days * 24 * 60) - (hours * 60);
-  seconds = seconds - (days * 24 * 60 * 60) - (hours * 60 * 60) - (minutes * 60);
-
-  var displayDateStr = "";
-  if (days > 0) {
-    if (days < 2) {
-      displayDateStr += days + ' Day ';
-    } else {
-      displayDateStr += days + ' Days ';
-    }
-  }
-  if (hours > 0) {
-    if (hours < 2) {
-      displayDateStr += hours + ' Hr ';
-    } else {
-      displayDateStr += hours + ' Hrs ';
-    }
-  }
-  if (minutes > 0) {
-    if (minutes > 0 && minutes < 2) {
-      displayDateStr += minutes + ' Min ';
-    } else {
-      displayDateStr += minutes + ' Mins ';
-    }
-  }
-  displayDateStr += seconds + ' Secs';
-
-  $("#clusterUptime").html(displayDateStr);
+function updateClusterUptime(startDateTime) {
+  $("#clusterUptime").html(getDurationInReadableForm(startDateTime));
 }
 
 function updateCoreDetails(coresInfo) {
@@ -304,7 +252,7 @@ function getMemberStatsGridConf() {
   var memberStatsGridConf = {
     data: memberStatsGridData,
     "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-    "iDisplayLength": 50,
+    "pageLength": 50,
     "columns": [
       { // Expand/Collapse Button
         data: function(row, type) {
@@ -420,7 +368,7 @@ function getTableStatsGridConf() {
   var tableStatsGridConf = {
     data: tableStatsGridData,
     "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-    "iDisplayLength": 50,
+    "pageLength": 50,
     "columns": [
       { // Name
         data: function(row, type) {
@@ -540,7 +488,7 @@ function getExternalTableStatsGridConf() {
   var extTableStatsGridConf = {
     data: extTableStatsGridData,
     "lengthMenu": [[10, 25, 50, 100, -1], [10, 25, 50, 100, "All"]],
-    "iDisplayLength": 50,
+    "pageLength": 50,
     "columns": [
       { // Name
         data: function(row, type) {
@@ -798,10 +746,14 @@ function loadClusterInfo() {
       }
 
       updateCoreDetails(clusterInfo.coresInfo);
-      updateClusterUptime();
+      setClusterStartDate(clusterInfo.startDateTime);
+      updateClusterUptime(clusterInfo.startDateTime);
 
     },
-    error: ajaxRequestErrorHandler
+    error: function (jqXHR, status, error) {
+      isClusterStartDateInvalid = true;
+      ajaxRequestErrorHandler(jqXHR, status, error);
+    }
    });
 }
 
@@ -824,8 +776,6 @@ $(document).ready(function() {
   $.ajaxSetup({
       cache : false
     });
-
-  setClusterStartDate();
 
   $("#myonoffswitch").on( 'change', toggleAutoUpdateSwitch );
 

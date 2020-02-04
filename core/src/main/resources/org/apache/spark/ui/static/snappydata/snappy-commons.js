@@ -29,15 +29,13 @@ function isEmpty(str) {
  */
 function isNotApplicable(value) {
 
-  if(!isNaN(value)){
+  if (!isNaN(value)) {
     // if number, convert to string
     value = value.toString();
-  }else{
+  } else {
     // Remove extra spaces
     value = value.replace(/\s+/g, ' ');
   }
-
-
 
   switch (value) {
   case "-1":
@@ -56,9 +54,9 @@ function isNotApplicable(value) {
  *
  */
 function applyNotApplicableCheck(value){
-  if(isNotApplicable(value)){
+  if (isNotApplicable(value)) {
     return "NA";
-  }else{
+  } else {
     return value;
   }
 }
@@ -67,7 +65,7 @@ function applyNotApplicableCheck(value){
  * Utility function to convert given value in Bytes to KB or MB or GB or TB
  *
  */
-function convertSizeToHumanReadable(value){
+function convertSizeToHumanReadable(value) {
   // UNITS VALUES IN BYTES
   var ONE_KB = 1024;
   var ONE_MB = 1024 * 1024;
@@ -87,15 +85,15 @@ function convertSizeToHumanReadable(value){
     // Convert to TBs
     newValue = (value / ONE_TB);
     newUnit = "TB";
-  } else if(value >= ONE_GB){
+  } else if(value >= ONE_GB) {
     // Convert to GBs
     newValue = (value / ONE_GB);
     newUnit = "GB";
-  } else if(value >= ONE_MB){
+  } else if(value >= ONE_MB) {
     // Convert to MBs
     newValue = (value / ONE_MB);
     newUnit = "MB";
-  } else if(value >= ONE_KB){
+  } else if(value >= ONE_KB) {
     // Convert to KBs
     newValue = (value / ONE_KB);
     newUnit = "KB";
@@ -107,6 +105,147 @@ function convertSizeToHumanReadable(value){
   convertedValue.push(newUnit);
 
   return convertedValue;
+}
+
+/*
+* Utility function to convert milliseconds value in human readable
+* form Eg "2 days 14 hrs 2 mins"
+*/
+function formatDurationVerbose(ms) {
+
+  function stringify(num, unit) {
+    if (num <= 0) {
+      return "";
+    } else if (num == 1) {
+      return  num + " "+ unit;
+    } else {
+      return num + " "+ unit+'s';
+    }
+  }
+
+  var second = 1000;
+  var minute = 60 * second;
+  var hour = 60 * minute;
+  var day = 24 * hour;
+  var week = 7 * day;
+  var year = 365 * day;
+
+  var msString = "";
+  if (ms >= second && ms % second == 0) {
+    msString = "";
+  } else {
+    msString = (ms % second) + " ms";
+  }
+
+  var secString = stringify(parseInt((ms % minute) / second), "sec");
+  var minString = stringify(parseInt((ms % hour) / minute), "min");
+  var hrString = stringify(parseInt((ms % day) / hour), "hr");
+  var dayString = stringify(parseInt((ms % week) / day), "day");
+  var wkString = stringify(parseInt((ms % year) / week), "wk");
+  var yrString = stringify(parseInt(ms / year), "yr");
+
+  var finalString = msString;
+
+  if(ms >= second ) {
+    finalString = secString + " " + finalString;
+  }
+
+  if(ms >= minute ) {
+    finalString = minString + " " + secString;
+  }
+
+  if(ms >= hour ) {
+    finalString = hrString + " " + minString;
+  }
+
+  if(ms >= day ) {
+    finalString = dayString + " " + hrString + " " + minString;
+  }
+
+  if(ms >= week ) {
+    finalString = wkString + " " + dayString + " " + hrString;
+  }
+
+  if(ms >= year ) {
+    finalString = yrString  + " " + wkString + " " + dayString;
+  }
+
+  return finalString;
+
+}
+
+/*
+ * Utility function to format given long date value to human readable string representation.
+ *
+ * Eg. NOV 26, 2019 18:45:30
+ */
+function formatDate(dateMS) {
+  var months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN' , 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+  var dt = new Date(dateMS);
+
+  var dd = dt.getDate();
+  if ( dd < 10 ) { dd = '0' + dd; }
+
+  var hh = dt.getHours();
+  if ( hh < 10 ) { hh = '0' + hh; }
+
+  var mm = dt.getMinutes();
+  if ( mm < 10 ) { mm = '0' + mm; }
+
+  var ss = dt.getSeconds();
+  if ( ss < 10 ) { ss = '0' + ss; }
+
+  var dateStr = months[dt.getMonth()] + ' ' + dd + ', ' + dt.getFullYear()
+              + ' ' + hh + ':' + mm + ':' + ss;
+  return dateStr;
+
+}
+
+/*
+ * Utility function to calculate duration from given long date value and convert that duration
+ * to human readable string representation.
+ *
+ * Eg. 2 Days 10 Hrs 12 Mins 25 Secs
+ */
+function getDurationInReadableForm(startDateTimeMS) {
+
+  var start_date = new Date(startDateTimeMS);
+  var now_date = new Date();
+
+  var seconds = Math.floor((now_date - start_date) / 1000);
+  var minutes = Math.floor(seconds / 60);
+  var hours = Math.floor(minutes / 60);
+  var days = Math.floor(hours / 24);
+
+  hours = hours - (days * 24);
+  minutes = minutes - (days * 24 * 60) - (hours * 60);
+  seconds = seconds - (days * 24 * 60 * 60) - (hours * 60 * 60) - (minutes * 60);
+
+  var durationStr = "";
+  if (days > 0) {
+    if (days < 2) {
+      durationStr += days + ' Day ';
+    } else {
+      durationStr += days + ' Days ';
+    }
+  }
+  if (hours > 0) {
+    if (hours < 2) {
+      durationStr += hours + ' Hr ';
+    } else {
+      durationStr += hours + ' Hrs ';
+    }
+  }
+  if (minutes > 0) {
+    if (minutes > 0 && minutes < 2) {
+      durationStr += minutes + ' Min ';
+    } else {
+      durationStr += minutes + ' Mins ';
+    }
+  }
+  durationStr += seconds + ' Secs';
+
+  return durationStr;
 }
 
 /*

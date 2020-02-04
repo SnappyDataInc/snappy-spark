@@ -17,6 +17,7 @@
 
 package org.apache.spark.sql.execution.streaming.state
 
+import java._
 import java.io.{DataInputStream, DataOutputStream, FileNotFoundException, IOException}
 
 import scala.collection.JavaConverters._
@@ -71,9 +72,10 @@ private[state] class HDFSBackedStateStoreProvider(
     valueSchema: StructType,
     storeConf: StateStoreConf,
     hadoopConf: Configuration
-  ) extends StateStoreProvider with Logging {
+) extends StateStoreProvider with Logging {
 
-  type MapType = java.util.HashMap[UnsafeRow, UnsafeRow]
+  val numberOfVersionsToRetainInMemory = storeConf.maxVersionsToRetainInMemory
+  type MapType = util.HashMap[UnsafeRow, UnsafeRow]
 
   /** Implementation of [[StateStore]] API which is backed by a HDFS-compatible file system */
   class HDFSBackedStateStore(val version: Long, mapToUpdate: MapType)
@@ -88,7 +90,7 @@ private[state] class HDFSBackedStateStoreProvider(
     private val newVersion = version + 1
     private val tempDeltaFile = new Path(baseDir, s"temp-${Random.nextLong}")
     private lazy val tempDeltaFileStream = compressStream(fs.create(tempDeltaFile, true))
-    private val allUpdates = new java.util.HashMap[UnsafeRow, StoreUpdate]()
+    private val allUpdates = new util.HashMap[UnsafeRow, StoreUpdate]()
 
     @volatile private var state: STATE = UPDATING
     @volatile private var finalDeltaFile: Path = null
@@ -140,7 +142,7 @@ private[state] class HDFSBackedStateStoreProvider(
               // Value did not exist in previous version and was added, should not appear in updates
               allUpdates.remove(key)
             case Some(ValueRemoved(_, _)) =>
-              // Remove already in update map, no need to change
+            // Remove already in update map, no need to change
           }
           writeToDeltaFile(tempDeltaFileStream, ValueRemoved(key, value))
         }
@@ -241,7 +243,7 @@ private[state] class HDFSBackedStateStoreProvider(
 
   /* Internal classes and methods */
 
-  private val loadedMaps = new mutable.HashMap[Long, MapType]
+  private val loadedMaps = new util.TreeMap[Long, MapType](Ordering[Long].reverse)
   private val baseDir =
     new Path(id.checkpointLocation, s"${id.operatorId}/${id.partitionId.toString}")
   private val fs = baseDir.getFileSystem(hadoopConf)
@@ -269,9 +271,41 @@ private[state] class HDFSBackedStateStoreProvider(
       } else if (!fs.rename(tempDeltaFile, finalDeltaFile)) {
         throw new IOException(s"Failed to rename $tempDeltaFile to $finalDeltaFile")
       }
-      loadedMaps.put(newVersion, map)
+      putStateIntoStateCacheMap(newVersion, map)
       finalDeltaFile
     }
+  }
+
+  /** This method is intended to be only used for unit test(s). DO NOT TOUCH ELEMENTS IN MAP! */
+  private[state] def getLoadedMaps(): util.SortedMap[Long, MapType] = synchronized {
+    // shallow copy as a minimal guard
+    loadedMaps.clone().asInstanceOf[util.SortedMap[Long, MapType]]
+  }
+
+  private def putStateIntoStateCacheMap(newVersion: Long, map: MapType): Unit = synchronized {
+    if (numberOfVersionsToRetainInMemory <= 0) {
+      if (loadedMaps.size() > 0) loadedMaps.clear()
+      return
+    }
+
+    while (loadedMaps.size() > numberOfVersionsToRetainInMemory) {
+      loadedMaps.remove(loadedMaps.lastKey())
+    }
+
+    val size = loadedMaps.size()
+    if (size == numberOfVersionsToRetainInMemory) {
+      val versionIdForLastKey = loadedMaps.lastKey()
+      if (versionIdForLastKey > newVersion) {
+        // this is the only case which we can avoid putting, because new version will be placed to
+        // the last key and it should be evicted right away
+        return
+      } else if (versionIdForLastKey < newVersion) {
+        // this case needs removal of the last key before putting new one
+        loadedMaps.remove(versionIdForLastKey)
+      }
+    }
+
+    loadedMaps.put(newVersion, map)
   }
 
   /**
@@ -280,7 +314,7 @@ private[state] class HDFSBackedStateStoreProvider(
    */
   private[state] def latestIterator(): Iterator[(UnsafeRow, UnsafeRow)] = synchronized {
     val versionsInFiles = fetchFiles().map(_.version).toSet
-    val versionsLoaded = loadedMaps.keySet
+    val versionsLoaded = loadedMaps.keySet.asScala
     val allKnownVersions = versionsInFiles ++ versionsLoaded
     if (allKnownVersions.nonEmpty) {
       loadMap(allKnownVersions.max).entrySet().iterator().asScala.map { x =>
@@ -310,14 +344,14 @@ private[state] class HDFSBackedStateStoreProvider(
   /** Load the required version of the map data from the backing files */
   private def loadMap(version: Long): MapType = {
     if (version <= 0) return new MapType
-    synchronized { loadedMaps.get(version) }.getOrElse {
+    synchronized { Option(loadedMaps.get(version)) }.getOrElse {
       val mapFromFile = readSnapshotFile(version).getOrElse {
         val prevMap = loadMap(version - 1)
         val newMap = new MapType(prevMap)
         updateFromDeltaFile(version, newMap)
         newMap
       }
-      loadedMaps.put(version, mapFromFile)
+      putStateIntoStateCacheMap(version, mapFromFile)
       mapFromFile
     }
   }
@@ -478,13 +512,13 @@ private[state] class HDFSBackedStateStoreProvider(
         val lastVersion = files.last.version
         val deltaFilesForLastVersion =
           filesForVersion(files, lastVersion).filter(_.isSnapshot == false)
-        synchronized { loadedMaps.get(lastVersion) } match {
+        synchronized { Option(loadedMaps.get(lastVersion)) } match {
           case Some(map) =>
             if (deltaFilesForLastVersion.size > storeConf.minDeltasForSnapshot) {
               writeSnapshotFile(lastVersion, map)
             }
           case None =>
-            // The last map is not loaded, probably some other instance is in charge
+          // The last map is not loaded, probably some other instance is in charge
         }
 
       }
@@ -507,7 +541,7 @@ private[state] class HDFSBackedStateStoreProvider(
         if (earliestVersionToRetain > 0) {
           val earliestFileToRetain = filesForVersion(files, earliestVersionToRetain).head
           synchronized {
-            val mapsToRemove = loadedMaps.keys.filter(_ < earliestVersionToRetain).toSeq
+            val mapsToRemove = loadedMaps.asScala.keys.filter(_ < earliestVersionToRetain).toSeq
             mapsToRemove.foreach(loadedMaps.remove)
           }
           val filesToDelete = files.filter(_.version < earliestFileToRetain.version)
@@ -556,7 +590,7 @@ private[state] class HDFSBackedStateStoreProvider(
     val files: Seq[FileStatus] = try {
       fs.listStatus(baseDir)
     } catch {
-      case _: java.io.FileNotFoundException =>
+      case _: io.FileNotFoundException =>
         Seq.empty
     }
     val versionToFiles = new mutable.HashMap[Long, StoreFile]
