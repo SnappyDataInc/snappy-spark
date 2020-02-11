@@ -43,7 +43,7 @@ allprojects {
 
   repositories {
     mavenCentral()
-    maven { url 'http://repository.apache.org/snapshots' }
+    maven { url 'https://repo.hortonworks.com/content/repositories/releases' }
   }
 
   apply plugin: 'java'
@@ -63,7 +63,6 @@ allprojects {
     jerseyVersion = '2.22.2'
     sunJerseyVersion = '1.19.4'
     jettyVersion = '9.3.28.v20191105'
-    jettyOldVersion = '6.1.26'
     log4jVersion = '1.2.17'
     slf4jVersion = '1.7.30'
     junitVersion = '4.12'
@@ -71,7 +70,7 @@ allprojects {
     jmockVersion = '2.8.4'
     javaxServletVersion = '3.1.0'
     guavaVersion = '14.0.1'
-    hiveVersion = '1.2.1.spark2'
+    hiveVersion = '1.21.2.3.1.2.0-4'
     chillVersion = '0.9.3'
     kryoVersion = '4.0.2'
     nettyVersion = '3.10.6.Final'

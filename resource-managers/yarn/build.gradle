@@ -128,9 +128,6 @@ dependencies {
     exclude(group: 'com.sun.jersey.jersey-test-framework')
     exclude(group: 'com.sun.jersey.contribs')
   }
-  testCompile(group: 'org.mortbay.jetty', name: 'jetty', version: jettyOldVersion) {
-    exclude(group: 'org.mortbay.jetty', module: 'servlet-api')
-  }
   testCompile group: 'com.sun.jersey', name: 'jersey-core', version: sunJerseyVersion
   testCompile group: 'com.sun.jersey', name: 'jersey-server', version: sunJerseyVersion
   testCompile(group: 'com.sun.jersey', name: 'jersey-json', version: sunJerseyVersion) {
