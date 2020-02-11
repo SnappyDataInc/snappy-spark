@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 /*
- * Changes for TIBCO ComputeDB data platform.
+ * Changes for TIBCO Project SnappyData data platform.
  *
  * Portions Copyright (c) 2017-2020 TIBCO Software Inc. All rights reserved.
  *
