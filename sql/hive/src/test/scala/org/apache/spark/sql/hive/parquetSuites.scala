@@ -453,8 +453,7 @@ class ParquetMetastoreSuite extends ParquetPartitioningTest {
   }
 
   private def getCachedDataSourceTable(table: TableIdentifier): LogicalPlan = {
-    sessionState.catalog.asInstanceOf[HiveSessionCatalog].metastoreCatalog
-      .getCachedDataSourceTable(table)
+    spark.getCachedDataSourceTable(table)
   }
 
   test("Caching converted data source Parquet Relations") {
