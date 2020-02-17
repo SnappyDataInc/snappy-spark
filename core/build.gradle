@@ -159,7 +159,7 @@ dependencies {
   }
   compile group: 'net.sf.py4j', name: 'py4j', version: py4jVersion
 
-  compileOnly(group: 'org.spark-project.hive', name: 'hive-exec', version: hiveVersion) {
+  compile(group: 'org.spark-project.hive', name: 'hive-exec', version: hiveVersion) {
     exclude(group: 'org.datanucleus', module: 'datanucleus-core')
     exclude(group: 'org.spark-project.hive', module: 'hive-metastore')
     exclude(group: 'org.spark-project.hive', module: 'hive-shims')
@@ -185,7 +185,7 @@ dependencies {
     exclude(group: 'jline', module: 'jline')
     exclude(group: 'org.json', module: 'json')
   }
-  compileOnly(group: 'org.spark-project.hive', name: 'hive-metastore', version: hiveVersion) {
+  compile(group: 'org.spark-project.hive', name: 'hive-metastore', version: hiveVersion) {
     exclude(group: 'org.datanucleus', module: 'datanucleus-core')
     exclude(group: 'org.datanucleus', module: 'datanucleus-api-jdo')
     exclude(group: 'org.datanucleus', module: 'datanucleus-rdbms')
@@ -200,10 +200,10 @@ dependencies {
     exclude(group: 'log4j', module: 'log4j')
     exclude(group: 'org.apache.derby', module: 'derby')
   }
-  compileOnly(group: 'org.apache.thrift', name: 'libthrift', version: thriftVersion) {
+  compile(group: 'org.apache.thrift', name: 'libthrift', version: thriftVersion) {
     exclude(group: 'org.slf4j', module: 'slf4j-api')
   }
-  compileOnly(group: 'org.apache.thrift', name: 'libfb303', version: thriftVersion) {
+  compile(group: 'org.apache.thrift', name: 'libfb303', version: thriftVersion) {
     exclude(group: 'org.slf4j', module: 'slf4j-api')
   }
 

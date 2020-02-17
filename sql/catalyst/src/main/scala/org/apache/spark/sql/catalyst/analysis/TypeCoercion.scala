@@ -120,12 +120,6 @@ object TypeCoercion {
     case (_: TimestampType, _: DateType) | (_: DateType, _: TimestampType) =>
       Some(TimestampType)
 
-    // [SNAP-966] Prefer conversions from strings to date/timestamp and not vice-verse
-    // Parsing of partial dates/timestamps has been added for SPARK-8995 hence
-    // converting strings to dates/timestamps.
-    case (DateType, StringType) | (StringType, DateType) => Some(DateType)
-    case (TimestampType, StringType) | (StringType, TimestampType) => Some(TimestampType)
-
     case (t1, t2) => findTypeForComplex(t1, t2, findTightestCommonType)
   }
 
@@ -515,6 +509,11 @@ object TypeCoercion {
         } else {
           i
         }
+
+      case i @ In(a @ DateType(), b) if b.forall(_.dataType == StringType) =>
+        i.makeCopy(Array(a, b.map(Cast(_, DateType))))
+      case i @ In(a @ TimestampType(), b) if b.forall(_.dataType == StringType) =>
+        i.makeCopy(Array(a, b.map(Cast(_, TimestampType))))
 
       case i @ In(a, b) if b.exists(_.dataType != a.dataType) =>
         findWiderCommonType(i.children.map(_.dataType)) match {

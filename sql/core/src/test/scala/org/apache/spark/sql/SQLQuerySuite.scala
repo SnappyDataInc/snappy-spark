@@ -44,9 +44,8 @@ import org.apache.spark.{AccumulatorSuite, SparkException}
 import org.apache.spark.scheduler.{SparkListener, SparkListenerJobStart}
 import org.apache.spark.sql.catalyst.util.StringUtils
 import org.apache.spark.sql.execution.aggregate
-import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, SortAggregateExec}
+import org.apache.spark.sql.execution.aggregate.SortAggregateExec
 import org.apache.spark.sql.execution.columnar.InMemoryTableScanExec
-import org.apache.spark.sql.execution.datasources.FilePartition
 import org.apache.spark.sql.execution.joins.{BroadcastHashJoinExec, CartesianProductExec, SortMergeJoinExec}
 import org.apache.spark.sql.functions._
 import org.apache.spark.sql.internal.SQLConf
@@ -2712,7 +2711,8 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
           sql("SELECT * FROM t, S WHERE c = C")
         }.message
         assert(
-          m.contains("cannot resolve '(default.t.`c` = default.S.`C`)' due to data type mismatch"))
+          m.contains("cannot resolve '(default.t.`c` = default.S.`C`)' due to data type mismatch")
+              || m.contains("cannot resolve '(t.`c` = S.`C`)' due to data type mismatch"))
       }
     }
   }
@@ -2765,7 +2765,8 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
     val df = sql(query)
     val physical = df.queryExecution.sparkPlan
     val aggregateExpressions = physical.collectFirst {
-      case agg : HashAggregateExec => agg.aggregateExpressions
+      case agg if agg.getClass.getName.contains("HashAggregateExec") =>
+        agg.getClass.getMethod("aggregateExpressions").invoke(agg).asInstanceOf[Seq[_]]
       case agg : SortAggregateExec => agg.aggregateExpressions
     }
     assert (aggregateExpressions.isDefined)
@@ -2778,7 +2779,8 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
     val df = sql(query)
     val physical = df.queryExecution.sparkPlan
     val aggregateExpressions = physical.collectFirst {
-      case agg : HashAggregateExec => agg.aggregateExpressions
+      case agg if agg.getClass.getName.contains("HashAggregateExec") =>
+        agg.getClass.getMethod("aggregateExpressions").invoke(agg).asInstanceOf[Seq[_]]
       case agg : SortAggregateExec => agg.aggregateExpressions
     }
     assert (aggregateExpressions.isDefined)
@@ -2875,7 +2877,7 @@ class SQLQuerySuite extends QueryTest with SharedSQLContext {
   test("SPARK-25454: decimal division with negative scale") {
     // TODO: completely fix this issue even when LITERAL_PRECISE_PRECISION is true.
     withSQLConf(SQLConf.LITERAL_PICK_MINIMUM_PRECISION.key -> "false") {
-      checkAnswer(sql("select 26393499451 / (1e6 * 1000)"), Row(BigDecimal("26.3934994510000")))
+      checkAnswer(sql("select 26393499451 / (1e6bd * 1000)"), Row(BigDecimal("26.3934994510000")))
     }
   }
 

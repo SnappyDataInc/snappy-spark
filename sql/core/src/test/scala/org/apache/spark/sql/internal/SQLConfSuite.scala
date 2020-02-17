@@ -121,7 +121,7 @@ class SQLConfSuite extends QueryTest with SharedSQLContext {
     val master = conf.get("spark.master")
     val warehouseDir = conf.get("spark.sql.warehouse.dir")
     // ensure the conf here is not default value, and will not be reset to default value later
-    assert(warehouseDir.get.contains(this.getClass.getCanonicalName))
+    assert(warehouseDir.get.contains("SharedSparkSession"))
     sql("RESET")
     assert(conf.get("spark.app.name") === appName)
     assert(conf.get("spark.driver.host") === driverHost)

@@ -253,7 +253,8 @@ abstract class StatisticsCollectionTestBase extends QueryTest with SQLTestUtils 
       assert(stats.get.sizeInBytes >= 0)
       assert(stats.get.rowCount === expectedRowCounts)
     } else {
-      assert(stats.isEmpty)
+      // hive metastore automatically fills in sizeInBytes from file sizes
+      assert(stats.isEmpty || stats.get.rowCount.isEmpty)
     }
 
     stats

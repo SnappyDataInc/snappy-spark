@@ -36,6 +36,13 @@ dependencies {
   testCompile project(path: subprojectBase + 'snappy-spark-core_' + scalaBinaryVersion, configuration: 'testOutput')
 }
 
+// exclude antlr dependencies only antlr4-runtime should be included (gradle github issue #820)
+configurations {
+  compile {
+    extendsFrom = extendsFrom.findAll { it != configurations.antlr }
+  }
+}
+
 compileScala.dependsOn generateGrammarSource
 
 sourceSets.main.antlr.srcDirs = [ 'src/main/antlr4' ]

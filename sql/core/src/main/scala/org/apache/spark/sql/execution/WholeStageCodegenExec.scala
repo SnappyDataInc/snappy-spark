@@ -464,6 +464,12 @@ object WholeStageCodegenExec {
 
   private[sql] lazy val dumpedGenCodes = CacheBuilder.newBuilder().maximumSize(20)
       .expireAfterWrite(60, TimeUnit.SECONDS).build[CodeAndComment, java.lang.Boolean]()
+
+  private[sql] val rddIdField: java.lang.reflect.Field = {
+    val f = classOf[RDD[_]].getDeclaredField("id")
+    f.setAccessible(true)
+    f
+  }
 }
 
 object WholeStageCodegenId {
@@ -868,7 +874,7 @@ case class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAnd
     // PooledKryoSerializer.serializer refers this class using productIterator
     // Any change to this class should be reflected there.
 
-    output.writeInt(_id)
+    output.writeInt(id)
 
     // write CodeAndComment
     output.writeInt(source.hashCode())
@@ -896,7 +902,7 @@ case class WholeStageCodegenRDD(@transient sc: SparkContext, var source: CodeAnd
   }
 
   override def read(kryo: Kryo, input: Input): Unit = {
-    _id = input.readInt()
+    WholeStageCodegenExec.rddIdField.setInt(this, input.readInt())
     storageLevel = StorageLevel.NONE
     checkpointData = None
 

@@ -387,10 +387,7 @@ class SingletonReplSuite extends SparkFunSuite {
   }
 
   test("should clone and clean line object in ClosureCleaner") {
-    val projectDir = sys.props.get("spark.project.home") match {
-      case Some(h) => s"$h/repl"
-      case None => "."
-    }
+    val projectDir = getRootDir("..") + "/repl"
     val command =
       """
         |import org.apache.spark.rdd.RDD

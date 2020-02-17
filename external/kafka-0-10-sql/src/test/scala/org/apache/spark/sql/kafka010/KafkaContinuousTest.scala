@@ -14,6 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for TIBCO Project SnappyData data platform.
+ *
+ * Portions Copyright (c) 2017-2020 TIBCO Software Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark.sql.kafka010
 
@@ -21,6 +39,7 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import org.apache.spark.SparkContext
 import org.apache.spark.scheduler.{SparkListener, SparkListenerTaskEnd, SparkListenerTaskStart}
+import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.execution.datasources.v2.StreamingDataSourceV2Relation
 import org.apache.spark.sql.execution.streaming.StreamExecution
 import org.apache.spark.sql.execution.streaming.continuous.ContinuousExecution
@@ -33,7 +52,7 @@ trait KafkaContinuousTest extends KafkaSourceTest {
   override val defaultUseV2Sink = true
 
   // We need more than the default local[2] to be able to schedule all partitions simultaneously.
-  override protected def createSparkSession = new TestSparkSession(
+  override protected def createSparkSession: SparkSession = new TestSparkSession(
     new SparkContext(
       "local[10]",
       "continuous-stream-test-sql-context",

@@ -79,9 +79,12 @@ private[hive] class SparkSQLSessionManager(hiveServer: HiveServer2, sqlContext: 
     val ctx = if (sqlContext.conf.hiveThriftServerSingleSession) {
       sqlContext
     } else {
-      sqlContext.newSession()
+      val newCtx = sqlContext.newSession()
+      // copy all properties from base conf
+      sqlContext.getAllConfs.foreach(kv =>
+        if ((kv._2 ne null) && !newCtx.conf.contains(kv._1)) newCtx.setConf(kv._1, kv._2))
+      newCtx
     }
-    ctx.setConf("snappydata.sql.planCaching", "true")
     ctx.setConf(HiveUtils.FAKE_HIVE_VERSION.key, HiveUtils.builtinHiveVersion)
     if ((username ne null) && !username.isEmpty) {
       ctx.setConf("user", username)

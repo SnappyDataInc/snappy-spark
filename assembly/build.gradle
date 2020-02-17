@@ -30,8 +30,16 @@ dependencies {
   compile project(subprojectBase + 'snappy-spark-yarn_' + scalaBinaryVersion)
   compile project(subprojectBase + 'snappy-spark-mllib_' + scalaBinaryVersion)
   compile project(subprojectBase + 'snappy-spark-graphx_' + scalaBinaryVersion)
+  compile project(subprojectBase + 'snappy-spark-avro_' + scalaBinaryVersion)
   if (rootProject.hasProperty('mesos')) {
     compile project(subprojectBase + 'snappy-spark-mesos_' + scalaBinaryVersion)
+  }
+  if (rootProject.hasProperty('k8s')) {
+    compile project(subprojectBase + 'snappy-spark-kubernetes_' + scalaBinaryVersion)
+  }
+  if (rootProject.hasProperty('flume')) {
+    compile project(subprojectBase + 'snappy-spark-streaming-flume_' + scalaBinaryVersion)
+    compile project(subprojectBase + 'snappy-spark-streaming-flume-sink_' + scalaBinaryVersion)
   }
   if (rootProject.hasProperty('ganglia')) {
     compile project(subprojectBase + 'snappy-spark-ganglia-lgpl_' + scalaBinaryVersion)
@@ -67,9 +75,6 @@ task sparkProduct(type: Zip) {
     if (rootProject.name == 'snappy-spark') {
       copy {
         from(configurations.runtime) {
-          // exclude antlr4 explicitly (runtime is still included)
-          // that gets pulled by antlr gradle plugin
-          exclude '**antlr4-4*.jar'
           // exclude scalatest included by spark-tags
           exclude '**scalatest*.jar'
         }
@@ -83,11 +88,17 @@ task sparkProduct(type: Zip) {
         include 'sbin/**'
         include 'conf/**'
         include 'data/**'
-        include 'licenses/**'
         include 'python/**'
         include 'examples/src/**'
       }
       into snappyProductDir
+    }
+    file("${snappyProductDir}/licenses").mkdirs()
+    copy {
+      from("${sparkProjectRootDir}/licenses-binary") {
+        include '*'
+      }
+      into "${snappyProductDir}/licenses"
     }
 
     // copy yarn shuffle shadow jar
@@ -104,12 +115,14 @@ task sparkProduct(type: Zip) {
     if (rootProject.name == 'snappy-spark') {
       copy {
         from(sparkProjectRootDir) {
-          include 'LICENSE'
-          include 'NOTICE'
+          include 'LICENSE-binary'
+          include 'NOTICE-binary'
           include 'README.md'
         }
         into snappyProductDir
+        rename '(.+)-binary', '$1'
       }
+
       def releaseFile = file("${snappyProductDir}/RELEASE")
       String buildFlags = ''
       if (rootProject.hasProperty('docker')) {
@@ -125,6 +138,38 @@ task sparkProduct(type: Zip) {
 
       releaseFile.append("Spark ${version}${gitRevision} built for Hadoop ${hadoopVersion}\n")
       releaseFile.append("Build flags:${buildFlags}\n")
+
+
+      if (rootProject.hasProperty('k8s')) {
+        file("${snappyProductDir}/kubernetes").mkdirs()
+        copy {
+          from("${sparkProjectRootDir}/resource-managers/kubernetes/docker/src/main") {
+            include 'dockerfiles/**'
+          }
+          from("${sparkProjectRootDir}/resource-managers/kubernetes/integration-tests") {
+            include 'tests/**'
+          }
+          into "${snappyProductDir}/kubernetes"
+        }
+      }
+
+      if (rootProject.hasProperty('R.enable')) {
+        def targetRDir = "${snappyProductDir}/R"
+        copy {
+          from("${sparkProjectRootDir}/R")
+          into targetRDir
+        }
+        exec {
+          environment 'SPARK_HOME', snappyProductDir
+          environment 'R_PACKAGE_VERSION', sparkVersion
+          environment 'NO_TESTS', '1'
+          environment '_R_CHECK_FORCE_SUGGESTS_', '0'
+          workingDir targetRDir
+          commandLine "${targetRDir}/check-cran.sh"
+        }
+
+        fileTree(targetRDir).exclude('lib').visit { delete it.file }
+      }
     }
   }
 }

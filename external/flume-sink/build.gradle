@@ -35,6 +35,13 @@ dependencies {
   }
 
   compile(group: 'org.apache.avro', name: 'avro', version: avroVersion)
+  compile(group: 'org.apache.avro', name: 'avro-ipc', version: avroVersion) {
+    exclude(group: 'io.netty', module: 'netty')
+    exclude(group: 'org.mortbay.jetty', module: 'jetty')
+    exclude(group: 'org.mortbay.jetty', module: 'jetty-util')
+    exclude(group: 'org.mortbay.jetty', module: 'servlet-api')
+    exclude(group: 'org.apache.velocity', module: 'velocity')
+  }
   compile group: 'com.google.guava', name: 'guava', version: guavaVersion
   compile group: 'io.netty', name: 'netty', version: nettyVersion
 

@@ -2130,7 +2130,8 @@ class DataFrameSuite extends QueryTest with SharedSQLContext {
     // invalid table names
     Seq("11111", "t~", "#$@sum", "table!#").foreach { name =>
       val m = intercept[AnalysisException](df.createOrReplaceTempView(name)).getMessage
-      assert(m.contains(s"Invalid view name: $name"))
+      assert(m.contains(s"Invalid view name: $name") ||
+          m.matches(s"(?s)Invalid input .${name.charAt(0)}.*"))
     }
 
     // valid table names

@@ -155,7 +155,7 @@ class PathOptionSuite extends DataSourceTest with SharedSQLContext {
       sql("insert into src select id from range(100)")
       checkDataset(sql("select count(*) from src"), Row(100L))
       sql("ALTER TABLE src RENAME TO src2")
-      assert(getPathOption("src2").get == defaultTablePath("src2"))
+      assert(getPathOption("src2").map(makeQualifiedPath) == Some(defaultTablePath("src2")))
       checkDataset(sql("select count(*) from src2"), Row(100L))
     }
   }

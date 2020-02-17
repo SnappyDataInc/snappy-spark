@@ -182,14 +182,14 @@ class DataFrameJoinSuite extends QueryTest with SharedSQLContext {
     // make sure a giant join is not broadcastable
     val plan1 =
       spark.range(10e10.toLong)
-        .join(spark.range(10e10.toLong), "id")
+        .join(spark.range(10e8.toLong), "id")
         .queryExecution.executedPlan
     assert(plan1.collect { case p: BroadcastHashJoinExec => p }.size == 0)
 
     // now with a hint it should be broadcasted
     val plan2 =
       spark.range(10e10.toLong)
-        .join(spark.range(10e10.toLong).hint("broadcast"), "id")
+        .join(spark.range(10e8.toLong).hint("broadcast"), "id")
         .queryExecution.executedPlan
     assert(plan2.collect { case p: BroadcastHashJoinExec => p }.size == 1)
   }

@@ -34,9 +34,5 @@ dependencies {
 }
 
 if (scalaBinaryVersion == '2.11') {
-  sourceSets.main.scala.srcDir 'scala-2.11/src/main/scala'
-  sourceSets.test.scala.srcDir 'scala-2.11/src/test/scala'
-} else {
-  sourceSets.main.scala.srcDir 'scala-2.10/src/main/scala'
-  sourceSets.test.scala.srcDir 'scala-2.10/src/test/scala'
+  sourceSets.main.scala.srcDir 'src/main/scala-2.11'
 }

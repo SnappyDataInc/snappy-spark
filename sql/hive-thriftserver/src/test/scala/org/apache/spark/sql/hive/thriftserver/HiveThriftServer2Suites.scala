@@ -502,11 +502,8 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
     withMultipleConnectionJdbcStatement("smallKV", "addJar")(
       {
         statement =>
-          val jar = "hive/src/test/resources/hive-hcatalog-core-0.13.1.jar"
-          val jarFile = sys.props.get("spark.project.home").map(
-            _ + "/sql/" + jar).getOrElse("../" + jar)
-              .split("/")
-              .mkString(File.separator)
+          val jarFile =
+            s"${getRootDir("../..")}/sql/hive/src/test/resources/hive-hcatalog-core-0.13.1.jar"
 
           statement.executeQuery(s"ADD JAR $jarFile")
       },
@@ -577,10 +574,8 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
   test("SPARK-11595 ADD JAR with input path having URL scheme") {
     withJdbcStatement("test_udtf") { statement =>
       try {
-        val jarPath = sys.props.get("spark.project.home") match {
-          case Some(h) => s"$h/sql/hive/src/test/resources/TestUDTF.jar"
-          case _ => s"${System.getProperty("user.dir")}/../hive/src/test/resources/TestUDTF.jar"
-        }
+        val dataDir = getRootDir("../..")
+        val jarPath = s"$dataDir/sql/hive/src/test/resources/TestUDTF.jar"
         val jarURL = s"file://$jarPath"
 
         Seq(
@@ -603,10 +598,7 @@ class HiveThriftBinaryServerSuite extends HiveThriftJdbcTest {
         assert(rs1.next())
         assert(rs1.getString(1) === "Usage: N/A.")
 
-        val dataPath = sys.props.get("spark.project.home") match {
-          case Some(h) => s"$h/sql/hive/src/test/resources/data/files/kv1.txt"
-          case _ => "../hive/src/test/resources/data/files/kv1.txt"
-        }
+        val dataPath = s"$dataDir/sql/hive/src/test/resources/data/files/kv1.txt"
 
         Seq(
           "CREATE TABLE test_udtf(key INT, value STRING)",
@@ -680,10 +672,7 @@ class SingleSessionSuite extends HiveThriftJdbcTest {
   test("share the temporary functions across JDBC connections") {
     withMultipleConnectionJdbcStatement("test_udtf")(
       { statement =>
-        val jarPath = sys.props.get("spark.project.home") match {
-          case Some(h) => s"$h/sql/hive/src/test/resources/TestUDTF.jar"
-          case _ => s"${System.getProperty("user.dir")}/../hive/src/test/resources/TestUDTF.jar"
-        }
+        val jarPath = s"${getRootDir("../..")}/sql/hive/src/test/resources/TestUDTF.jar"
         val jarURL = s"file://$jarPath"
 
         // Configurations and temporary functions added in this session should be visible to all

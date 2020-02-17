@@ -22,7 +22,7 @@ import scala.util.Random
 import org.scalatest.Matchers.the
 
 import org.apache.spark.sql.execution.WholeStageCodegenExec
-import org.apache.spark.sql.execution.aggregate.{HashAggregateExec, ObjectHashAggregateExec, SortAggregateExec}
+import org.apache.spark.sql.execution.aggregate.{ObjectHashAggregateExec, SortAggregateExec}
 import org.apache.spark.sql.execution.exchange.ShuffleExchangeExec
 import org.apache.spark.sql.expressions.Window
 import org.apache.spark.sql.functions._
@@ -611,11 +611,12 @@ class DataFrameAggregateSuite extends QueryTest with SharedSQLContext {
         val hashAggPlan = hashAggDF.queryExecution.executedPlan
         if (wholeStage) {
           assert(hashAggPlan.find {
-            case WholeStageCodegenExec(_: HashAggregateExec) => true
+            case WholeStageCodegenExec(c)
+              if c.getClass.getName.contains("HashAggregateExec") => true
             case _ => false
           }.isDefined)
         } else {
-          assert(hashAggPlan.isInstanceOf[HashAggregateExec])
+          assert(hashAggPlan.getClass.getName.contains("HashAggregateExec"))
         }
         hashAggDF.collect()
 

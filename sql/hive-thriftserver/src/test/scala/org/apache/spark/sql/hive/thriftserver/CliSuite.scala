@@ -220,11 +220,8 @@ class CliSuite extends SparkFunSuite with BeforeAndAfterAll with Logging {
   }
 
   test("Commands using SerDe provided in --jars") {
-    val jar = "hive/src/test/resources/hive-hcatalog-core-0.13.1.jar"
-    val jarFile = sys.props.get("spark.project.home").map(
-      _ + "/sql/" + jar).getOrElse("../" + jar)
-        .split("/")
-        .mkString(File.separator)
+    val jarFile =
+      s"${getRootDir("../..")}/sql/hive/src/test/resources/hive-hcatalog-core-0.13.1.jar"
 
     val dataFilePath =
       Thread.currentThread().getContextClassLoader.getResource("data/files/small_kv.txt")

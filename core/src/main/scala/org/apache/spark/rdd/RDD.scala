@@ -165,8 +165,7 @@ abstract class RDD[T: ClassTag](
   def sparkContext: SparkContext = sc
 
   /** A unique ID for this RDD (within its SparkContext). */
-  protected var _id: Int = sc.newRddId()
-  def id: Int = _id
+  val id: Int = sc.newRddId()
 
   /** A friendly name for this RDD */
   @transient var name: String = _

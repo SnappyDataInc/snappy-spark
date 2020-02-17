@@ -14,6 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for TIBCO Project SnappyData data platform.
+ *
+ * Portions Copyright (c) 2017-2020 TIBCO Software Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark.deploy
 
@@ -25,9 +43,9 @@ import org.apache.spark.deploy.master.{ApplicationInfo, DriverInfo, WorkerInfo}
 import org.apache.spark.deploy.worker.{DriverRunner, ExecutorRunner}
 
 private[deploy] object DeployTestUtils {
-  def createAppDesc(): ApplicationDescription = {
+  def createAppDesc(name: String = "name"): ApplicationDescription = {
     val cmd = new Command("mainClass", List("arg1", "arg2"), Map(), Seq(), Seq(), Seq())
-    new ApplicationDescription("name", Some(4), 1234, cmd, "appUiUrl")
+    ApplicationDescription(name, Some(4), 1234, cmd, "appUiUrl")
   }
 
   def createAppInfo() : ApplicationInfo = {

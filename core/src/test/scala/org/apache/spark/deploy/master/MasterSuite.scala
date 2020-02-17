@@ -14,6 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for TIBCO Project SnappyData data platform.
+ *
+ * Portions Copyright (c) 2017-2020 TIBCO Software Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark.deploy.master
 
@@ -46,7 +64,8 @@ object MockWorker {
   val counter = new AtomicInteger(10000)
 }
 
-class MockWorker(master: RpcEndpointRef, conf: SparkConf = new SparkConf) extends RpcEndpoint {
+class MockWorker(master: RpcEndpointRef, appName: String, conf: SparkConf = new SparkConf)
+    extends RpcEndpoint {
   val seq = MockWorker.counter.incrementAndGet()
   val id = seq.toString
   override val rpcEnv: RpcEnv = RpcEnv.create("worker", "localhost", seq,
@@ -65,7 +84,7 @@ class MockWorker(master: RpcEndpointRef, conf: SparkConf = new SparkConf) extend
     })
   }
 
-  val appDesc = DeployTestUtils.createAppDesc()
+  val appDesc = DeployTestUtils.createAppDesc(appName)
   val drivers = mutable.HashSet[String]()
   override def receive: PartialFunction[Any, Unit] = {
     case RegisteredWorker(masterRef, _, _) =>
@@ -645,7 +664,7 @@ class MasterSuite extends SparkFunSuite
     var worker1: MockWorker = null
     var worker2: MockWorker = null
     try {
-      worker1 = new MockWorker(master.self)
+      worker1 = new MockWorker(master.self, "name1")
       worker1.rpcEnv.setupEndpoint("worker", worker1)
       val worker1Reg = RegisterWorker(
         worker1.id,
@@ -669,7 +688,7 @@ class MasterSuite extends SparkFunSuite
         assert(masterState.workers(0).state == WorkerState.DEAD)
       }
 
-      worker2 = new MockWorker(master.self)
+      worker2 = new MockWorker(master.self, "name2")
       worker2.rpcEnv.setupEndpoint("worker", worker2)
       master.self.send(RegisterWorker(
         worker2.id,

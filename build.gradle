@@ -30,7 +30,7 @@ buildscript {
     classpath 'io.snappydata:gradle-scalatest:0.25'
     classpath 'org.github.ngbinh.scalastyle:gradle-scalastyle-plugin_2.11:1.0.1'
     classpath 'com.github.jengelman.gradle.plugins:shadow:5.2.0'
-    classpath 'com.commercehub.gradle.plugin:gradle-avro-plugin:0.9.1'
+    classpath 'com.commercehub.gradle.plugin:gradle-avro-plugin:0.16.0'
   }
 }
 
@@ -117,7 +117,7 @@ allprojects {
     arpackVersion = '0.1'
     kafka2Version = '2.0.1'
     joptVersion = '5.0.4'
-    flumeVersion = '1.8.0'
+    flumeVersion = '1.6.0'
     db2JdbcVersion = '10.5.0.5'
     dockerClientVersion = '8.14.5'
     mysqlVersion = '8.0.13'
@@ -160,15 +160,15 @@ allprojects {
     if (rootProject.name == 'snappy-spark') {
       subprojectBase = ':'
       sparkProjectRoot = ':'
-      sparkProjectRootDir = project(':').projectDir
+      sparkProjectRootDir = project(sparkProjectRoot).projectDir
       testResultsBase = "${rootProject.buildDir}/tests"
       gitCmd = "git --git-dir=${rootDir}/.git --work-tree=${rootDir}"
     } else {
       subprojectBase = ':snappy-spark:'
       sparkProjectRoot = ':snappy-spark'
-      sparkProjectRootDir = project(':snappy-spark').projectDir
+      sparkProjectRootDir = project(sparkProjectRoot).projectDir
       testResultsBase = "${rootProject.buildDir}/tests/spark"
-      gitCmd = "git --git-dir=${project(sparkProjectRoot).projectDir}/.git --work-tree=${project(sparkProjectRoot).projectDir}"
+      gitCmd = "git --git-dir=${sparkProjectRootDir}/.git --work-tree=${sparkProjectRootDir}"
     }
     snappyProductDir = "${rootProject.buildDir}/snappy"
   }
@@ -388,16 +388,17 @@ gradle.taskGraph.whenReady { graph ->
           'SPARK_PREPEND_CLASSES': '1',
           'SPARK_SCALA_VERSION': scalaBinaryVersion,
           'SPARK_TESTING': '1',
+          'SPARK_VERSIONS_SUITE_IVY_PATH': "${System.getProperty('user.home')}/.ivy2",
           'JAVA_HOME': System.getProperty('java.home')
-        systemProperties 'log4j.configuration': "file:${projectDir}/src/test/resources/log4j.properties",
+        systemProperties 'log4j.configuration': "file:${task.project.projectDir}/src/test/resources/log4j.properties",
           'derby.system.durability': 'test',
           'java.awt.headless': 'true',
           'java.io.tmpdir': "${rootProject.buildDir}/tmp",
           'spark.test.home': snappyProductDir,
-          'spark.project.home': "${project(sparkProjectRoot).projectDir}",
+          'spark.project.home': "${sparkProjectRootDir}",
           'spark.testing': '1',
           'spark.master.rest.enabled': 'false',
-          'spark.ui.enabled': 'false',
+          'spark.ui.enabled': 'true',
           'spark.ui.showConsoleProgress': 'false',
           'spark.unsafe.exceptionOnMemoryLeak': 'true',
           'spark.memory.debugFill': 'true'
@@ -453,8 +454,10 @@ if (rootProject.name == 'snappy-spark') {
 task cleanAll {
   dependsOn getTasksByName('clean', true).collect { it.path }
 }
+
 task buildAll {
   dependsOn getTasksByName('assemble', true).collect { it.path }
+  dependsOn "${subprojectBase}snappy-spark-assembly_${scalaBinaryVersion}:sparkProduct"
   dependsOn getTasksByName('testClasses', true).collect { it.path }
   dependsOn scalaStyle
   mustRunAfter cleanAll

@@ -72,9 +72,7 @@ class ExecutorSuite extends SparkFunSuite with LocalSparkContext with MockitoSug
     // mock some objects to make Executor.launchTask() happy
     val conf = new SparkConf
     val serializer = new JavaSerializer(conf)
-    val taskLogger = new NamedLogger("org.apache.spark.Task")
     val env = createMockEnv(conf, serializer)
-    when(env.taskLogger).thenReturn(taskLogger)
     val serializedTask = serializer.newInstance().serialize(new FakeTask(0, 0))
     val taskDescription = createFakeTaskDescription(serializedTask)
 
@@ -277,6 +275,7 @@ class ExecutorSuite extends SparkFunSuite with LocalSparkContext with MockitoSug
     val mockRpcEnv = mock[RpcEnv]
     val mockMetricsSystem = mock[MetricsSystem]
     val mockMemoryManager = mock[MemoryManager]
+    val taskLogger = new NamedLogger("org.apache.spark.Task")
     when(mockEnv.conf).thenReturn(conf)
     when(mockEnv.serializer).thenReturn(serializer)
     when(mockEnv.serializerManager).thenReturn(mock[SerializerManager])
@@ -284,6 +283,7 @@ class ExecutorSuite extends SparkFunSuite with LocalSparkContext with MockitoSug
     when(mockEnv.metricsSystem).thenReturn(mockMetricsSystem)
     when(mockEnv.memoryManager).thenReturn(mockMemoryManager)
     when(mockEnv.closureSerializer).thenReturn(serializer)
+    when(mockEnv.taskLogger).thenReturn(taskLogger)
     SparkEnv.set(mockEnv)
     mockEnv
   }

@@ -862,9 +862,9 @@ abstract class ExternalCatalogSuite extends SparkFunSuite with BeforeAndAfterEac
       Some("org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"), compressed = false, Map.empty)
 
     var expectedStr = "Storage(Location: s3a://****:****@ryft-public-sample-data/passengers.txt," +
+        " Serde Library: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe," +
         " InputFormat: org.apache.hadoop.mapred.SequenceFileInputFormat," +
-        " OutputFormat: org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat," +
-        " Serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe)"
+        " OutputFormat: org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat)"
     assert(csf.toString == expectedStr)
     assert(csf.getMaskedLocUri.get.toString ==
         "s3a://****:****@ryft-public-sample-data/passengers.txt")
@@ -877,9 +877,9 @@ abstract class ExternalCatalogSuite extends SparkFunSuite with BeforeAndAfterEac
       Some("org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe"), compressed = false, Map.empty)
 
     expectedStr = "Storage(Location: s3a://ryft-public-sample-data/passengers.txt," +
+        " Serde Library: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe," +
         " InputFormat: org.apache.hadoop.mapred.SequenceFileInputFormat," +
-        " OutputFormat: org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat," +
-        " Serde: org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe)"
+        " OutputFormat: org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat)"
     assert(csf.toString == expectedStr)
     assert(csf.getMaskedLocUri.get.toString == "s3a://ryft-public-sample-data/passengers.txt")
   }

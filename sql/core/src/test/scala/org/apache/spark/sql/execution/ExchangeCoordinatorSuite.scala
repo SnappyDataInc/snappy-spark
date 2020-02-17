@@ -249,6 +249,10 @@ class ExchangeCoordinatorSuite extends SparkFunSuite with BeforeAndAfterAll {
     }
   }
 
+  protected def buildSparkSession(sparkConf: SparkConf): SparkSession = {
+    SparkSession.builder().config(sparkConf).getOrCreate()
+  }
+
   def withSparkSession(
       f: SparkSession => Unit,
       targetNumPostShufflePartitions: Int,
@@ -272,9 +276,7 @@ class ExchangeCoordinatorSuite extends SparkFunSuite with BeforeAndAfterAll {
         sparkConf.set(SQLConf.SHUFFLE_MIN_NUM_POSTSHUFFLE_PARTITIONS.key, "-1")
     }
 
-    val spark = SparkSession.builder()
-      .config(sparkConf)
-      .getOrCreate()
+    val spark = buildSparkSession(sparkConf)
     try f(spark) finally spark.stop()
   }
 

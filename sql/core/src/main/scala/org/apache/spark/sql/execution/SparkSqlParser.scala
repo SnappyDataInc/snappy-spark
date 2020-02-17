@@ -411,7 +411,7 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
     checkDuplicateClauses(ctx.bucketSpec(), "CLUSTERED BY", ctx)
     checkDuplicateClauses(ctx.locationSpec, "LOCATION", ctx)
 
-    val options = Option(ctx.options).map(visitPropertyKeyValues).getOrElse(Map.empty)
+    val options = Option(ctx.opts).map(visitPropertyKeyValues).getOrElse(Map.empty)
     val provider = ctx.tableProvider.qualifiedName.getText
     val schema = Option(ctx.colTypeList()).map(createSchema)
     val partitionColumnNames =
@@ -1576,7 +1576,7 @@ class SparkSqlAstBuilder(conf: SQLConf) extends AstBuilder(conf) {
         "LOCAL is not supported in INSERT OVERWRITE DIRECTORY to data source", ctx)
     }
 
-    val options = Option(ctx.options).map(visitPropertyKeyValues).getOrElse(Map.empty)
+    val options = Option(ctx.opts).map(visitPropertyKeyValues).getOrElse(Map.empty)
     var storage = DataSource.buildStorageFormatFromOptions(options)
 
     val path = Option(ctx.path).map(string).getOrElse("")

@@ -909,12 +909,12 @@ class JoinSuite extends QueryTest with SharedSQLContext {
       // Check if `needCopyResult` in `BroadcastHashJoin` is correct when smj->bhj
       val joins = new collection.mutable.ArrayBuffer[BinaryExecNode]()
       plan.foreachUp {
-        case j: BroadcastHashJoinExec => joins += j
+        case j: HashJoin => joins += j.asInstanceOf[BinaryExecNode]
         case j: SortMergeJoinExec => joins += j
         case _ =>
       }
       assert(joins.size == 2)
-      assert(joins(0).isInstanceOf[SortMergeJoinExec])
+      assert(joins(0).isInstanceOf[SortMergeJoinExec] || joins(0).isInstanceOf[HashJoin])
       assert(joins(1).isInstanceOf[BroadcastHashJoinExec])
       checkAnswer(df, Row(3, 8, 7, 2) :: Row(3, 8, 4, 2) :: Nil)
     }

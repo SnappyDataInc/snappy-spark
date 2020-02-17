@@ -85,14 +85,12 @@ object GenerateUnsafeProjection extends CodeGenerator[Seq[Expression], UnsafePro
       v => s"$v = new $rowWriterClass($rowWriter, ${fieldEvals.length});")
     val previousCursor = ctx.freshName("previousCursor")
 
-    var ref: DataType = null
     val isHomogeneousStruct = if (schemas.nonEmpty) {
-      ref = schemas.head.dataType
-      CodeGenerator.isPrimitiveType(ref) && !schemas.tail.exists(_.dataType != ref)
+      val dt = schemas.head.dataType
+      CodeGenerator.isPrimitiveType(dt) && !schemas.tail.exists(_.dataType != dt)
     } else false
     if (isHomogeneousStruct) {
       val counter = ctx.freshName("counter")
-      val rowWriterChild = ctx.freshName("rowWriterChild")
       val dt = schemas.head.dataType
 
       s"""
@@ -103,13 +101,12 @@ object GenerateUnsafeProjection extends CodeGenerator[Seq[Expression], UnsafePro
          |  // Remember the current cursor so that we can calculate how many bytes are
          |  // written later.
          |  final int $previousCursor = $rowWriter.cursor();
-         |  $rowWriterClass $rowWriterChild = new $rowWriterClass($rowWriter, ${schemas.length});
-         |  $rowWriterChild.reset();
+         |  $structRowWriter.resetRowWriter();
          |  for (int $counter = 0; $counter < ${schemas.length}; $counter++) {
-         |    if ($tmpInput.isNullAt($index)) {
-         |      $rowWriterChild.setNullAt($index);
+         |    if ($tmpInput.isNullAt($counter)) {
+         |      $structRowWriter.setNullAt($counter);
          |    } else {
-         |      $rowWriterChild.write($counter, ${CodeGenerator.getValue(tmpInput, dt, counter)});
+         |      $structRowWriter.write($counter, ${CodeGenerator.getValue(tmpInput, dt, counter)});
          |    }
          |  }
          |  $rowWriter.setOffsetAndSizeFromPreviousCursor($index, $previousCursor);

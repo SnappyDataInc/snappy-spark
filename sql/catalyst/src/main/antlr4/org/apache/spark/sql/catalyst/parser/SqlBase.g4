@@ -79,7 +79,7 @@ statement
     | ALTER DATABASE identifier SET DBPROPERTIES tablePropertyList     #setDatabaseProperties
     | DROP DATABASE (IF EXISTS)? identifier (RESTRICT | CASCADE)?      #dropDatabase
     | createTableHeader ('(' colTypeList ')')? tableProvider
-        ((OPTIONS options=tablePropertyList) |
+        ((OPTIONS opts=tablePropertyList) |
         (PARTITIONED BY partitionColumnNames=identifierList) |
         bucketSpec |
         locationSpec |
@@ -252,7 +252,7 @@ insertInto
     : INSERT OVERWRITE TABLE tableIdentifier (partitionSpec (IF NOT EXISTS)?)?                              #insertOverwriteTable
     | INSERT INTO TABLE? tableIdentifier partitionSpec?                                                     #insertIntoTable
     | INSERT OVERWRITE LOCAL? DIRECTORY path=STRING rowFormat? createFileFormat?                            #insertOverwriteHiveDir
-    | INSERT OVERWRITE LOCAL? DIRECTORY (path=STRING)? tableProvider (OPTIONS options=tablePropertyList)?   #insertOverwriteDir
+    | INSERT OVERWRITE LOCAL? DIRECTORY (path=STRING)? tableProvider (OPTIONS opts=tablePropertyList)?      #insertOverwriteDir
     ;
 
 partitionSpecLocation

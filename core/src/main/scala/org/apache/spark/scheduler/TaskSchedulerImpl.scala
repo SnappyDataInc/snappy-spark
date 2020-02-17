@@ -228,8 +228,9 @@ private[spark] class TaskSchedulerImpl(
     val tasks = taskSet.tasks
     logInfo("Adding task set " + taskSet.id + " with " + tasks.length + " tasks")
     this.synchronized {
-      val maxRetryAttemptsForWrite = taskSet.properties.
-        getProperty(SNAPPY_WRITE_RETRY_PROP)
+      val maxRetryAttemptsForWrite = if (taskSet.properties ne null) {
+        taskSet.properties.getProperty(SNAPPY_WRITE_RETRY_PROP)
+      } else null
 
       logInfo("The maxRetryAttemptsForWrite is set to " + maxRetryAttemptsForWrite +
           ", maxTaskFailures is " + maxTaskFailures)

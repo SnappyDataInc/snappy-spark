@@ -118,13 +118,8 @@ abstract class HiveComparisonTest
       .map(name => new File(targetDir, s"$suiteName.$name"))
 
   /** The local directory with cached golden answer will be stored. */
-  protected var answerCache = new File("src" + File.separator + "test" +
-    File.separator + "resources" + File.separator + "golden")
-  sys.props.get("spark.project.home") match {
-    case Some(h) => answerCache = new File(h, "sql" + File.separator + "hive" +
-      File.separator + answerCache.getPath)
-    case None =>
-  }
+  protected val answerCache =
+    new File(s"${getRootDir("../..")}/sql/hive/src/test/resources/golden")
   if (!answerCache.exists) {
     answerCache.mkdir()
   }
