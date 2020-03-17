@@ -230,6 +230,7 @@ class SparkContext(config: SparkConf) extends Logging {
   private var _files: Seq[String] = _
   private var _shutdownHookRef: AnyRef = _
   private var _statusStore: AppStatusStore = _
+  @volatile private var _sqlStatusStore: AnyRef = _
 
   /* ------------------------------------------------------------------------------------- *
    | Accessors and public fields. These provide access to the internal state of the        |
@@ -262,6 +263,18 @@ class SparkContext(config: SparkConf) extends Logging {
   def isStopped: Boolean = stopped.get()
 
   private[spark] def statusStore: AppStatusStore = _statusStore
+
+  private[spark] def getOrCreateSQLStatusStore(storeBuilder: () => AnyRef): AnyRef = {
+    var store = _sqlStatusStore
+    if (store eq null) SparkContext.SPARK_CONTEXT_CONSTRUCTOR_LOCK.synchronized {
+      store = _sqlStatusStore
+      if (store eq null) {
+        store = storeBuilder()
+        _sqlStatusStore = store
+      }
+    }
+    store
+  }
 
   // An asynchronous listener bus for Spark events
   private[spark] def listenerBus: LiveListenerBus = _listenerBus

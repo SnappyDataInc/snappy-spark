@@ -90,6 +90,10 @@ private[sql] class SharedState(val sparkContext: SparkContext) extends Logging {
    * [[org.apache.spark.scheduler.SparkListenerEvent]]s.
    */
   val statusStore: SQLAppStatusStore = {
+    sparkContext.getOrCreateSQLStatusStore(newStatusStore).asInstanceOf[SQLAppStatusStore]
+  }
+
+  private def newStatusStore(): SQLAppStatusStore = {
     val kvStore = sparkContext.statusStore.store.asInstanceOf[ElementTrackingStore]
     val listener = new SQLAppStatusListener(sparkContext.conf, kvStore, live = true)
     sparkContext.listenerBus.addToStatusQueue(listener)
