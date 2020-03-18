@@ -93,7 +93,6 @@ import org.apache.spark.util.{CallSite, Utils}
  * @param parentSessionState If supplied, inherit all session state (i.e. temporary
  *                            views, SQL config, UDFs etc) from parent.
  */
-// scalastyle:off no.finalize
 @InterfaceStability.Stable
 class SparkSession private(
     @transient val sparkContext: SparkContext,
@@ -189,6 +188,8 @@ class SparkSession private(
    * @since 2.0.0
    */
   @transient lazy val conf: RuntimeConfig = new RuntimeConfig(sessionState.conf)
+
+  @transient private[sql] var streamingListener: SnappyStreamingQueryListener = _
 
   /**
    * :: Experimental ::
@@ -789,10 +790,14 @@ class SparkSession private(
    * Adds or updates structured streaming UI tab.
    * All session instances have their own SnappyStreamingQueryListener but shares same UI tab.
    */
-  protected def updateUIWithStructuredStreamingTab(): Unit = {
-    val listener = new SnappyStreamingQueryListener()
-    this.streams.addListener(listener)
-    sessionState.registerStreamingQueryListener(listener)
+  def updateUIWithStructuredStreamingTab(
+      streams: StreamingQueryManager): StreamingQueryListener = synchronized {
+    if (this.streamingListener ne null) {
+      streams.removeListener(this.streamingListener)
+    }
+    this.streamingListener = new SnappyStreamingQueryListener()
+    streams.addListener(this.streamingListener)
+    // cleanup is done by SnappySession's FinalizeSession
     if (sparkContext.ui.isDefined) {
       // logInfo("Updating Web UI to add structure streaming tab.")
       sparkContext.ui.foreach(ui => {
@@ -812,20 +817,14 @@ class SparkSession private(
           // Streaming web service
           ui.attachHandler(SnappyStreamingApiRootResource.getServletHandler(ui))
           // Streaming tab
-          new SnappyStreamingTab(ui, listener)
+          new SnappyStreamingTab(ui)
         }
       })
       logTrace("Updating Web UI to add structured streaming tab is Done.")
     }
+    this.streamingListener
   }
-
-  // Doing this clean up in finalize method as lifecycle of the listener is aligned with session's
-  // lifecycle. After this the listener object will be eligible for GC in the next cycle.
-  // Also the memory footprint of the listener object is not much hence it should be ok if the
-  // listener object is remain alive for one extra GC cycle as compared to the session.
-  override def finalize(): Unit = sessionState.removeStreamingQueryListener()
 }
-// scalastyle:on no.finalize
 
 
 @InterfaceStability.Stable

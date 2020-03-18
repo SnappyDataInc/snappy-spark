@@ -50,7 +50,7 @@ import scala.language.postfixOps
 import scala.util.control.NonFatal
 
 import org.apache.spark._
-import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.broadcast.{Broadcast, DirectBroadcast}
 import org.apache.spark.executor.TaskMetrics
 import org.apache.spark.internal.Logging
 import org.apache.spark.internal.config
@@ -221,6 +221,8 @@ private[spark] class DAGScheduler(
   // A closure serializer that we reuse.
   // This is only safe because DAGScheduler runs in a single thread.
   private val closureSerializer = SparkEnv.get.closureSerializer.newInstance()
+
+  private lazy val maxRpcMessageSize = RpcUtils.maxMessageSizeBytes(sc.conf)
 
   /** If enabled, FetchFailed will not cause stage retry, in order to surface the problem. */
   private val disallowStageRetryForTest = sc.getConf.getBoolean("spark.test.noStageRetry", false)
@@ -1198,7 +1200,16 @@ private[spark] class DAGScheduler(
         partitions = stage.rdd.partitions
       }
 
-      taskBinary = sc.broadcast(taskBinaryBytes)
+      // use direct byte shipping for small size or if number of partitions is small
+      val taskBytesLen = taskBinaryBytes.length
+      if (taskBytesLen <= DAGScheduler.TASK_INLINE_LIMIT ||
+          partitionsToCompute.length == 1 ||
+          (taskBytesLen < math.min(maxRpcMessageSize, DAGScheduler.TASK_INLINE_UPPER_LIMIT) &&
+              partitionsToCompute.length <= DAGScheduler.TASK_INLINE_PARTITION_LIMIT)) {
+        taskBinary = new DirectBroadcast[Array[Byte]](taskBinaryBytes)
+      } else {
+        taskBinary = sc.broadcast(taskBinaryBytes)
+      }
     } catch {
       // In the case of a failure during serialization, abort the stage.
       case e: NotSerializableException =>
@@ -1886,7 +1897,7 @@ private[spark] class DAGScheduler(
       stage: Stage,
       errorMessage: Option[String] = None,
       willRetry: Boolean = false): Unit = {
-    val serviceTime = stage.latestInfo.submissionTime match {
+    val serviceTime = if (!log.isInfoEnabled) "0" else stage.latestInfo.submissionTime match {
       case Some(t) => "%.03f".format((clock.getTimeMillis() - t) / 1000.0)
       case _ => "Unknown"
     }
@@ -2190,4 +2201,16 @@ private[spark] object DAGScheduler {
 
   // Number of consecutive stage attempts allowed before a stage is aborted
   val DEFAULT_MAX_CONSECUTIVE_STAGE_ATTEMPTS = 4
+
+  // The maximum size of uncompressed common task bytes (rdd, closure)
+  // that will be shipped with the task else will be broadcast separately.
+  val TASK_INLINE_LIMIT: Int = 128 * 1024
+
+  // Maximum size beyond which common task bytes will always be broadcast even if number
+  // of partitions is smaller than TASK_INLINE_PARTITION_LIMIT (except if it is 1)
+  val TASK_INLINE_UPPER_LIMIT: Int = 4 * 1024 * 1024
+
+  // The maximum number of partitions below which common task bytes will be
+  // shipped with the task else will be broadcast separately.
+  val TASK_INLINE_PARTITION_LIMIT = 8
 }

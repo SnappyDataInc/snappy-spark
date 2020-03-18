@@ -33,20 +33,14 @@
 
 package org.apache.spark.ui
 
-import org.apache.spark.internal.Logging
-import org.apache.spark.sql.streaming.SnappyStreamingQueryListener
-
-class SnappyStreamingTab (sparkUI: SparkUI, streamingListener: SnappyStreamingQueryListener)
-    extends SparkUITab(sparkUI, "structuredstreaming") with Logging {
+class SnappyStreamingTab(sparkUI: SparkUI) extends SparkUITab(sparkUI, "structuredstreaming") {
 
   override val name = "Structured Streaming"
 
-  val parent = sparkUI
-  val listener = streamingListener
+  private val parent = sparkUI
 
   attachPage(new SnappyStructuredStreamingPage(this))
   // Attach Tab
   parent.attachTab(this)
   // parent.attachHandler(SnappyStreamingApiRootResource.getServletHandler(parent))
-
 }

@@ -40,19 +40,19 @@ import java.util.UUID
 import scala.collection.mutable
 import scala.language.reflectiveCalls
 
-import org.scalactic.TolerantNumerics
+import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.concurrent.Waiters.Waiter
 
 import org.apache.spark.SparkException
 import org.apache.spark.scheduler._
-import org.apache.spark.sql.{Encoder, SparkSession}
 import org.apache.spark.sql.execution.streaming._
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.v2.reader.streaming.{Offset => OffsetV2}
 import org.apache.spark.sql.streaming.StreamingQueryListener._
 import org.apache.spark.sql.streaming.util.StreamManualClock
+import org.apache.spark.sql.{Encoder, SparkSession}
 import org.apache.spark.util.{JsonProtocol, Utils}
 
 class StreamingQueryListenerSuite extends StreamTest with BeforeAndAfter {
@@ -60,12 +60,13 @@ class StreamingQueryListenerSuite extends StreamTest with BeforeAndAfter {
   import testImplicits._
 
   // To make === between double tolerate inexact values
-  implicit val doubleEquality = TolerantNumerics.tolerantDoubleEquality(0.01)
+  implicit val doubleEquality: Equality[Double] = TolerantNumerics.tolerantDoubleEquality(0.01)
 
   after {
     spark.streams.active.foreach(_.stop())
-    // finalize method removes the StreamingQueryListener registered for structured streaming UI.
-    spark.finalize()
+    // remove the StreamingQueryListener registered for structured streaming UI
+    val listener = spark.streamingListener
+    if (listener ne null) spark.streams.removeListener(listener)
     assert(spark.streams.active.isEmpty)
     assert(addedListeners().isEmpty)
     // Make sure we don't leak any events to the next test
@@ -82,7 +83,7 @@ class StreamingQueryListenerSuite extends StreamTest with BeforeAndAfter {
       extends AssertOnQuery(q => {
         eventually(Timeout(streamingTimeout)) {
           if (q.exception.isEmpty) {
-            assert(clock.asInstanceOf[StreamManualClock].isStreamWaitingAt(clock.getTimeMillis))
+            assert(clock.asInstanceOf[StreamManualClock].isStreamWaitingAt(clock.getTimeMillis()))
           }
         }
         if (q.exception.isDefined) {

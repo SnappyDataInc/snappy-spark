@@ -34,21 +34,20 @@ import org.apache.hadoop.hive.metastore.RawStore;
 public class ThreadWithGarbageCleanup extends Thread {
   private static final Log LOG = LogFactory.getLog(ThreadWithGarbageCleanup.class);
 
-  Map<Long, RawStore> threadRawStoreMap =
+  private Map<Long, RawStore> threadRawStoreMap =
       ThreadFactoryWithGarbageCleanup.getThreadRawStoreMap();
 
-  public ThreadWithGarbageCleanup(Runnable runnable) {
+  ThreadWithGarbageCleanup(Runnable runnable) {
     super(runnable);
   }
 
-  /**
-   * Add any Thread specific garbage cleanup code here.
-   * Currently, it shuts down the RawStore object for this thread if it is not null.
-   */
   @Override
-  public void finalize() throws Throwable {
-    cleanRawStore();
-    super.finalize();
+  public void run() {
+    try {
+      super.run();
+    } finally {
+      cleanRawStore();
+    }
   }
 
   private void cleanRawStore() {
@@ -56,7 +55,7 @@ public class ThreadWithGarbageCleanup extends Thread {
     RawStore threadLocalRawStore = threadRawStoreMap.get(threadId);
     if (threadLocalRawStore != null) {
       LOG.debug("RawStore: " + threadLocalRawStore + ", for the thread: " +
-          this.getName()  +  " will be closed now.");
+          this.getName() + " will be closed now.");
       threadLocalRawStore.shutdown();
       threadRawStoreMap.remove(threadId);
     }

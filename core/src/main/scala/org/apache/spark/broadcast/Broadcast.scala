@@ -60,7 +60,7 @@ abstract class Broadcast[T: ClassTag](val id: Long) extends Serializable with Lo
    * Flag signifying whether the broadcast variable is valid
    * (that is, not already destroyed) or not.
    */
-  @volatile private var _isValid = true
+  @volatile protected var _isValid = true
 
   private var _destroySite = ""
 

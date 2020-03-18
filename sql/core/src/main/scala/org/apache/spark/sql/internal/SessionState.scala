@@ -49,7 +49,6 @@ import org.apache.spark.sql.catalyst.optimizer.Optimizer
 import org.apache.spark.sql.catalyst.parser.ParserInterface
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution._
-import org.apache.spark.sql.streaming.{StreamingQueryListener, StreamingQueryManager}
 import org.apache.spark.sql.streaming.StreamingQueryManager
 import org.apache.spark.sql.util.{ExecutionListenerManager, QueryExecutionListener}
 
@@ -119,19 +118,6 @@ private[sql] class SessionState(
    * Get an identical copy of the `SessionState` and associate it with the given `SparkSession`
    */
   def clone(newSparkSession: SparkSession): SessionState = createClone(newSparkSession, this)
-
-  /**
-   * Listener for streaming query UI
-   */
-  private var streamingQueryListener: StreamingQueryListener = _
-
-  def registerStreamingQueryListener(streamingQueryListener: StreamingQueryListener): Unit = {
-    this.streamingQueryListener = streamingQueryListener
-  }
-
-  def removeStreamingQueryListener(): Unit = {
-    streamingQueryManager.removeListener(streamingQueryListener)
-  }
 
   // ------------------------------------------------------
   //  Helper methods, partially leftover from pre-2.0 days

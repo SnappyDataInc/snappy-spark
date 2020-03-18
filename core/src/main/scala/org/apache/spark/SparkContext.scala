@@ -70,6 +70,7 @@ import org.apache.spark.rpc.RpcEndpointRef
 import org.apache.spark.scheduler._
 import org.apache.spark.scheduler.cluster.{CoarseGrainedSchedulerBackend, StandaloneSchedulerBackend}
 import org.apache.spark.scheduler.local.LocalSchedulerBackend
+import org.apache.spark.serializer.JavaSerializer
 import org.apache.spark.status.AppStatusStore
 import org.apache.spark.status.api.v1.ThreadStackTrace
 import org.apache.spark.storage._
@@ -229,6 +230,7 @@ class SparkContext(config: SparkConf) extends Logging {
   private var _jars: Seq[String] = _
   private var _files: Seq[String] = _
   private var _shutdownHookRef: AnyRef = _
+  private var _isDefaultClosureSerializer: Boolean = true
   private var _statusStore: AppStatusStore = _
   @volatile private var _sqlStatusStore: AnyRef = _
 
@@ -453,6 +455,8 @@ class SparkContext(config: SparkConf) extends Logging {
     // Create the Spark execution environment (cache, map output tracker, etc)
     _env = createSparkEnv(_conf, isLocal, listenerBus)
     SparkEnv.set(_env)
+
+    _isDefaultClosureSerializer = _env.closureSerializer.isInstanceOf[JavaSerializer]
 
     // If running the REPL, register the repl's output dir with the file server.
     _conf.getOption("spark.repl.class.outputDir").foreach { path =>
@@ -2364,7 +2368,7 @@ class SparkContext(config: SparkConf) extends Logging {
    * @return the cleaned closure
    */
   private[spark] def clean[F <: AnyRef](f: F, checkSerializable: Boolean = true): F = {
-    ClosureCleaner.clean(f, checkSerializable)
+    ClosureCleaner.clean(f, checkSerializable && _isDefaultClosureSerializer)
     f
   }
 
