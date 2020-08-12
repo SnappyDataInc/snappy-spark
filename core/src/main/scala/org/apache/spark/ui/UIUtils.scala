@@ -258,19 +258,19 @@ private[spark] object UIUtils extends Logging {
                   false
                 }
               }
-              if (isEnterprise) {
-                <div class="product-brand">
-                  <a href={prependBaseUri("/")} class="brand" style="padding-top: 8px;">
-                    <img src={prependBaseUri("/static/snappydata/tibco-computdb-274X35.png")} />
-                  </a>
-                </div>
-                <div class="brand" style="line-height: 2.5;">
-                  <img src={prependBaseUri("/static/snappydata/helpicon-18X18.png")}
-                       style="cursor: pointer;"
-                       onclick="displayVersionDetails()" />
-                  {getProductVersionNode}
-                </div>
-              } else {
+//              if (isEnterprise) {
+//                <div class="product-brand">
+//                  <a href={prependBaseUri("/")} class="brand" style="padding-top: 8px;">
+//                    <img src={prependBaseUri("/static/snappydata/tibco-computdb-274X35.png")} />
+//                  </a>
+//                </div>
+//                <div class="brand" style="line-height: 2.5;">
+//                  <img src={prependBaseUri("/static/snappydata/helpicon-18X18.png")}
+//                       style="cursor: pointer;"
+//                       onclick="displayVersionDetails()" />
+//                  {getProductVersionNode}
+//                </div>
+//              } else {
                 <div class="product-brand">
                   <a href={prependBaseUri("/")} class="brand">
                     <img src={prependBaseUri("/static/snappydata/pulse-snappydata-152X50.png")} />
@@ -288,7 +288,7 @@ private[spark] object UIUtils extends Logging {
                        onclick="displayVersionDetails()" />
                   {getProductVersionNode}
                 </div>
-              }
+//              }
             }
             <ul class="nav">{header}</ul>
           </div>
@@ -594,7 +594,7 @@ private[spark] object UIUtils extends Logging {
             }
             if(isEnterprise) {
               <p>
-                <strong>TIBCO<sup>&reg;</sup> ComputeDB<sup>&trade;</sup>
+                <strong>Project SnappyData<sup>&trade;</sup>
                   - Enterprise Edition</strong> <br />
                 <br />&copy; 2017-2020 TIBCO<sup>&reg;</sup> Software Inc. All rights reserved.
                 <br />This program is protected by copyright law.
