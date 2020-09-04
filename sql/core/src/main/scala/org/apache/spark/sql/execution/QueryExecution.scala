@@ -19,6 +19,7 @@ package org.apache.spark.sql.execution
 
 import java.nio.charset.StandardCharsets
 import java.sql.Timestamp
+import java.util.NoSuchElementException
 
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{AnalysisException, Row, SparkSession}
@@ -89,7 +90,23 @@ class QueryExecution(val sparkSession: SparkSession, val logical: LogicalPlan) {
   lazy val executedPlan: SparkPlan = prepareForExecution(sparkPlan)
 
   /** Internal version of the RDD. Avoids copies and has no schema */
-  lazy val toRdd: RDD[InternalRow] = executedPlan.execute()
+  lazy val toRdd: RDD[InternalRow] = {
+    // setting snappydata.failOnCastError local property every time before
+    // executing the query to make the change to the property effective
+
+    try {
+      sparkSession.sparkContext.setLocalProperty("snappydata.failOnCastError",
+        sparkSession.sessionState.conf.getConfString("snappydata.failOnCastError"))
+    } catch {
+      case ex: NoSuchElementException
+        if (ex.getMessage.equalsIgnoreCase("snappydata.failOnCastError")) =>
+        // Only SnappySession config will have "snappydata.failOnCastError" set.
+        // While using spark session this config won't be there hence ignoring this
+        // failure.
+    }
+
+    executedPlan.execute()
+  }
 
   /**
    * Prepares a planned [[SparkPlan]] for execution by inserting shuffle operations and internal
