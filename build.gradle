@@ -70,7 +70,7 @@ allprojects {
     mockitoVersion = '1.10.19'
     javaxServletVersion = '3.1.0'
     guavaVersion = '14.0.1'
-    hiveVersion = '1.2.1.spark2'
+    hiveVersion = '1.21.2.3.1.2.1-1'
     chillVersion = '0.8.5'
     kryoVersion = '4.0.2'
     nettyVersion = '3.10.6.Final'
