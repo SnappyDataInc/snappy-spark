@@ -277,7 +277,7 @@ private[spark] object UIUtils extends Logging {
                   </a>
                 </div>
                 <div class="brand" style="line-height: 2.5;">
-                  <a class="brand" href="https://www.snappydata.io/" target="_blank">
+                  <a class="brand" href="https://github.com/SnappyDataInc/snappydata" target="_blank">
                     <img src={prependBaseUri("/static/snappydata/snappydata-175X28.png")}
                          style="cursor: pointer;" />
                   </a>
@@ -612,9 +612,7 @@ private[spark] object UIUtils extends Logging {
               <p>
                 For assistance, get started at: <br />
                 <a href="https://www.tibco.com/" target="_blank">https://www.tibco.com/</a> <br />
-                <a href={"https://tibco-computedb.readthedocs.io/en/enterprise_docv" +
-                    snappyVersionDetails.getOrElse("productVersion", "") + "/"}
-                   target="_blank">
+                <a href="https://snappydatainc.github.io/snappydata/" target="_blank">
                   Product Documentation
                 </a>
               </p>
