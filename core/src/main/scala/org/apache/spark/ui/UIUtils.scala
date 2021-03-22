@@ -612,7 +612,7 @@ private[spark] object UIUtils extends Logging {
               <p>
                 For assistance, get started at: <br />
                 <a href="https://www.tibco.com/" target="_blank">https://www.tibco.com/</a> <br />
-                <a href="https://snappydatainc.github.io/snappydata/" target="_blank">
+                <a href="https://tibcosoftware.github.io/snappydata/" target="_blank">
                   Product Documentation
                 </a>
               </p>
@@ -636,7 +636,7 @@ private[spark] object UIUtils extends Logging {
                 <a href="https://www.snappydata.io/community" target="_blank">
                   https://www.snappydata.io/community</a> <br />
                 <a href="https://www.tibco.com/" target="_blank">https://www.tibco.com/</a> <br />
-                <a href="http://snappydatainc.github.io/snappydata/" target="_blank">
+                <a href="http://tibcosoftware.github.io/snappydata/" target="_blank">
                   Product Documentation
                 </a>
               </p>
@@ -649,7 +649,7 @@ private[spark] object UIUtils extends Logging {
 
   def getProductDocLinkNode(): Node = {
     <p class="navbar-text pull-right " style="padding-right:20px;">
-      <a href="http://snappydatainc.github.io/snappydata/" target="_blank">Docs</a>
+      <a href="http://tibcosoftware.github.io/snappydata/" target="_blank">Docs</a>
     </p>
   }
 
