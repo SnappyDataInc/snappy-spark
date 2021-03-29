@@ -299,20 +299,20 @@ private[spark] object UIUtils extends Logging {
                   false
                 }
               }
-              if (isEnterprise) {
-                <div class="product-brand">
-                  <a href={prependBaseUri(request, "/")} class="brand" style="padding-top: 8px;">
-                    <img src={prependBaseUri(request,
-                          "/static/snappydata/tibco-computdb-274X35.png")} />
-                  </a>
-                </div>
-                <div class="brand" style="line-height: 2.5;">
-                  <img src={prependBaseUri(request, "/static/snappydata/helpicon-18X18.png")}
-                       style="cursor: pointer;"
-                       onclick="displayVersionDetails()" />
-                  {getProductVersionNode}
-                </div>
-              } else {
+//              if (isEnterprise) {
+//                <div class="product-brand">
+//                  <a href={prependBaseUri(request, "/")} class="brand" style="padding-top: 8px;">
+//                    <img src={prependBaseUri(request,
+//                          "/static/snappydata/tibco-computdb-274X35.png")} />
+//                  </a>
+//                </div>
+//                <div class="brand" style="line-height: 2.5;">
+//                  <img src={prependBaseUri(request, "/static/snappydata/helpicon-18X18.png")}
+//                       style="cursor: pointer;"
+//                       onclick="displayVersionDetails()" />
+//                  {getProductVersionNode}
+//                </div>
+//              } else {
                 <div class="product-brand">
                   <a href={prependBaseUri(request, "/")} class="brand">
                     <img src={prependBaseUri(request,
@@ -320,7 +320,7 @@ private[spark] object UIUtils extends Logging {
                   </a>
                 </div>
                 <div class="brand" style="line-height: 2.5;">
-                  <a class="brand" href="https://www.snappydata.io/" target="_blank">
+                  <a class="brand" href="https://github.com/TIBCOSoftware/snappydata" target="_blank">
                     <img src={prependBaseUri(request, "/static/snappydata/snappydata-175X28.png")}
                          style="cursor: pointer;" />
                   </a>
@@ -331,7 +331,7 @@ private[spark] object UIUtils extends Logging {
                        onclick="displayVersionDetails()" />
                   {getProductVersionNode}
                 </div>
-              }
+//              }
             }
             <ul class="nav">{header}</ul>
           </div>
@@ -673,7 +673,7 @@ private[spark] object UIUtils extends Logging {
             }
             if(isEnterprise) {
               <p>
-                <strong>TIBCO<sup>&reg;</sup> ComputeDB<sup>&trade;</sup>
+                <strong>Project SnappyData<sup>&trade;</sup>
                   - Enterprise Edition</strong> <br />
                 <br />&copy; 2017-2020 TIBCO<sup>&reg;</sup> Software Inc. All rights reserved.
                 <br />This program is protected by copyright law.
@@ -691,9 +691,7 @@ private[spark] object UIUtils extends Logging {
               <p>
                 For assistance, get started at: <br />
                 <a href="https://www.tibco.com/" target="_blank">https://www.tibco.com/</a> <br />
-                <a href={"https://tibco-computedb.readthedocs.io/en/enterprise_docv" +
-                    snappyVersionDetails.getOrElse("productVersion", "") + "/"}
-                   target="_blank">
+                <a href="https://tibcosoftware.github.io/snappydata/" target="_blank">
                   Product Documentation
                 </a>
               </p>
@@ -717,7 +715,7 @@ private[spark] object UIUtils extends Logging {
                 <a href="https://www.snappydata.io/community" target="_blank">
                   https://www.snappydata.io/community</a> <br />
                 <a href="https://www.tibco.com/" target="_blank">https://www.tibco.com/</a> <br />
-                <a href="http://snappydatainc.github.io/snappydata/" target="_blank">
+                <a href="http://tibcosoftware.github.io/snappydata/" target="_blank">
                   Product Documentation
                 </a>
               </p>
@@ -730,7 +728,7 @@ private[spark] object UIUtils extends Logging {
 
   def getProductDocLinkNode(): Node = {
     <p class="navbar-text pull-right " style="padding-right:20px;">
-      <a href="http://snappydatainc.github.io/snappydata/" target="_blank">Docs</a>
+      <a href="http://tibcosoftware.github.io/snappydata/" target="_blank">Docs</a>
     </p>
   }
 }
