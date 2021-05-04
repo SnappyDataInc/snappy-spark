@@ -118,7 +118,7 @@ allprojects {
     dockerClientVersion = '8.14.5'
     mysqlVersion = '8.0.13'
     postgresqlVersion = '42.2.5'
-    ojdbc6Version = '11.2.0.1.0'
+    ojdbc6Version = '11.2.0.4'
     zookeeperVersion = '3.4.13'
     jets3tVersion = '0.9.4'
     roaringBitmapVersion = '0.6.66'

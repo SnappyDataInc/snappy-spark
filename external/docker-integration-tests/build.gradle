@@ -37,7 +37,7 @@ dependencies {
   testCompile group: 'org.apache.httpcomponents', name: 'httpcore', version: httpCoreVersion
   testCompile group: 'mysql', name: 'mysql-connector-java', version: mysqlVersion
   testCompile group: 'org.postgresql', name: 'postgresql', version: postgresqlVersion
-  testCompile group: 'com.oracle', name: 'ojdbc6', version: ojdbc6Version
+  testCompile group: 'com.oracle.database.jdbc', name: 'ojdbc6', version: ojdbc6Version
   testCompile group: 'com.sun.jersey', name: 'jersey-server', version: sunJerseyVersion
   testCompile group: 'com.sun.jersey', name: 'jersey-core', version: sunJerseyVersion
   testCompile group: 'com.sun.jersey', name: 'jersey-servlet', version: sunJerseyVersion

@@ -723,7 +723,7 @@ class SparkSession private(
     this.streams.addListener(listener)
     sessionState.registerStreamingQueryListener(listener)
     if (sparkContext.ui.isDefined) {
-      // logInfo("Updating Web UI to add structure streaming tab.")
+      logDebug("Updating Web UI to add structure streaming tab.")
       sparkContext.ui.foreach(ui => {
         var structStreamTabPresent: Boolean = false
         val tabsList = ui.getTabs
@@ -732,7 +732,7 @@ class SparkSession private(
           // Check if Structure Streaming Tab is present or not
           if (tab.prefix.equalsIgnoreCase("structuredstreaming")) {
             structStreamTabPresent = true
-            // logInfo("Structure Streaming UI Tab is already present.")
+            logDebug("Structure Streaming UI Tab is already present.")
           }
         })
         // Add Structure Streaming Tab, iff not present
@@ -744,7 +744,7 @@ class SparkSession private(
           new SnappyStreamingTab(ui, listener)
         }
       })
-      logTrace("Updating Web UI to add structured streaming tab is Done.")
+      logDebug("Updating Web UI to add structured streaming tab is Done.")
     }
   }
 
