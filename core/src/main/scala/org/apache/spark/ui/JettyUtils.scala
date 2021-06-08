@@ -17,7 +17,7 @@
 /*
  * Changes for TIBCO Project SnappyData data platform.
  *
- * Portions Copyright (c) 2017-2020 TIBCO Software Inc. All rights reserved.
+ * Portions Copyright (c) 2017-2021 TIBCO Software Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License. You
@@ -46,7 +46,7 @@ import org.eclipse.jetty.client.HttpClient
 import org.eclipse.jetty.client.api.Response
 import org.eclipse.jetty.client.http.HttpClientTransportOverHTTP
 import org.eclipse.jetty.proxy.ProxyServlet
-import org.eclipse.jetty.security.{ConstraintMapping, ConstraintSecurityHandler, HashLoginService, SecurityHandler}
+import org.eclipse.jetty.security.{ConstraintMapping, ConstraintSecurityHandler, HashLoginService, SecurityHandler, UserStore}
 import org.eclipse.jetty.security.authentication.BasicAuthenticator
 import org.eclipse.jetty.server._
 import org.eclipse.jetty.server.handler._
@@ -95,7 +95,9 @@ object JettyUtils extends Logging {
     val userName = "snappyuser"
     val password = "snappyuser"
     val ls = new HashLoginService()
-    ls.putUser(userName, Credential.getCredential(password), snappyDataRoles)
+    val userStore = new UserStore()
+    userStore.addUser(userName, Credential.getCredential(password), snappyDataRoles)
+    ls.setUserStore(userStore)
     ls.setName(snappyDataRealm)
     ls
   }

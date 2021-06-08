@@ -145,8 +145,8 @@ class HiveUDFDynamicLoadSuite extends QueryTest with SQLTestUtils with TestHiveS
     // which contain new UDF classes to be dynamically loaded and tested via Spark.
 
     // This jar file should not be placed to the classpath.
-    val jarPath = "src/test/noclasspath/hive-test-udfs.jar"
-    val jarUrl = s"file://${System.getProperty("user.dir")}/$jarPath"
+    val jarPath = s"${getRootDir("../..")}/sql/hive/src/test/noclasspath/hive-test-udfs.jar"
+    val jarUrl = s"file://$jarPath"
 
     test("Spark should be able to run Hive UDF using jar regardless of " +
       s"current thread context classloader (${udfInfo.identifier}") {

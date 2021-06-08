@@ -42,7 +42,7 @@ dependencies {
     exclude(group: 'commons-pool', module: 'commons-pool')
   }
   compile group: 'org.eclipse.jetty', name: 'jetty-servlet', version: jettyVersion
-  compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: jacksonBindVersion
+  compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: jacksonVersion
   compile(group: 'org.apache.arrow', name: 'arrow-vector', version: arrowVersion) {
     exclude(group: 'com.fasterxml.jackson.core', module: 'jackson-annotations')
     exclude(group: 'com.fasterxml.jackson.core', module: 'jackson-databind')

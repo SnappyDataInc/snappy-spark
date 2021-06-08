@@ -17,7 +17,7 @@
 /*
  * Changes for TIBCO Project SnappyData data platform.
  *
- * Portions Copyright (c) 2017-2020 TIBCO Software Inc. All rights reserved.
+ * Portions Copyright (c) 2017-2021 TIBCO Software Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License. You
@@ -313,7 +313,7 @@ class UISeleniumSuite extends SparkFunSuite with WebBrowser with Matchers with B
         jobGroup = job \ "jobGroup"
       } {
         jobId.toInt match {
-          case 0 => jobGroup should be (JNull)
+          case 0 => jobGroup should (be (JNothing) or be (JNull))
           case 1 => jobGroup should be (JString("my-job-group"))
         }
       }

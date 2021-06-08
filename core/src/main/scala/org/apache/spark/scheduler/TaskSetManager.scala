@@ -17,7 +17,7 @@
 /*
  * Changes for TIBCO Project SnappyData data platform.
  *
- * Portions Copyright (c) 2017-2020 TIBCO Software Inc. All rights reserved.
+ * Portions Copyright (c) 2017-2021 TIBCO Software Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License. You
@@ -115,7 +115,7 @@ private[spark] class TaskSetManager(
       sched.backend.getClass.getName.contains("SnappyCoarseGrainedSchedulerBackend")
 
   // keep the configured value for spark.task.cpus preferring local job setting if present
-  val confCpusPerTask: Int = if (taskSet.properties ne null) {
+  private[spark] val confCpusPerTask: Int = if (taskSet.properties ne null) {
     taskSet.properties.getProperty(CPUS_PER_TASK) match {
       case null => sched.CPUS_PER_TASK
       case s => max(s.toInt, 1)

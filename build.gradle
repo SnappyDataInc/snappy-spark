@@ -51,9 +51,10 @@ allprojects {
   apply plugin: 'idea'
 
   group = 'io.snappydata'
-  version = '2.4.7.1'
+  version = '2.4.8.1'
 
   ext {
+    productName = 'SnappyData'
     vendorName = 'TIBCO Software Inc.'
     scalaBinaryVersion = '2.11'
     scalaVersion = scalaBinaryVersion + '.12'
@@ -62,7 +63,7 @@ allprojects {
     protobufVersion = '3.6.1'
     jerseyVersion = '2.22.2'
     sunJerseyVersion = '1.19.4'
-    jettyVersion = '9.3.28.v20191105'
+    jettyVersion = '9.4.40.v20210413'
     log4jVersion = '1.2.17'
     slf4jVersion = '1.7.30'
     junitVersion = '4.12'
@@ -81,11 +82,10 @@ allprojects {
     levelDbJniVersion = '1.8'
     jackson1Version = '1.9.13'
     jacksonVersion = '2.9.9'
-    jacksonBindVersion = '2.9.9'
-    snappyJavaVersion = '1.1.7.5'
-    lz4Version = '1.4.1'
+    snappyJavaVersion = '1.1.8.2'
+    lz4Version = '1.5.0'
     lzfVersion = '1.0.4'
-    zstdVersion = '1.3.2-2'
+    zstdVersion = '1.4.4-3'
     parquetVersion = '1.10.1'
     orcVersion = '1.5.8'
     metricsVersion = '3.2.6'
@@ -96,6 +96,7 @@ allprojects {
     seleniumVersion = '2.52.0'
     curatorVersion = '2.7.1'
     commonsCodecVersion = '1.11'
+    commonsCompressVersion = '1.20'
     commonsCryptoVersion = '1.0.0'
     arrowVersion = '0.10.0'
     commonsIoVersion = '2.6'
@@ -144,7 +145,7 @@ allprojects {
     jettyJspVersion = '2.2.0.v201112011158'
     jettyJstlVersion = '1.2.0.v201105211821'
 
-    scalatestVersion = '3.0.8'
+    scalatestVersion = '3.0.9'
     scalaCheckVersion = '1.13.5'
     junitInterfaceVersion = '0.11'
     hamcrestVersion = '1.3'
@@ -174,6 +175,22 @@ allprojects {
   }
 }
 
+// set python2 for pyspark if python3 version is an unsupported one
+String sparkPython = 'python'
+def checkResult = exec {
+  ignoreExitValue = true
+  commandLine 'sh', '-c', 'python --version 2>/dev/null | grep -Eq "( 3\\.[0-7])|( 2\\.)"'
+}
+if (checkResult.exitValue != 0) {
+  checkResult = exec {
+    ignoreExitValue = true
+    commandLine 'sh', '-c', 'python2 --version >/dev/null 2>&1'
+  }
+  if (checkResult.exitValue == 0) {
+    sparkPython = 'python2'
+  }
+}
+
 def getStackTrace(def t) {
   java.io.StringWriter sw = new java.io.StringWriter()
   java.io.PrintWriter pw = new java.io.PrintWriter(sw)
@@ -197,6 +214,10 @@ subprojects {
   apply plugin: 'scala'
   apply plugin: 'maven'
   apply plugin: 'scalaStyle'
+
+  int maxWorkers = project.hasProperty('org.gradle.workers.max') ?
+                   project.property('org.gradle.workers.max') as int :
+                   Runtime.getRuntime().availableProcessors()
 
   // apply compiler options
   tasks.withType(JavaCompile) {
@@ -344,7 +365,7 @@ subprojects {
   }
   test {
     jvmArgs '-Xss4096k'
-    maxParallelForks = Runtime.getRuntime().availableProcessors()
+    maxParallelForks = maxWorkers
     systemProperties 'spark.master.rest.enabled': 'false',
       'test.src.tables': 'src'
 
@@ -389,6 +410,8 @@ gradle.taskGraph.whenReady { graph ->
           'SPARK_SCALA_VERSION': scalaBinaryVersion,
           'SPARK_TESTING': '1',
           'SPARK_VERSIONS_SUITE_IVY_PATH': "${System.getProperty('user.home')}/.ivy2",
+          'PYSPARK_PYTHON': sparkPython,
+          'PYSPARK_DRIVER_PYTHON': sparkPython,
           'JAVA_HOME': System.getProperty('java.home')
         systemProperties 'log4j.configuration': "file:${task.project.projectDir}/src/test/resources/log4j.properties",
           'derby.system.durability': 'test',

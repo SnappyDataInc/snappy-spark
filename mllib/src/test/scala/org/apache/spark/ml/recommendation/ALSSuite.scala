@@ -666,7 +666,9 @@ class ALSSuite extends MLTest with DefaultReadWriteTest with Logging {
             .first().getFloat(0)
           testTransformerByGlobalCheckFunc(df, act, "prediction") {
             case rows: Seq[Row] =>
-              expected ~== rows.head.getFloat(0) absTol 1e-6
+              if (!rows.exists(r => expected ~= r.getFloat(0) absTol 1e-6)) {
+                expected ~== rows.head.getFloat(0) absTol 1e-6
+              }
           }(enc)
         }
     }

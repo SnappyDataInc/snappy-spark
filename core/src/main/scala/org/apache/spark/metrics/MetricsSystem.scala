@@ -17,7 +17,7 @@
 /*
  * Changes for TIBCO Project SnappyData data platform.
  *
- * Portions Copyright (c) 2017-2020 TIBCO Software Inc. All rights reserved.
+ * Portions Copyright (c) 2017-2021 TIBCO Software Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License. You
@@ -179,10 +179,11 @@ private[spark] class MetricsSystem private (
     } else { defaultName }
   }
 
-  def getSourcesByName(sourceName: String): Seq[Source] =
+  def getSourcesByName(sourceName: String): Seq[Source] = synchronized {
     sources.filter(_.sourceName == sourceName)
+  }
 
-  def registerSource(source: Source) {
+  def registerSource(source: Source): Unit = synchronized {
     sources += source
     try {
       val regName = buildRegistryName(source)
@@ -192,7 +193,7 @@ private[spark] class MetricsSystem private (
     }
   }
 
-  def removeSource(source: Source) {
+  def removeSource(source: Source): Unit = synchronized {
     sources -= source
     val regName = buildRegistryName(source)
     registry.removeMatching(new MetricFilter {

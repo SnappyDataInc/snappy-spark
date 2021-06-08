@@ -14,6 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for TIBCO Project SnappyData data platform.
+ *
+ * Portions Copyright (c) 2017-2021 TIBCO Software Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark.sql.hive.client
 
@@ -25,6 +43,7 @@ import org.apache.hadoop.hive.common.StatsSetupConst
 import org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
 import org.apache.hadoop.hive.serde2.`lazy`.LazySimpleSerDe
 import org.apache.hadoop.mapred.TextInputFormat
+import org.apache.hadoop.util.VersionInfo
 
 import org.apache.spark.SparkFunSuite
 import org.apache.spark.internal.Logging
@@ -112,8 +131,11 @@ class VersionsSuite extends SparkFunSuite with Logging {
     assert(getNestedMessages(e) contains "Unknown column 'A0.OWNER_NAME' in 'field list'")
   }
 
-  private val versions =
-    Seq("0.12", "0.13", "0.14", "1.0", "1.1", "1.2", "2.0", "2.1", "2.2", "2.3")
+  private val versions = {
+    // older hive versions do not support hadoop 3.x which requires hive 2.x (or the builtin one)
+    if (VersionInfo.getVersion.startsWith("3.")) Seq("2.0", "2.1", "2.2", "2.3")
+    else Seq("0.12", "0.13", "0.14", "1.0", "1.1", "1.2", "2.0", "2.1", "2.2", "2.3")
+  }
 
   private var client: HiveClient = null
 
@@ -305,7 +327,7 @@ class VersionsSuite extends SparkFunSuite with Logging {
       try {
         client.dropTable("default", tableName = "temporary", ignoreIfNotExists = false,
           purge = true)
-        assert(!versionsWithoutPurge.contains(version))
+        if (versions.length > 1) assert(!versionsWithoutPurge.contains(version))
       } catch {
         case _: UnsupportedOperationException =>
           assert(versionsWithoutPurge.contains(version))
@@ -447,7 +469,7 @@ class VersionsSuite extends SparkFunSuite with Logging {
       try {
         client.dropPartitions("default", "src_part", Seq(spec), ignoreIfNotExists = true,
           purge = true, retainData = false)
-        assert(!versionsWithoutPurge.contains(version))
+        if (versions.length > 1) assert(!versionsWithoutPurge.contains(version))
       } catch {
         case _: UnsupportedOperationException =>
           assert(versionsWithoutPurge.contains(version))
