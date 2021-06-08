@@ -27,9 +27,9 @@ buildscript {
     mavenCentral()
   }
   dependencies {
-    classpath 'io.snappydata:gradle-scalatest:0.23'
+    classpath 'io.snappydata:gradle-scalatest:0.25'
     classpath 'org.github.ngbinh.scalastyle:gradle-scalastyle-plugin_2.11:0.9.0'
-    classpath 'com.github.jengelman.gradle.plugins:shadow:4.0.3'
+    classpath 'com.github.jengelman.gradle.plugins:shadow:5.2.0'
     classpath 'com.commercehub.gradle.plugin:gradle-avro-plugin:0.8.0'
   }
 }
@@ -43,7 +43,7 @@ allprojects {
 
   repositories {
     mavenCentral()
-    maven { url 'http://repository.apache.org/snapshots' }
+    maven { url 'https://repo.hortonworks.com/content/repositories/releases/' }
   }
 
   apply plugin: 'java'
@@ -51,10 +51,10 @@ allprojects {
   apply plugin: 'idea'
 
   group = 'io.snappydata'
-  version = snappySparkVersion
-  productName = productName
+  version = '2.1.1.9'
 
   ext {
+    productName = 'SnappyData'
     vendorName = 'TIBCO Software Inc.'
     scalaBinaryVersion = '2.11'
     scalaVersion = scalaBinaryVersion + '.8'
@@ -279,8 +279,7 @@ subprojects {
 
   if (rootProject.name == 'snappy-spark') {
     task scalaTest(type: Test) {
-      def factory = new com.github.maiflai.BackwardsCompatibleJavaExecActionFactory(gradle.gradleVersion)
-      actions = [ new com.github.maiflai.ScalaTestAction(factory) ]
+      actions = [ new com.github.maiflai.ScalaTestAction() ]
 
       testLogging.exceptionFormat = TestExceptionFormat.FULL
       testLogging.events = TestLogEvent.values() as Set
@@ -425,10 +424,7 @@ if (rootProject.name == 'snappy-spark') {
   task scalaStyle {
     dependsOn subprojects.scalaStyle
   }
-  task check {
-    dependsOn subprojects.check
-  }
 } else {
   scalaStyle.dependsOn subprojects.scalaStyle
-  check.dependsOn subprojects.check
 }
+check.dependsOn subprojects.check
