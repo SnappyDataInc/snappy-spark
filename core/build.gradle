@@ -142,7 +142,7 @@ dependencies {
     exclude(group: 'org.slf4j', module: 'slf4j-api')
     exclude(group: 'org.slf4j', module: 'slf4j-log4j12')
   }
-  compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: jacksonBindVersion
+  compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: jacksonVersion
   compile(group: 'com.fasterxml.jackson.module', name: 'jackson-module-scala_' + scalaBinaryVersion, version: jacksonVersion) {
     exclude(group: 'org.scala-lang', module: 'scala-library')
     exclude(group: 'org.scala-lang', module: 'scala-reflect')

@@ -17,7 +17,7 @@
 /*
  * Changes for TIBCO Project SnappyData data platform.
  *
- * Portions Copyright (c) 2017-2019 TIBCO Software Inc. All rights reserved.
+ * Portions Copyright (c) 2017-2021 TIBCO Software Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License. You
@@ -43,6 +43,7 @@ import java.util.concurrent.atomic.AtomicLong
 import scala.collection.Set
 import scala.collection.mutable.{ArrayBuffer, HashMap, HashSet}
 import scala.util.Random
+
 import org.apache.spark._
 import org.apache.spark.TaskState.TaskState
 import org.apache.spark.internal.Logging
@@ -195,8 +196,9 @@ private[spark] class TaskSchedulerImpl(
     val tasks = taskSet.tasks
     logInfo("Adding task set " + taskSet.id + " with " + tasks.length + " tasks")
     this.synchronized {
-      val maxRetryAttemptsForWrite = taskSet.properties.
-        getProperty(SNAPPY_WRITE_RETRY_PROP)
+      val maxRetryAttemptsForWrite =
+        if (taskSet.properties ne null) taskSet.properties.getProperty(SNAPPY_WRITE_RETRY_PROP)
+        else null
 
       logInfo("The maxRetryAttemptsForWrite is set to " + maxRetryAttemptsForWrite +
         "maxTaskFailure " + maxTaskFailures)

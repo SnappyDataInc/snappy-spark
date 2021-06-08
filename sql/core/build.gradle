@@ -27,7 +27,7 @@ dependencies {
   compile group: 'org.apache.parquet', name: 'parquet-column', version: parquetVersion
   compile group: 'org.apache.parquet', name: 'parquet-hadoop', version: parquetVersion
   compile group: 'org.eclipse.jetty', name: 'jetty-servlet', version: jettyVersion
-  compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: jacksonBindVersion
+  compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: jacksonVersion
   compile group: 'org.apache.xbean', name: 'xbean-asm5-shaded', version: xbeanAsm5Version
 
   testCompile project(path: subprojectBase + 'snappy-spark-tags_' + scalaBinaryVersion, configuration: 'testOutput')

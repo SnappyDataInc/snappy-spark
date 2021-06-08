@@ -27,9 +27,9 @@ buildscript {
     mavenCentral()
   }
   dependencies {
-    classpath 'io.snappydata:gradle-scalatest:0.23'
+    classpath 'io.snappydata:gradle-scalatest:0.25'
     classpath 'org.github.ngbinh.scalastyle:gradle-scalastyle-plugin_2.11:0.9.0'
-    classpath 'com.github.jengelman.gradle.plugins:shadow:4.0.3'
+    classpath 'com.github.jengelman.gradle.plugins:shadow:5.2.0'
     classpath 'com.commercehub.gradle.plugin:gradle-avro-plugin:0.8.0'
   }
 }
@@ -43,7 +43,7 @@ allprojects {
 
   repositories {
     mavenCentral()
-    maven { url 'http://repository.apache.org/snapshots' }
+    maven { url 'https://repo.hortonworks.com/content/repositories/releases/' }
   }
 
   apply plugin: 'java'
@@ -51,14 +51,14 @@ allprojects {
   apply plugin: 'idea'
 
   group = 'io.snappydata'
-  version = snappySparkVersion
-  productName = productName
+  version = '2.1.1.9'
 
   ext {
+    productName = 'SnappyData'
     vendorName = 'TIBCO Software Inc.'
     scalaBinaryVersion = '2.11'
     scalaVersion = scalaBinaryVersion + '.8'
-    hadoopVersion = '2.7.7'
+    hadoopVersion = '3.2.0'
     protobufVersion = '3.6.1'
     jerseyVersion = '2.22.2'
     sunJerseyVersion = '1.19.4'
@@ -81,7 +81,6 @@ allprojects {
     levelDbJniVersion = '1.8'
     jackson1Version = '1.9.13'
     jacksonVersion = '2.9.9'
-    jacksonBindVersion = '2.9.9'
     snappyJavaVersion = '1.1.7.2'
     lz4Version = '1.5.0'
     lzfVersion = '1.0.4'
@@ -170,6 +169,22 @@ allprojects {
   }
 }
 
+// set python2 for pyspark if python3 version is an unsupported one
+String sparkPython = 'python'
+def checkResult = exec {
+  ignoreExitValue = true
+  commandLine 'sh', '-c', 'python --version 2>/dev/null | grep -Eq "( 3\\.[0-7])|( 2\\.)"'
+}
+if (checkResult.exitValue != 0) {
+  checkResult = exec {
+    ignoreExitValue = true
+    commandLine 'sh', '-c', 'python2 --version >/dev/null 2>&1'
+  }
+  if (checkResult.exitValue == 0) {
+    sparkPython = 'python2'
+  }
+}
+
 def getStackTrace(def t) {
   java.io.StringWriter sw = new java.io.StringWriter()
   java.io.PrintWriter pw = new java.io.PrintWriter(sw)
@@ -192,6 +207,10 @@ subprojects {
   apply plugin: 'scala'
   apply plugin: 'maven'
   apply plugin: 'scalaStyle'
+
+  int maxWorkers = project.hasProperty('org.gradle.workers.max') ?
+                   project.property('org.gradle.workers.max') as int :
+                   Runtime.getRuntime().availableProcessors()
 
   // apply compiler options
   compileJava.options.encoding = 'UTF-8'
@@ -279,8 +298,7 @@ subprojects {
 
   if (rootProject.name == 'snappy-spark') {
     task scalaTest(type: Test) {
-      def factory = new com.github.maiflai.BackwardsCompatibleJavaExecActionFactory(gradle.gradleVersion)
-      actions = [ new com.github.maiflai.ScalaTestAction(factory) ]
+      actions = [ new com.github.maiflai.ScalaTestAction() ]
 
       testLogging.exceptionFormat = TestExceptionFormat.FULL
       testLogging.events = TestLogEvent.values() as Set
@@ -326,7 +344,7 @@ subprojects {
   }
   test {
     jvmArgs '-Xss4096k'
-    maxParallelForks = Runtime.getRuntime().availableProcessors()
+    maxParallelForks = maxWorkers
     systemProperties 'spark.master.rest.enabled': 'false',
       'test.src.tables': 'src'
 
@@ -369,6 +387,8 @@ gradle.taskGraph.whenReady { graph ->
           'SPARK_PREPEND_CLASSES': '1',
           'SPARK_SCALA_VERSION': scalaBinaryVersion,
           'SPARK_TESTING': '1',
+          'PYSPARK_PYTHON': sparkPython,
+          'PYSPARK_DRIVER_PYTHON': sparkPython,
           'JAVA_HOME': System.getProperty('java.home')
         systemProperties 'log4j.configuration': "file:${projectDir}/src/test/resources/log4j.properties",
           'derby.system.durability': 'test',
@@ -425,10 +445,7 @@ if (rootProject.name == 'snappy-spark') {
   task scalaStyle {
     dependsOn subprojects.scalaStyle
   }
-  task check {
-    dependsOn subprojects.check
-  }
 } else {
   scalaStyle.dependsOn subprojects.scalaStyle
-  check.dependsOn subprojects.check
 }
+check.dependsOn subprojects.check

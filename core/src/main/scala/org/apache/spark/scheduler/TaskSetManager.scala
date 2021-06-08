@@ -17,7 +17,7 @@
 /*
  * Changes for TIBCO Project SnappyData data platform.
  *
- * Portions Copyright (c) 2017-2019 TIBCO Software Inc. All rights reserved.
+ * Portions Copyright (c) 2017-2021 TIBCO Software Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License. You
@@ -43,11 +43,12 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import scala.collection.mutable.{ArrayBuffer, HashMap, HashSet}
 import scala.math.{max, min}
 import scala.util.control.NonFatal
+
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.SchedulingMode._
-import org.apache.spark.TaskState.TaskState
 import org.apache.spark.serializer.SerializerInstance
+import org.apache.spark.TaskState.TaskState
 import org.apache.spark.util.{AccumulatorV2, Clock, SystemClock, Utils}
 
 /**
@@ -97,10 +98,13 @@ private[spark] class TaskSetManager(
     sched.backend.getClass.getName.contains("SnappyCoarseGrainedSchedulerBackend")
 
   // keep the configured value for spark.task.cpus preferring local job setting if present
-  val confCpusPerTask: Int = taskSet.properties.getProperty(CPUS_PER_TASK) match {
-    case s if (s ne null) && supportsDynamicCpusPerTask => max(s.toInt, sched.CPUS_PER_TASK)
-    case _ => sched.CPUS_PER_TASK
-  }
+  private[spark] val confCpusPerTask: Int = if (taskSet.properties ne null) {
+    taskSet.properties.getProperty(CPUS_PER_TASK) match {
+      case s if (s ne null) && supportsDynamicCpusPerTask => max(s.toInt, sched.CPUS_PER_TASK)
+      case _ => sched.CPUS_PER_TASK
+    }
+  } else sched.CPUS_PER_TASK
+
   // tracks the max of spark.task.cpus across all tasks in this task set
   // when they are dynamically incremented for OOME/LME failures
   private[spark] var maxCpusPerTask: Int = confCpusPerTask
@@ -513,7 +517,8 @@ private[spark] class TaskSetManager(
         // Serialize and return the task
         val serializedTask: ByteBuffer = try {
           // Task.serializeWithDependencies(task, sched.sc.addedFiles, sched.sc.addedJars, ser)
-          Task.serializeWithDependencies(task, sched.sc.addedFiles, sched.sc.addedJars, getSerializer(task))
+          Task.serializeWithDependencies(task, sched.sc.addedFiles, sched.sc.addedJars,
+            getSerializer(task))
         } catch {
           // If the task cannot be serialized, then there's no point to re-attempt the task,
           // as it will always fail. So just abort the whole task-set.

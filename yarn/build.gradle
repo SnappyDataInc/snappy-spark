@@ -60,6 +60,7 @@ dependencies {
     exclude(group: 'com.sun.jersey.jersey-test-framework')
     exclude(group: 'com.sun.jersey.contribs')
   }
+  compile group: 'com.fasterxml.jackson.jaxrs', name: 'jackson-jaxrs-json-provider', version: jacksonVersion
   compile group: 'com.google.guava', name: 'guava', version: guavaVersion
   compile group: 'org.eclipse.jetty', name: 'jetty-server', version: jettyVersion
   compile group: 'org.eclipse.jetty', name: 'jetty-plus', version: jettyVersion
@@ -118,7 +119,7 @@ dependencies {
 
   testCompile group: 'org.eclipse.jetty.orbit', name: 'javax.servlet.jsp', version: jettyJspVersion
   testCompile group: 'org.eclipse.jetty.orbit', name: 'javax.servlet.jsp.jstl', version: jettyJstlVersion
-  testCompile(group: 'org.apache.hadoop', name: 'hadoop-yarn-server-tests', version: hadoopVersion, classifier:'tests') {
+  testCompile(group: 'org.apache.hadoop', name: 'hadoop-yarn-server-tests', version: hadoopVersion, classifier: 'tests') {
     exclude(group: 'asm', module: 'asm')
     exclude(group: 'org.ow2.asm', module: 'asm')
     exclude(group: 'org.jboss.netty', module: 'netty')
@@ -128,6 +129,7 @@ dependencies {
     exclude(group: 'com.sun.jersey.jersey-test-framework')
     exclude(group: 'com.sun.jersey.contribs')
   }
+  testCompile group: 'org.apache.hadoop', name: 'hadoop-common', version: hadoopVersion, classifier: 'tests'
   testCompile(group: 'org.mortbay.jetty', name: 'jetty', version: jettyOldVersion) {
     exclude(group: 'org.mortbay.jetty', module: 'servlet-api')
   }

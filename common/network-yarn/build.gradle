@@ -47,7 +47,7 @@ dependencies {
   runtimeJar project(subprojectBase + 'snappy-spark-network-common_' + scalaBinaryVersion)
   runtimeJar project(subprojectBase + 'snappy-spark-network-shuffle_' + scalaBinaryVersion)
   runtimeJar group: 'io.netty', name: 'netty-all', version: nettyAllVersion
-  runtimeJar group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: jacksonBindVersion
+  runtimeJar group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: jacksonVersion
   runtimeJar group: 'com.fasterxml.jackson.core', name: 'jackson-annotations', version: jacksonVersion
   */
 }

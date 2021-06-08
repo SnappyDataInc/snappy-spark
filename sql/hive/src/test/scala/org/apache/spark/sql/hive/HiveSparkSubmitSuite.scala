@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 /*
- * Changes for SnappyData data platform.
+ * Changes for TIBCO Project SnappyData data platform.
  *
- * Portions Copyright (c) 2017-2019 TIBCO Software Inc. All rights reserved.
+ * Portions Copyright (c) 2017-2021 TIBCO Software Inc. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you
  * may not use this file except in compliance with the License. You
@@ -43,6 +43,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.tools.nsc.Properties
 
 import org.apache.hadoop.fs.Path
+import org.apache.hadoop.util.VersionInfo
 import org.scalatest.{BeforeAndAfterEach, Matchers}
 import org.scalatest.concurrent.Timeouts
 import org.scalatest.exceptions.TestFailedDueToTimeoutException
@@ -397,12 +398,14 @@ object SetMetastoreURLTest extends Logging {
     val builder = SparkSession.builder()
       .config(sparkConf)
       .config("spark.ui.enabled", "false")
-      .config("spark.sql.hive.metastore.version", "0.13.1")
-      // The issue described in SPARK-16901 only appear when
-      // spark.sql.hive.metastore.jars is not set to builtin.
-      .config("spark.sql.hive.metastore.jars", "maven")
       .enableHiveSupport()
 
+    if (!VersionInfo.getVersion.startsWith("3.")) {
+      builder.config("spark.sql.hive.metastore.version", "0.13.1")
+          // The issue described in SPARK-16901 only appear when
+          // spark.sql.hive.metastore.jars is not set to builtin.
+          .config("spark.sql.hive.metastore.jars", "maven")
+    }
     val spark = builder.getOrCreate()
     val expectedMetastoreURL =
       spark.conf.get("spark.sql.test.expectedMetastoreURL")
@@ -706,6 +709,7 @@ object SparkSQLConfTest extends Logging {
         // If there is any metastore settings, remove them.
         val filteredSettings = super.getAll.filterNot(e => isMetastoreSetting(e._1))
 
+        if (VersionInfo.getVersion.startsWith("3.")) return filteredSettings
         // Always add these two metastore settings at the beginning.
         ("spark.sql.hive.metastore.version" -> "0.12") +:
         ("spark.sql.hive.metastore.jars" -> "maven") +:
@@ -733,10 +737,13 @@ object SPARK_9757 extends QueryTest {
     Utils.configTestLog4j("INFO")
 
     val hiveWarehouseLocation = Utils.createTempDir()
+    val conf = new SparkConf()
+    if (!VersionInfo.getVersion.startsWith("3.")) {
+      conf.set("spark.sql.hive.metastore.version", "0.13.1")
+          .set("spark.sql.hive.metastore.jars", "maven")
+    }
     val sparkContext = new SparkContext(
-      new SparkConf()
-        .set("spark.sql.hive.metastore.version", "0.13.1")
-        .set("spark.sql.hive.metastore.jars", "maven")
+      conf
         .set("spark.ui.enabled", "false")
         .set("spark.sql.warehouse.dir", hiveWarehouseLocation.toString))
 
