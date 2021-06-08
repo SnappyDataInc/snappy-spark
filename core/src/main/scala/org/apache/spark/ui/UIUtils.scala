@@ -277,7 +277,8 @@ private[spark] object UIUtils extends Logging {
                   </a>
                 </div>
                 <div class="brand" style="line-height: 2.5;">
-                  <a class="brand" href="https://github.com/TIBCOSoftware/snappydata" target="_blank">
+                  <a class="brand"
+                     href="https://github.com/TIBCOSoftware/snappydata" target="_blank">
                     <img src={prependBaseUri("/static/snappydata/snappydata-175X28.png")}
                          style="cursor: pointer;" />
                   </a>
@@ -633,8 +634,8 @@ private[spark] object UIUtils extends Logging {
               </p>
               <p>
                 For assistance, get started at: <br />
-                <a href="https://www.snappydata.io/community" target="_blank">
-                  https://www.snappydata.io/community</a> <br />
+                <a href="https://community.tibco.com/products/tibco-computedb" target="_blank">
+                  https://community.tibco.com/products/tibco-computedb</a> <br />
                 <a href="https://www.tibco.com/" target="_blank">https://www.tibco.com/</a> <br />
                 <a href="http://tibcosoftware.github.io/snappydata/" target="_blank">
                   Product Documentation

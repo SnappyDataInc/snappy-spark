@@ -22,6 +22,7 @@ import java.util.concurrent.{ExecutorService, RejectedExecutionException}
 
 import scala.language.existentials
 import scala.util.control.NonFatal
+
 import org.apache.spark._
 import org.apache.spark.TaskState.TaskState
 import org.apache.spark.internal.Logging

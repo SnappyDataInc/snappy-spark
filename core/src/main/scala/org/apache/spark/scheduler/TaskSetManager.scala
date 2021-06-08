@@ -43,11 +43,12 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import scala.collection.mutable.{ArrayBuffer, HashMap, HashSet}
 import scala.math.{max, min}
 import scala.util.control.NonFatal
+
 import org.apache.spark._
 import org.apache.spark.internal.Logging
 import org.apache.spark.scheduler.SchedulingMode._
-import org.apache.spark.TaskState.TaskState
 import org.apache.spark.serializer.SerializerInstance
+import org.apache.spark.TaskState.TaskState
 import org.apache.spark.util.{AccumulatorV2, Clock, SystemClock, Utils}
 
 /**
@@ -513,7 +514,8 @@ private[spark] class TaskSetManager(
         // Serialize and return the task
         val serializedTask: ByteBuffer = try {
           // Task.serializeWithDependencies(task, sched.sc.addedFiles, sched.sc.addedJars, ser)
-          Task.serializeWithDependencies(task, sched.sc.addedFiles, sched.sc.addedJars, getSerializer(task))
+          Task.serializeWithDependencies(task, sched.sc.addedFiles, sched.sc.addedJars,
+            getSerializer(task))
         } catch {
           // If the task cannot be serialized, then there's no point to re-attempt the task,
           // as it will always fail. So just abort the whole task-set.
