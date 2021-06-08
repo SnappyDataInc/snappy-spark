@@ -362,7 +362,7 @@ class CloudPickler(Pickler):
         return (code, f_globals, defaults, closure, dct, base_globals)
 
     def save_builtin_function(self, obj):
-        if obj.__module__ is "__builtin__":
+        if obj.__module__ == "__builtin__":
             return self.save_global(obj)
         return self.save_function(obj)
     dispatch[types.BuiltinFunctionType] = save_builtin_function

@@ -277,7 +277,8 @@ private[spark] object UIUtils extends Logging {
                   </a>
                 </div>
                 <div class="brand" style="line-height: 2.5;">
-                  <a class="brand" href="https://github.com/TIBCOSoftware/snappydata" target="_blank">
+                  <a class="brand"
+                     href="https://github.com/TIBCOSoftware/snappydata" target="_blank">
                     <img src={prependBaseUri("/static/snappydata/snappydata-175X28.png")}
                          style="cursor: pointer;" />
                   </a>
