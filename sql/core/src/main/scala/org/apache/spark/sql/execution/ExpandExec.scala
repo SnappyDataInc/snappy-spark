@@ -177,9 +177,10 @@ case class ExpandExec(
       }
 
       s"""
-         |case $row:
-         |  ${updateCode.trim}
-         |  break;
+         |case $row: {
+         |    ${updateCode.trim}
+         |    break;
+         |  }
        """.stripMargin
     }
 
