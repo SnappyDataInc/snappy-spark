@@ -343,7 +343,6 @@ private[spark] class Executor(
           // SPARK-32898: it's possible that a task is killed when taskStartTime has the initial
           // value(=0) still. In this case, the executorRunTime should be considered as 0.
           if (taskStartTime > 0) math.max(System.nanoTime() - taskStartTime, 0L) / 1000000.0 else 0)
-            math.max(System.nanoTime() - taskStartTime, 0L) / 1000000.0)
         val taskEndCpu = if (threadMXBean.isCurrentThreadCpuTimeSupported) {
           threadMXBean.getCurrentThreadCpuTime
         } else 0L
