@@ -14,6 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for TIBCO Project SnappyData data platform.
+ *
+ * Portions Copyright (c) 2017-2021 TIBCO Software Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark.sql.execution.ui
 
@@ -228,8 +246,14 @@ class SQLListener(conf: SparkConf) extends SparkListener with Logging {
       stageAttemptID: Int,
       _accumulatorUpdates: Seq[AccumulableInfo],
       finishTask: Boolean): Unit = {
-    val accumulatorUpdates =
-      _accumulatorUpdates.filter(_.update.isDefined).map(accum => (accum.id, accum.update.get))
+    val accumulatorIds = new mutable.ArrayBuffer[Long]()
+    val accumulatorValues = new mutable.ArrayBuffer[Long]
+    _accumulatorUpdates.foreach {
+      case AccumulableInfo(id, _, Some(update: Long), _, _, _, _) =>
+        accumulatorIds += id
+        accumulatorValues += update
+      case _ =>
+    }
 
     _stageIdToStageMetrics.get(stageId) match {
       case Some(stageMetrics) =>
@@ -247,9 +271,11 @@ class SQLListener(conf: SparkConf) extends SparkListener with Logging {
             case Some(taskMetrics) =>
               if (finishTask) {
                 taskMetrics.finished = true
-                taskMetrics.accumulatorUpdates = accumulatorUpdates
+                taskMetrics.accumulatorIds = accumulatorIds.toArray
+                taskMetrics.accumulatorValues = accumulatorValues.toArray
               } else if (!taskMetrics.finished) {
-                taskMetrics.accumulatorUpdates = accumulatorUpdates
+                taskMetrics.accumulatorIds = accumulatorIds.toArray
+                taskMetrics.accumulatorValues = accumulatorValues.toArray
               } else {
                 // If a task is finished, we should not override with accumulator updates from
                 // heartbeat reports
@@ -258,7 +284,8 @@ class SQLListener(conf: SparkConf) extends SparkListener with Logging {
               // TODO Now just set attemptId to 0. Should fix here when we can get the attempt
               // id from SparkListenerExecutorMetricsUpdate
               stageMetrics.taskIdToMetricUpdates(taskId) = new SQLTaskMetrics(
-                  attemptId = 0, finished = finishTask, accumulatorUpdates)
+                  attemptId = 0, finished = finishTask,
+                  accumulatorIds.toArray, accumulatorValues.toArray)
           }
         }
       case None =>
@@ -347,8 +374,8 @@ class SQLListener(conf: SparkConf) extends SparkListener with Logging {
           for (stageId <- executionUIData.stages;
                stageMetrics <- _stageIdToStageMetrics.get(stageId).toIterable;
                taskMetrics <- stageMetrics.taskIdToMetricUpdates.values;
-               accumulatorUpdate <- taskMetrics.accumulatorUpdates) yield {
-            (accumulatorUpdate._1, accumulatorUpdate._2)
+               accIndex <- taskMetrics.accumulatorIds.indices) yield {
+            (taskMetrics.accumulatorIds(accIndex), taskMetrics.accumulatorValues(accIndex))
           }
         }
 
@@ -484,4 +511,5 @@ private[ui] class SQLStageMetrics(
 private[ui] class SQLTaskMetrics(
     val attemptId: Long, // TODO not used yet
     var finished: Boolean,
-    var accumulatorUpdates: Seq[(Long, Any)])
+    // all the useful accumulator values here are SQLMetric types which are always Long
+    var accumulatorIds: Array[Long], var accumulatorValues: Array[Long])

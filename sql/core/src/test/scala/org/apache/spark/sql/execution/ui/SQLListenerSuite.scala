@@ -390,7 +390,8 @@ class SQLListenerSuite extends SparkFunSuite with SharedSQLContext with JsonTest
     // accumulators that are not SQL metrics.
     listener.onTaskEnd(taskEnd)
     val trackedAccums = listener.stageIdToStageMetrics.values.flatMap { stageMetrics =>
-      stageMetrics.taskIdToMetricUpdates.values.flatMap(_.accumulatorUpdates)
+      stageMetrics.taskIdToMetricUpdates.values.flatMap(m =>
+        m.accumulatorIds.zip(m.accumulatorValues))
     }
     // Listener tracks only SQL metrics, not other accumulators
     assert(trackedAccums.size === 1)

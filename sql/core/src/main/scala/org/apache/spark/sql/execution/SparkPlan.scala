@@ -14,6 +14,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+/*
+ * Changes for TIBCO Project SnappyData data platform.
+ *
+ * Portions Copyright (c) 2017-2021 TIBCO Software Inc. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you
+ * may not use this file except in compliance with the License. You
+ * may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+ * implied. See the License for the specific language governing
+ * permissions and limitations under the License. See accompanying
+ * LICENSE file.
+ */
 
 package org.apache.spark.sql.execution
 
@@ -31,6 +49,8 @@ import org.apache.spark.sql.catalyst.expressions._
 import org.apache.spark.sql.catalyst.expressions.codegen.{Predicate => GenPredicate, _}
 import org.apache.spark.sql.catalyst.plans.QueryPlan
 import org.apache.spark.sql.catalyst.plans.physical._
+import org.apache.spark.sql.execution.command.ExecutedCommandExec
+import org.apache.spark.sql.execution.exchange.BroadcastExchangeExec
 import org.apache.spark.sql.execution.metric.SQLMetric
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.util.ThreadUtils
@@ -211,6 +231,22 @@ abstract class SparkPlan extends QueryPlan[SparkPlan] with Logging with Serializ
    */
   protected[sql] def doExecuteBroadcast[T](): broadcast.Broadcast[T] = {
     throw new UnsupportedOperationException(s"$nodeName does not implement doExecuteBroadcast")
+  }
+
+  /**
+   * Eagerly clear any broadcasts created by this plan execution.
+   */
+  def clearBroadcasts(removeFromDriver: Boolean = false): Unit = {
+    var hasExecutionPlan = removeFromDriver
+    foreach {
+      case _: ExecutedCommandExec if !hasExecutionPlan => hasExecutionPlan = true
+      case broadcastExchange: BroadcastExchangeExec => broadcastExchange.relationBroadcast match {
+        case Some(b) =>
+          sparkContext.env.broadcastManager.unbroadcast(b.id, hasExecutionPlan, blocking = false)
+        case _ =>
+      }
+      case _ =>
+    }
   }
 
   /**
